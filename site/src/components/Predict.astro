@@ -1,0 +1,104 @@
+---
+/**
+ * Registers `<kz-predict>`, the commit-before-you-run box.
+ *
+ * Renders no markup of its own: like Diagram.astro it exists only to get the custom-element
+ * definition onto every doc page (included from Footer.astro, which Starlight renders everywhere).
+ * The elements themselves are emitted by scripts/sync-content.mjs, which already recognises the
+ * course's `> **Predict first —** …` blockquotes and now wraps them in this element instead of a
+ * plain div.
+ *
+ * The problem this solves: the course has 31 pages that ask the reader to predict something, and the
+ * answer is almost always in the next paragraph. A prompt you can read straight past is a prompt you
+ * *will* read straight past — and the retrieval-practice benefit comes from the attempt, not from
+ * having been asked. So this adds the one thing the printed page cannot: a place to put the answer
+ * before you are allowed to see the real one, and a chip that keeps your wrong answer visible while
+ * you read why it was wrong.
+ *
+ * Progressive enhancement, same contract as the diagrams: with JavaScript off the blockquote and its
+ * callout styling are untouched, so the reader still gets the prompt exactly as the author wrote it.
+ * Nothing is hidden behind the interaction — deliberately. Blurring the following prose would mean
+ * guessing where "the answer" ends, and would break Ctrl-F, print, and every reader who just wants to
+ * read. Committing is a nudge, not a gate.
+ */
+---
+
+<script>
+  import { getPrediction, setPrediction, clearPrediction } from '../lib/predictions';
+
+  class PredictBox extends HTMLElement {
+    connectedCallback() {
+      // Guard against a second upgrade: Starlight's view transitions can re-run this on the same node.
+      if (this.dataset.ready === 'true') return;
+      this.dataset.ready = 'true';
+
+      const index = [...document.querySelectorAll('kz-predict')].indexOf(this);
+      const path = location.pathname;
+
+      const form = document.createElement('form');
+      form.className = 'predict__form not-content';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'predict__input';
+      input.placeholder = 'Your answer — a number or a few words';
+      input.setAttribute('aria-label', 'Your prediction');
+      input.autocomplete = 'off';
+
+      const button = document.createElement('button');
+      button.type = 'submit';
+      button.className = 'predict__button';
+      button.textContent = 'Lock it in';
+
+      const locked = document.createElement('p');
+      locked.className = 'predict__locked not-content';
+
+      form.append(input, button);
+      this.append(form, locked);
+
+      /** Swap between "not yet answered" and "answered, here's what you said". */
+      const render = (value: string | null) => {
+        this.dataset.locked = value === null ? 'false' : 'true';
+        if (value === null) {
+          locked.replaceChildren();
+          return;
+        }
+        const label = document.createElement('span');
+        label.className = 'predict__label';
+        label.textContent = 'You predicted';
+
+        const said = document.createElement('strong');
+        said.className = 'predict__value';
+        said.textContent = value;
+
+        const reset = document.createElement('button');
+        reset.type = 'button';
+        reset.className = 'predict__reset';
+        reset.textContent = 'clear';
+        reset.addEventListener('click', () => {
+          clearPrediction(path, index);
+          input.value = '';
+          render(null);
+          input.focus();
+        });
+
+        locked.replaceChildren(label, said, reset);
+      };
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const value = input.value.trim();
+        if (!value) {
+          input.focus();
+          return;
+        }
+        setPrediction(path, index, value);
+        render(value);
+      });
+
+      render(getPrediction(path, index));
+    }
+  }
+
+  if (!customElements.get('kz-predict')) customElements.define('kz-predict', PredictBox);
+</script>

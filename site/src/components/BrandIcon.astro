@@ -1,0 +1,30 @@
+---
+/**
+ * A brand mark for the three acts that are *about* a named technology: Act I (the Linux kernel),
+ * Act IV (Docker) and Act V (Kubernetes). Every other card keeps its Lucide glyph, because a
+ * protocol has no vendor — ARP and TCP belong to nobody, and giving them a logo would be a lie.
+ *
+ * Lucide draws a 2px stroke with no fill; these are solid shapes on the same 24x24 grid, so they
+ * read optically heavier at identical dimensions. global.css sizes them down a little to compensate,
+ * so a branded card sits in the same visual family instead of shouting.
+ */
+import { BRAND_MARKS, type BrandName } from '../lib/brand-marks';
+
+interface Props {
+  name: BrandName;
+  /** Accessible name. Omit on decorative marks that sit beside a text title. */
+  label?: string;
+}
+
+const { name, label } = Astro.props;
+---
+
+<svg
+  viewBox="0 0 24 24"
+  fill="currentColor"
+  role="img"
+  aria-hidden={label ? undefined : 'true'}
+  aria-label={label}
+>
+  <path d={BRAND_MARKS[name]} />
+</svg>

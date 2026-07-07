@@ -1,0 +1,159 @@
+---
+/**
+ * The checkpoints that are due again.
+ *
+ * This is the piece that turns the mid-lesson checkpoints from a one-shot into something that
+ * compounds. Answering a question once, in the lesson that just explained it, is the easiest possible
+ * conditions for recall and proves the least. The same question a week later, with the lesson closed,
+ * is the one that tells you whether you know it — and the gap is doing the work, not the repetition.
+ *
+ * Deliberately not a study app. There is no daily target, no streak, no notification, and the list is
+ * short by construction because there are only a few dozen checkpoints in the course. A streak would
+ * turn a course you work through in a month into a habit you feel guilty about breaking, which is a
+ * worse relationship with the material than reading nothing.
+ *
+ * Rendered entirely client-side: the queue lives in localStorage (see `lib/review.ts`), so the server
+ * has nothing to render and the empty state is the honest first-visit view.
+ */
+---
+
+<div class="review not-content" data-review hidden>
+  <h3 class="review__title">Due for review</h3>
+  <p class="review__lead">
+    Checkpoints you graded a while ago. Try each from memory, then follow the link and check.
+  </p>
+  <ul class="review__list" data-review-list></ul>
+</div>
+
+<script>
+  import { due, type ReviewEntry } from '../lib/review';
+
+  /** `/act-3/tcp-states/` -> `Act III · Tcp states`, for a list row that has to stand alone. */
+  function describe(path: string): string {
+    const parts = path.split('/').filter(Boolean);
+    const act = parts[0] ?? '';
+    const slug = parts[1] ?? '';
+    const roman: Record<string, string> = {
+      'act-1': 'Act I',
+      'act-2': 'Act II',
+      'act-3': 'Act III',
+      'act-4': 'Act IV',
+      'act-5': 'Act V',
+      orientation: 'Orientation',
+    };
+    const title = slug.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
+    return `${roman[act] ?? act} · ${title}`;
+  }
+
+  function relative(at: number): string {
+    const days = Math.floor((Date.now() - at) / 86_400_000);
+    if (days <= 0) return 'today';
+    if (days === 1) return 'yesterday';
+    return `${days} days ago`;
+  }
+
+  function render() {
+    const root = document.querySelector<HTMLElement>('[data-review]');
+    const list = document.querySelector<HTMLElement>('[data-review-list]');
+    if (!root || !list) return;
+
+    const items = due();
+    // Nothing due is the normal state most of the time, and an empty panel saying so on every visit
+    // would be clutter. Hide it instead.
+    root.hidden = items.length === 0;
+    if (!items.length) return;
+
+    list.replaceChildren(
+      ...items.map((entry: ReviewEntry & { key: string }) => {
+        const li = document.createElement('li');
+        li.className = 'review__item';
+        li.dataset.grade = entry.grade;
+
+        const prompt = document.createElement('p');
+        prompt.className = 'review__prompt';
+        prompt.textContent = entry.prompt || 'A checkpoint on this page';
+
+        const meta = document.createElement('p');
+        meta.className = 'review__meta';
+
+        const link = document.createElement('a');
+        link.href = entry.path;
+        link.textContent = describe(entry.path);
+
+        const when = document.createElement('span');
+        when.className = 'review__when';
+        when.textContent =
+          entry.grade === 'notyet'
+            ? `missed ${relative(entry.at)}`
+            : `answered ${relative(entry.at)}`;
+
+        meta.append(link, document.createTextNode(' · '), when);
+        li.append(prompt, meta);
+        return li;
+      }),
+    );
+  }
+
+  render();
+  // Re-render if a checkpoint is graded in another tab, or by this page's own links coming back.
+  document.addEventListener('ln:review', render);
+  window.addEventListener('storage', render);
+</script>
+
+<style>
+  .review {
+    margin-block: var(--s-6);
+    padding: var(--s-5);
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: var(--r-lg);
+    background: var(--sl-color-gray-6);
+  }
+
+  .review__title {
+    margin: 0;
+    font-size: var(--sl-text-h4);
+    font-weight: var(--kz-w-semibold);
+    color: var(--sl-color-white);
+  }
+
+  .review__lead {
+    margin-block: var(--s-2) var(--s-4);
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+
+  .review__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .review__item {
+    padding-block: var(--s-3);
+    padding-inline-start: var(--s-4);
+    /* A left rule in the grade's colour: the ones you missed should be visibly the ones to do first,
+       and they are already sorted to the top. */
+    border-inline-start: 2px solid var(--sl-color-green-high);
+  }
+
+  .review__item[data-grade='notyet'] {
+    border-inline-start-color: var(--sl-color-orange-high);
+  }
+
+  .review__item + .review__item {
+    border-block-start: 1px solid var(--sl-color-hairline);
+  }
+
+  .review__prompt {
+    margin: 0;
+    color: var(--sl-color-white);
+  }
+
+  .review__meta {
+    margin-block: var(--s-1) 0;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+
+  .review__when { color: var(--sl-color-gray-4); }
+</style>

@@ -1,0 +1,158 @@
+---
+/**
+ * Registers `<kz-annotate spec="…">`, the field-by-field reader for raw kernel output.
+ *
+ * Renders no markup of its own — like Diagram, Predict and Checkpoint it only carries the
+ * custom-element definition, and is included from Footer.astro so every doc page gets it.
+ * sync-content.mjs emits the elements from a `<!-- annotate: name -->` directive, wrapping the raw
+ * fenced block the lesson already wrote.
+ *
+ * The problem: this course spends Act I teaching you to read `/proc/net/tcp` by hand, and then keeps
+ * asking you to. But the lessons could only describe those fields in prose or point at them with ASCII
+ * art, which means the reader has to hold "the fourth space-separated column, in hex, byte-reversed"
+ * in their head while looking at `0100007F:1F90`. Marking the field itself and saying what it is
+ * removes that step entirely.
+ *
+ * Progressive enhancement, same contract as the diagrams: with JavaScript off the original fenced
+ * block is what you see, unchanged, including whatever ASCII pointers the author drew under it. That
+ * fallback is not a consolation prize here — several of these blocks already carry a full hand-drawn
+ * decode, and it stays correct on GitHub.
+ *
+ * `:defined` in global.css swaps one for the other with no flash, because it matches from the moment
+ * the definition lands rather than after a frame of layout.
+ */
+---
+
+<script>
+  import { ANNOTATIONS, type AnnotatedField } from '../lib/annotations';
+
+  /**
+   * Split one line into plain runs and marked fields, consuming `fields` left to right.
+   *
+   * Searching from the end of the previous match is why the spec needs no occurrence counts or
+   * character offsets: a `find` of `01` means the next `01` after the field before it — the state
+   * column, not the `01` sitting inside the address two fields earlier. `state.index` carries the
+   * position in the field list across lines; a field that isn't on this line waits for the next one.
+   */
+  function markLine(
+    line: string,
+    fields: AnnotatedField[],
+    state: { index: number },
+  ): Array<{ text: string; field?: AnnotatedField; n?: number }> {
+    const parts: Array<{ text: string; field?: AnnotatedField; n?: number }> = [];
+    let pos = 0;
+
+    while (state.index < fields.length) {
+      const field = fields[state.index]!;
+      const at = line.indexOf(field.find, pos);
+      if (at === -1) break; // not on this line — leave it for a later one
+
+      if (at > pos) parts.push({ text: line.slice(pos, at) });
+      state.index += 1;
+      parts.push({ text: field.find, field, n: state.index });
+      pos = at + field.find.length;
+    }
+
+    if (pos < line.length) parts.push({ text: line.slice(pos) });
+    return parts;
+  }
+
+  class AnnotateBlock extends HTMLElement {
+    connectedCallback() {
+      if (this.dataset.ready === 'true') return;
+      const name = this.getAttribute('spec');
+      const spec = name ? ANNOTATIONS[name] : undefined;
+      if (!spec) return; // unknown spec — the fenced fallback is already in the DOM, so leave it
+      this.dataset.ready = 'true';
+
+      const root = document.createElement('div');
+      root.className = 'annotate not-content';
+      // Marks what this element built, so global.css can hide the authored fallback beside it —
+      // the same `[data-pw]` trick Diagram.astro uses.
+      root.dataset.annotate = '';
+
+      if (spec.lead) {
+        const lead = document.createElement('p');
+        lead.className = 'annotate__lead';
+        lead.textContent = spec.lead;
+        root.append(lead);
+      }
+
+      const pre = document.createElement('pre');
+      pre.className = 'annotate__out';
+      const code = document.createElement('code');
+
+      const noteBox = document.createElement('p');
+      noteBox.className = 'annotate__note';
+      noteBox.setAttribute('aria-live', 'polite');
+      const showNote = (field: AnnotatedField | null) => {
+        if (!field) {
+          noteBox.replaceChildren();
+          return;
+        }
+        const label = document.createElement('strong');
+        label.textContent = field.label;
+        noteBox.replaceChildren(label, document.createTextNode(` — ${field.note}`));
+      };
+
+      const state = { index: 0 };
+      spec.text.forEach((line, i) => {
+        if (i > 0) code.append(document.createTextNode('\n'));
+        for (const part of markLine(line, spec.fields, state)) {
+          if (!part.field) {
+            code.append(document.createTextNode(part.text));
+            continue;
+          }
+          // A button, not a span: this has to be reachable by keyboard and announced as interactive.
+          const mark = document.createElement('button');
+          mark.type = 'button';
+          mark.className = 'annotate__field';
+          mark.textContent = part.text;
+          mark.dataset.n = String(part.n);
+          mark.setAttribute('aria-label', `${part.field.label}: ${part.field.note}`);
+          const field = part.field;
+          for (const event of ['mouseenter', 'focus'] as const) {
+            mark.addEventListener(event, () => showNote(field));
+          }
+          mark.addEventListener('click', () => showNote(field));
+          code.append(mark);
+        }
+      });
+
+      if (state.index < spec.fields.length) {
+        // A lesson edited its example output without updating the spec. Better to keep the ASCII
+        // fallback than to show a half-marked row that looks authoritative and isn't.
+        console.warn(
+          `kz-annotate[${name}]: could not place field "${spec.fields[state.index]!.find}" — falling back`,
+        );
+        return;
+      }
+
+      pre.append(code);
+      root.append(pre, noteBox);
+
+      // The legend is the no-hover, no-pointer, printable version of the same information.
+      const legend = document.createElement('ol');
+      legend.className = 'annotate__legend';
+      spec.fields.forEach((field) => {
+        const li = document.createElement('li');
+        const label = document.createElement('strong');
+        label.textContent = field.label;
+        li.append(label, document.createTextNode(` — ${field.note}`));
+        legend.append(li);
+      });
+      root.append(legend);
+
+      if (spec.caption) {
+        const caption = document.createElement('p');
+        caption.className = 'annotate__caption';
+        caption.textContent = spec.caption;
+        root.append(caption);
+      }
+
+      this.append(root);
+    }
+  }
+
+  if (!customElements.get('kz-annotate')) customElements.define('kz-annotate', AnnotateBlock);
+</script>

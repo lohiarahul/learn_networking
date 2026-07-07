@@ -1,0 +1,370 @@
+---
+/**
+ * Registers `<kz-packet-walk spec="…">`, the animated time–space diagram used in the lessons.
+ *
+ * Renders no markup of its own: it exists only to get the custom-element definition onto every doc
+ * page (it is included from Footer.astro, which Starlight renders everywhere). The elements
+ * themselves are emitted into the page by scripts/sync-content.mjs, which turns a
+ * `<!-- figure: name -->` directive in the course Markdown into this element wrapped around the
+ * lesson's original ASCII diagram.
+ *
+ * That wrapping is the whole progressive-enhancement story. The ASCII stays in the DOM as the
+ * element's own child, so with JavaScript off — or when a spec name is unknown, or a browser
+ * without custom elements — the reader still gets the diagram the course author wrote. `:defined`
+ * in global.css swaps one for the other with no flash, because it matches from the moment the
+ * definition lands rather than after a frame of layout.
+ */
+---
+
+<script>
+  import { PACKET_WALKS, type PacketWalk, type Step } from '../lib/packet-walks';
+
+  // -- Geometry ----------------------------------------------------------------
+  // A fixed viewBox, scaled to the column by CSS. Everything is expressed in these units, so the
+  // diagram is laid out once and never re-measured on resize.
+  const W = 640;
+  const PAD = 18;
+  const HEAD_H = 26; // the lane header pill
+  const HEAD_GAP = 22; // header pill to first arrow
+  // Rows are tall enough that a gloss binds to the arrow *above* it. At 60 the gap below a gloss and
+  // the gap above it were within a few pixels of each other, so "I start at X" read as belonging to
+  // the SYN-ACK arrow underneath as much as to the SYN arrow it describes.
+  const MSG_H = 74; // label, arrow, gloss
+  const BAND_H = 44;
+  /**
+   * Every arrow drops this far from send to receive. It is the one piece of information a UML
+   * sequence diagram throws away: a packet takes time to cross a wire, which is why a handshake
+   * costs a round trip. Small enough to stay legible, large enough to read as a slope.
+   */
+  const SLOPE = 16;
+
+  const SVGNS = 'http://www.w3.org/2000/svg';
+
+  const rowHeight = (s: Step) => (s.kind === 'band' ? BAND_H : MSG_H);
+
+  /**
+   * Lane centres. The outer lanes keep this fraction of the width outside them — enough for the
+   * header pills and a wrapping gloss, without the half-step inset that used to squeeze two lanes
+   * into the middle half of the figure and leave the arrows stubby.
+   */
+  const LANE_INSET = 0.16;
+
+  function laneX(i: number, n: number): number {
+    const inner = W - 2 * PAD;
+    if (n === 1) return PAD + inner / 2;
+    return PAD + inner * (LANE_INSET + ((1 - 2 * LANE_INSET) * i) / (n - 1));
+  }
+
+  function el<K extends keyof SVGElementTagNameMap>(
+    tag: K,
+    attrs: Record<string, string | number> = {},
+  ): SVGElementTagNameMap[K] {
+    const node = document.createElementNS(SVGNS, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
+    return node;
+  }
+
+  /** A one-line summary for screen readers, so the SVG isn't an unlabelled blob. */
+  function describe(walk: PacketWalk): string {
+    const parts = walk.steps.map((s) =>
+      s.kind === 'band' ? s.label : `${walk.lanes[s.from]} to ${walk.lanes[s.to]}: ${s.label}`,
+    );
+    return `Time–space diagram. ${parts.join('. ')}.`;
+  }
+
+  interface Built {
+    svg: SVGSVGElement;
+    /** Everything the animation touches, in the order it should appear. */
+    timeline: { node: SVGElement; kind: 'draw' | 'fade'; at: number; ms: number }[];
+    /** Phase bands, whose rails can only be drawn once the text can be measured. See drawBands. */
+    bands: { rail: SVGGElement; text: SVGTextElement; midY: number; left: number; right: number }[];
+    total: number;
+  }
+
+  /**
+   * Fill in the phase-band rails, which have to wait until the SVG is in the document: `getBBox`
+   * measures rendered geometry and returns zeros on a detached tree.
+   *
+   * The rail is split around the text rather than run behind it. A stroke knockout alone only covers
+   * glyphs, so the line showed through the *space* between words and "connection ESTABLISHED" read
+   * as "connection-ESTABLISHED".
+   */
+  function drawBands(built: Built) {
+    const pad = 9;
+    for (const { rail, text, midY, left, right } of built.bands) {
+      rail.replaceChildren();
+      let box: DOMRect | null = null;
+      try {
+        box = text.getBBox() as DOMRect;
+      } catch {
+        box = null; // Not rendered (display:none ancestor, say) — fall back to one unbroken rail.
+      }
+      if (box && box.width > 0 && box.x - pad > left && box.x + box.width + pad < right) {
+        rail.append(
+          el('line', { x1: left, y1: midY, x2: box.x - pad, y2: midY }),
+          el('line', { x1: box.x + box.width + pad, y1: midY, x2: right, y2: midY }),
+        );
+      } else {
+        rail.append(el('line', { x1: left, y1: midY, x2: right, y2: midY }));
+      }
+    }
+  }
+
+  function build(walk: PacketWalk): Built {
+    const n = walk.lanes.length;
+    const bodyTop = PAD + HEAD_H + HEAD_GAP;
+    const height = bodyTop + walk.steps.reduce((sum, s) => sum + rowHeight(s), 0) + PAD;
+
+    const svg = el('svg', {
+      viewBox: `0 0 ${W} ${height}`,
+      role: 'img',
+      'aria-label': describe(walk),
+    });
+
+    // Lifelines first, so every arrow and label paints over them.
+    for (let i = 0; i < n; i++) {
+      const x = laneX(i, n);
+      svg.append(
+        el('line', {
+          class: 'pw__lifeline',
+          x1: x,
+          y1: PAD + HEAD_H,
+          x2: x,
+          y2: height - PAD,
+        }),
+      );
+    }
+
+    // Lane headers.
+    for (let i = 0; i < n; i++) {
+      const x = laneX(i, n);
+      const w = Math.max(72, walk.lanes[i].length * 8.5 + 22);
+      svg.append(
+        el('rect', {
+          class: 'pw__lane-box',
+          x: x - w / 2,
+          y: PAD,
+          width: w,
+          height: HEAD_H,
+          rx: 6,
+        }),
+      );
+      const t = el('text', { class: 'pw__lane-text', x, y: PAD + HEAD_H / 2 });
+      t.textContent = walk.lanes[i];
+      svg.append(t);
+    }
+
+    const timeline: Built['timeline'] = [];
+    const bands: Built['bands'] = [];
+    let y = bodyTop;
+    let at = 0;
+
+    // Long exchanges tighten up. The TLS handshake and the ndots search are ten-plus steps, and at
+    // the short-walk cadence they ran past six seconds — long enough that a reader scrolls away
+    // mid-diagram. Steps still start in order; they just overlap a little.
+    const pace = walk.steps.length > 7 ? 0.7 : 1;
+
+    for (const step of walk.steps) {
+      if (step.kind === 'band') {
+        const midY = y + 21;
+        // The rail goes in first so the text paints over it; drawBands fills it once measurable.
+        const rail = el('g', { class: 'pw__band-line' });
+        const text = el('text', {
+          class: 'pw__band-text',
+          x: W / 2,
+          y: midY,
+          // Knockout fallback: the glyphs carry a surface-coloured stroke painted *under* the fill,
+          // which hides the rail behind the words if the split can't be measured.
+          'paint-order': 'stroke fill',
+        });
+        text.textContent = step.label;
+        svg.append(rail, text);
+        bands.push({ rail, text, midY, left: laneX(0, n), right: laneX(n - 1, n) });
+
+        timeline.push({ node: rail, kind: 'fade', at, ms: 360 });
+        timeline.push({ node: text, kind: 'fade', at, ms: 360 });
+        at += 520 * pace;
+        y += BAND_H;
+        continue;
+      }
+
+      const rightward = step.to > step.from;
+      const x1 = laneX(step.from, n);
+      const x2 = laneX(step.to, n);
+      const y1 = y + 28;
+      const y2 = y1 + SLOPE;
+
+      const line = el('line', { class: 'pw__arrow', x1, y1, x2, y2 });
+      svg.append(line);
+      timeline.push({ node: line, kind: 'draw', at, ms: 460 });
+
+      // Slope is ~3°, so a horizontal head reads correctly and avoids a rotate transform.
+      const head = el('polygon', {
+        class: 'pw__head',
+        points: rightward
+          ? `${x2},${y2} ${x2 - 9},${y2 - 4.5} ${x2 - 9},${y2 + 4.5}`
+          : `${x2},${y2} ${x2 + 9},${y2 - 4.5} ${x2 + 9},${y2 + 4.5}`,
+      });
+      svg.append(head);
+      timeline.push({ node: head, kind: 'fade', at: at + 400, ms: 160 });
+
+      const mid = (x1 + x2) / 2;
+      const label = el('text', { class: 'pw__label', x: mid, y: y + 13 });
+      label.textContent = step.label;
+      svg.append(label);
+      timeline.push({ node: label, kind: 'fade', at, ms: 260 });
+
+      if (step.says) {
+        const gloss = el('text', { class: 'pw__gloss', x: mid, y: y + 57 });
+        gloss.textContent = `“${step.says}”`;
+        svg.append(gloss);
+        timeline.push({ node: gloss, kind: 'fade', at: at + 420, ms: 260 });
+      }
+
+      at += 620 * pace;
+      y += MSG_H;
+    }
+
+    return { svg, timeline, bands, total: at };
+  }
+
+  // -- The element -------------------------------------------------------------
+
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+
+  class PacketWalkElement extends HTMLElement {
+    private built: Built | null = null;
+    private running: Animation[] = [];
+
+    connectedCallback() {
+      const name = this.getAttribute('spec') ?? '';
+      const walk = PACKET_WALKS[name];
+      if (!walk) {
+        // Unknown spec: say so once in the console and leave the authored ASCII showing. A missing
+        // figure should degrade to the source diagram, never to a blank space.
+        console.warn(`[packet-walk] no spec named "${name}" — keeping the ASCII fallback`);
+        this.dataset.state = 'fallback';
+        return;
+      }
+      if (this.built) return;
+
+      const built = build(walk);
+      this.built = built;
+
+      // The scroller sits inside a positioned viewport so the edge fade can overlay it. A diagram
+      // this wide has to scroll on a phone rather than shrink below legibility (the same trade the
+      // Mermaid blocks make) — but a scroll nobody can see is a scroll nobody takes.
+      const viewport = document.createElement('div');
+      viewport.className = 'pw__viewport';
+      viewport.dataset.pw = '';
+      const frame = document.createElement('div');
+      frame.className = 'pw__frame';
+      frame.append(built.svg);
+      viewport.append(frame);
+
+      const syncOverflow = () => {
+        const max = frame.scrollWidth - frame.clientWidth;
+        viewport.dataset.overflow = max > 2 && frame.scrollLeft < max - 2 ? 'true' : 'false';
+      };
+      frame.addEventListener('scroll', syncOverflow, { passive: true });
+      new ResizeObserver(syncOverflow).observe(frame);
+
+      const foot = document.createElement('div');
+      foot.className = 'pw__foot';
+      foot.dataset.pw = '';
+      if (walk.caption) {
+        const cap = document.createElement('p');
+        cap.className = 'pw__caption';
+        cap.textContent = walk.caption;
+        foot.append(cap);
+      }
+
+      const replay = document.createElement('button');
+      replay.type = 'button';
+      replay.className = 'pw__replay';
+      replay.textContent = 'Replay';
+      replay.addEventListener('click', () => this.play());
+      foot.append(replay);
+
+      this.append(viewport, foot);
+      // Only now is the SVG rendered, so the band rails can be measured and split.
+      drawBands(built);
+      syncOverflow();
+      this.dataset.state = 'ready';
+
+      if (REDUCED.matches) {
+        this.settle();
+        return;
+      }
+
+      this.reset();
+      // Play when it comes into view, once — an animation that ran while off-screen has taught
+      // nobody anything, and one that loops is a distraction next to prose.
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            io.disconnect();
+            this.play();
+          }
+        },
+        { threshold: 0.35 },
+      );
+      io.observe(this);
+    }
+
+    /** Hide everything the timeline will bring in. */
+    private reset() {
+      for (const item of this.built!.timeline) {
+        if (item.kind === 'draw') {
+          const len = (item.node as SVGGeometryElement).getTotalLength();
+          item.node.style.strokeDasharray = String(len);
+          item.node.style.strokeDashoffset = String(len);
+        } else {
+          item.node.style.opacity = '0';
+        }
+      }
+    }
+
+    /** The finished diagram, with no motion — reduced-motion readers start here. */
+    private settle() {
+      for (const item of this.built!.timeline) {
+        item.node.style.strokeDasharray = '';
+        item.node.style.strokeDashoffset = '';
+        item.node.style.opacity = '';
+      }
+    }
+
+    private play() {
+      const built = this.built;
+      if (!built) return;
+      for (const a of this.running) a.cancel();
+      this.running = [];
+
+      if (REDUCED.matches) {
+        this.settle();
+        return;
+      }
+
+      this.reset();
+      for (const item of built.timeline) {
+        const keyframes: Keyframe[] =
+          item.kind === 'draw'
+            ? [{ strokeDashoffset: item.node.style.strokeDashoffset }, { strokeDashoffset: '0' }]
+            : [{ opacity: 0 }, { opacity: 1 }];
+        this.running.push(
+          item.node.animate(keyframes, {
+            duration: item.ms,
+            delay: item.at,
+            easing: item.kind === 'draw' ? 'cubic-bezier(.4,0,.5,1)' : 'ease-out',
+            fill: 'forwards',
+          }),
+        );
+      }
+    }
+  }
+
+  if (!customElements.get('kz-packet-walk')) {
+    customElements.define('kz-packet-walk', PacketWalkElement);
+  }
+</script>

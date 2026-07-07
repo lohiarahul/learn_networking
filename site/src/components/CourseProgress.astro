@@ -1,0 +1,101 @@
+---
+/**
+ * Per-act progress bars. Totals are counted at build time from the content collection, so they can
+ * never drift from the actual number of pages; the completed counts are filled in on the client from
+ * localStorage (see src/lib/progress.ts).
+ */
+import { getCollection } from 'astro:content';
+
+const ACTS = [
+  { prefix: 'orientation', label: 'Orientation' },
+  { prefix: 'act-1', label: 'Act I — One machine' },
+  { prefix: 'act-2', label: 'Act II — Two machines' },
+  { prefix: 'act-3', label: 'Act III — The internet' },
+  { prefix: 'act-4', label: 'Act IV — One pretends to be many' },
+  { prefix: 'act-5', label: 'Act V — Kubernetes' },
+  { prefix: 'capstone', label: 'Capstone' },
+];
+
+const docs = await getCollection('docs');
+
+const groups = ACTS.map((act) => {
+  const entries = docs.filter((d) => d.id === act.prefix || d.id.startsWith(`${act.prefix}/`));
+  // Most groups have an index page; `capstone/` deliberately doesn't, so link its first page instead,
+  // ordered by the `sidebar.order` the sync script writes rather than guessing alphabetically.
+  const hasIndex = entries.some((d) => d.id === act.prefix);
+  const first = [...entries].sort(
+    (a, b) => (a.data.sidebar?.order ?? 0) - (b.data.sidebar?.order ?? 0)
+  )[0];
+  return {
+    ...act,
+    total: entries.length,
+    href: hasIndex || !first ? `/${act.prefix}/` : `/${first.id}/`,
+  };
+}).filter((g) => g.total > 0);
+
+const grandTotal = groups.reduce((n, g) => n + g.total, 0);
+---
+
+<div class="progress not-content" data-progress data-grand-total={grandTotal}>
+  <div class="progress__head">
+    <span class="kz-eyebrow">Your progress</span>
+    <span class="progress__count"><span data-progress-done>0</span> of {grandTotal} pages</span>
+  </div>
+
+  <ul class="progress__list">
+    {
+      groups.map((g) => (
+        <li class="progress__row" data-prefix={`/${g.prefix}/`} data-total={g.total}>
+          <a class="progress__label" href={g.href}>{g.label}</a>
+          <div class="progress__track" role="progressbar" aria-valuemin="0" aria-valuemax={g.total} aria-valuenow="0" aria-label={g.label}>
+            <div class="progress__fill" style="inline-size:0%"></div>
+          </div>
+          <span class="progress__num"><span data-row-done>0</span>/{g.total}</span>
+        </li>
+      ))
+    }
+  </ul>
+
+  <button class="progress__reset" type="button" data-progress-reset>Reset progress</button>
+  <p class="progress__note">Stored in this browser only — no account, nothing sent anywhere.</p>
+</div>
+
+<script>
+  import { countUnder, write } from '../lib/progress';
+
+  function render() {
+    for (const root of document.querySelectorAll<HTMLElement>('[data-progress]')) {
+      let done = 0;
+      for (const row of root.querySelectorAll<HTMLElement>('.progress__row')) {
+        const prefix = row.dataset.prefix;
+        const total = Number(row.dataset.total ?? 0);
+        if (!prefix || !total) continue;
+
+        const n = Math.min(countUnder(prefix), total);
+        done += n;
+
+        const fill = row.querySelector<HTMLElement>('.progress__fill');
+        if (fill) fill.style.inlineSize = `${Math.round((n / total) * 100)}%`;
+        const num = row.querySelector('[data-row-done]');
+        if (num) num.textContent = String(n);
+        row.querySelector('.progress__track')?.setAttribute('aria-valuenow', String(n));
+        row.dataset.complete = n === total ? 'true' : 'false';
+      }
+      const out = root.querySelector('[data-progress-done]');
+      if (out) out.textContent = String(done);
+    }
+  }
+
+  for (const btn of document.querySelectorAll<HTMLElement>('[data-progress-reset]')) {
+    btn.addEventListener('click', () => {
+      if (!confirm('Clear your progress for every page? This cannot be undone.')) return;
+      write(new Set());
+      render();
+    });
+  }
+
+  render();
+  // Keep in step when a lesson is ticked in another tab, or by the footer toggle on this page.
+  document.addEventListener('ln:progress', render);
+  window.addEventListener('storage', render);
+</script>

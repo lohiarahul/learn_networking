@@ -1,0 +1,58 @@
+/* ============================================================================
+   tokens.css — the small set of tokens the theme does NOT own.
+
+   Colour and the type scale are `starlight-theme-flexoki`'s job now. What's left here is a typeface
+   (Aspekta, from the Kaluza brand kit — kept because it's a genuinely good reading face, and it's one
+   `--sl-font` line to remove), an 8px spacing grid, radii, and motion. Nothing here hard-codes a hue,
+   so swapping the Starlight theme again doesn't require touching this file.
+   ============================================================================ */
+
+/* WOFF2, not TrueType. The same four faces as `.ttf` were 220 KB; Brotli-compressed they are 82.5 KB,
+   for identical glyph coverage — see `scripts/ttf2woff2.mjs`, which is kept around to regenerate them.
+   Nothing subsets them: the course renders arrows, box-drawing characters and ✓/⚑ in prose, and a
+   subset is how one of those quietly becomes a tofu box on a page nobody rechecks.
+
+   Relative URLs on purpose. These resolve through Vite, so they come out hashed *and* prefixed with
+   BASE_PATH when the site is deployed under a subpath — an absolute `/fonts/…` would skip the base and
+   404 there. `Head.astro` preloads the 400 weight through the same resolver for the same reason. */
+@font-face { font-family: 'Aspekta'; src: url('./fonts/Aspekta-400.woff2') format('woff2'); font-weight: 400; font-display: swap; font-style: normal; }
+@font-face { font-family: 'Aspekta'; src: url('./fonts/Aspekta-500.woff2') format('woff2'); font-weight: 500; font-display: swap; font-style: normal; }
+@font-face { font-family: 'Aspekta'; src: url('./fonts/Aspekta-600.woff2') format('woff2'); font-weight: 600; font-display: swap; font-style: normal; }
+@font-face { font-family: 'Aspekta'; src: url('./fonts/Aspekta-750.woff2') format('woff2'); font-weight: 750; font-display: swap; font-style: normal; }
+
+:root {
+  --kz-font-body: 'Aspekta', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --kz-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --kz-w-regular: 400;
+  --kz-w-medium: 500;
+  --kz-w-semibold: 600;
+  --kz-w-bold: 750;
+
+  /* 8px grid. Every gap and margin on the site resolves to one of these. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 40px;
+  --s-8: 48px;
+  --s-9: 64px;
+  --s-10: 80px;
+  --s-11: 96px;
+  --s-12: 128px;
+
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 360ms;
+
+}

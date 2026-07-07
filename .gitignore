@@ -1,0 +1,27 @@
+# Design mockup archives — large, and the tokens we use are extracted into
+# site/src/styles/tokens.css. Delete this line if you'd rather commit them.
+*.zip
+
+# Python bytecode from tools/
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# --- site/ (the Astro + Starlight tutorial site) ---
+site/node_modules/
+site/dist/
+site/.astro/
+
+# The lessons in networking-fundamentals/ are the source of truth; site/src/content/docs is a
+# generated projection of them (see site/scripts/sync-content.mjs). Only the hand-written pages are
+# tracked — everything else is rebuilt by `npm run sync`.
+#
+# Both exceptions are load-bearing: sync-content.mjs lists index.mdx and progress.mdx in HAND_WRITTEN
+# and never regenerates them, and astro.config.mjs puts `slug: 'progress'` in the sidebar. Ignoring
+# progress.mdx meant a fresh clone had no such page and `npm run build` failed on the missing slug.
+site/src/content/docs/*
+!site/src/content/docs/index.mdx
+!site/src/content/docs/progress.mdx
+site/src/lib/lesson-meta.generated.json

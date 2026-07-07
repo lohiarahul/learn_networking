@@ -1,0 +1,82 @@
+---
+/**
+ * Starlight's `<h1>`, with a section ornament above it.
+ *
+ * Three jobs at once. The eyebrow tells you where in the five acts you've landed — the sidebar knows,
+ * but it's collapsed by default and gone entirely on a phone — and it *links* to the act overview,
+ * which is the one piece of navigation Starlight's pagination cards don't offer. That's why the lesson
+ * sources' footer nav line is dropped from the projection rather than restyled: prev and next were
+ * already down there twice, and this is a better home for "up" than the bottom of the page.
+ * The motif beside it gives every lesson page a small piece of drawn media that means something
+ * (see `Motif.astro`).
+ *
+ * Overriding the component means Starlight's own scoped `<h1>` styles no longer ship, so they're
+ * restated below: weight 500 rather than Starlight's 600, which is what `starlight-theme-flexoki`
+ * sets `h1#_top` to and what the rest of the page's headings are.
+ */
+import Motif from './Motif.astro';
+import LessonMeter from './LessonMeter.astro';
+import StackRail from './StackRail.astro';
+import { sectionForPath } from '../lib/sections';
+
+// Starlight's PAGE_TITLE_ID, and the skip link's target. Inlined rather than imported from
+// `@astrojs/starlight/constants`, which is not part of its public export map.
+const PAGE_TITLE_ID = '_top';
+
+const { title } = Astro.locals.starlightRoute.entry.data;
+const section = sectionForPath(Astro.url.pathname);
+---
+
+{
+  section && (
+    <div class="kz-pagehead">
+      <Motif name={section.motif} />
+      {
+        section.href ? (
+          <a class="kz-eyebrow kz-pagehead__up" href={section.href}>
+            {section.label}
+          </a>
+        ) : (
+          <span class="kz-eyebrow">{section.label}</span>
+        )
+      }
+    </div>
+  )
+}
+<h1 id={PAGE_TITLE_ID} class:list={{ 'kz-title--tight': section }}>{title}</h1>
+<LessonMeter />
+<StackRail />
+
+<style>
+  h1 {
+    margin-top: 1rem;
+    font-size: var(--sl-text-h1);
+    line-height: var(--sl-line-height-headings);
+    font-weight: 500;
+    color: var(--sl-color-white);
+  }
+
+  /* The eyebrow already supplies the space above, and 1rem on top of it reads as a gap. */
+  h1.kz-title--tight {
+    margin-top: var(--s-2);
+  }
+
+  .kz-pagehead {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: 1rem;
+  }
+
+  /* An eyebrow that happens to be a link. Undecorated at rest so the row still reads as a label
+     rather than as body copy with a link in it; the accent on hover is what advertises it. */
+  .kz-pagehead__up {
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-standard);
+  }
+
+  .kz-pagehead__up:hover,
+  .kz-pagehead__up:focus-visible {
+    color: var(--sl-color-text-accent);
+  }
+</style>

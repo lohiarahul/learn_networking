@@ -1,0 +1,109 @@
+---
+/**
+ * A sticky strip naming which layer of the stack this lesson is about.
+ *
+ * The course teaches in five acts, which is a *pedagogical* order and deliberately cuts across the
+ * stack — Act V's Services lesson is really about NAT, and its CoreDNS lesson is really about names.
+ * The eyebrow above the title already says which act you are in. This says which rung of the descent
+ * you are on, and the two are genuinely different facts.
+ *
+ * Sticky because orientation is worth least at the moment you land and most three screens down, when
+ * you are reading `iptables -t nat -L` output and have lost the thread of why. It sits directly under
+ * Starlight's own header, so the two never overlap.
+ *
+ * Rendered as an `<ol>` because it *is* an ordered list — the order is the content, and it is the same
+ * order the debugging method walks. A reader who meets this on forty pages arrives at
+ * `08-debugging.md` already knowing the ladder.
+ *
+ * Pages that span the whole stack (the capstone, the diagnose drills) or sit outside it (setup,
+ * reference) get no rail at all — see `layers.ts` for why claiming a rung there would be a lie.
+ */
+import { RUNGS, rungForPath } from '../lib/layers';
+
+const current = rungForPath(Astro.url.pathname);
+const currentIndex = RUNGS.findIndex((r) => r.id === current);
+---
+
+{
+  current && (
+    <nav class="stackrail not-content" aria-label="Where this lesson sits in the stack">
+      <ol class="stackrail__list">
+        {RUNGS.map((rung, i) => (
+          <li
+            class="stackrail__rung"
+            data-state={i === currentIndex ? 'current' : i < currentIndex ? 'above' : 'below'}
+            aria-current={i === currentIndex ? 'step' : undefined}
+          >
+            <span class="stackrail__label" title={rung.hint}>
+              {rung.label}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
+<style>
+  .stackrail {
+    position: sticky;
+    /* Starlight's header height, so the rail parks against it instead of sliding under it. */
+    top: var(--sl-nav-height);
+    z-index: 5;
+    margin-block: var(--s-3) var(--s-5);
+    padding-block: var(--s-2);
+    /* The page background, not a tint: the rail overlaps prose as it scrolls and has to hide it. */
+    background: var(--sl-color-bg);
+    border-block-end: 1px solid var(--sl-color-hairline);
+  }
+
+  .stackrail__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-1) 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* The separator is a generated chevron rather than a border, so a wrapped row never ends on a
+     dangling divider. */
+  .stackrail__rung + .stackrail__rung::before {
+    content: '›';
+    padding-inline: var(--s-2);
+    color: var(--sl-color-gray-4);
+  }
+
+  /* gray-3, not gray-4: uppercase text at --sl-text-xs measured 2.61:1 (dark) / 3.59:1 (light) at
+     gray-4, under the 4.5:1 AA floor — and this rail is on every lesson page, sticky, as the reader's
+     standing answer to "which layer am I on". The current rung is an accent pill, so it does not need
+     everything else pushed below legible in order to stand out. */
+  .stackrail__label {
+    font-size: var(--sl-text-xs);
+    font-weight: var(--kz-w-medium);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-3);
+    cursor: help;
+  }
+
+  /* Rungs already passed read as history; the ones below are still ahead. Both stay quieter than the
+     current rung — which is a filled chip — but both are now legible. */
+  .stackrail__rung[data-state='above'] .stackrail__label {
+    color: var(--sl-color-gray-2);
+  }
+
+  .stackrail__rung[data-state='current'] .stackrail__label {
+    padding: 0.15em 0.5em;
+    border-radius: var(--r-sm);
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+    font-weight: var(--kz-w-semibold);
+  }
+
+  /* Print gets the page, not the furniture. */
+  @media print {
+    .stackrail { display: none; }
+  }
+</style>

@@ -1,0 +1,118 @@
+---
+/**
+ * The landing page's one flourish: the course's question, drawn.
+ *
+ * `write()` on the left, `read()` on the right, five stops between them, and a packet crossing the
+ * whole distance. It's the same travelling dot as the section motifs (`Motif.astro`), at the only
+ * scale where the whole journey fits — which is the argument for it being here rather than a hero
+ * image: it states the thesis instead of decorating it.
+ *
+ * This one *does* loop. There's exactly one on the site, above the fold, and it's the thing that makes
+ * a page of prose feel alive; the per-page motifs stay quiet precisely so this can move.
+ *
+ * Coordinates are a 360-unit viewBox capped at 30rem, so the type inside it never scales below the
+ * ~11px it's drawn at — the mistake with a wide viewBox is that its labels turn to dust on a phone.
+ */
+const STOPS = [
+  { x: 54, numeral: 'I' },
+  { x: 117, numeral: 'II' },
+  { x: 180, numeral: 'III' },
+  { x: 243, numeral: 'IV' },
+  { x: 306, numeral: 'V' },
+];
+
+const RAIL = 'M54 22H306';
+---
+
+<div class="strip">
+  <svg
+    viewBox="0 0 360 46"
+    role="img"
+    aria-label="write() on one machine, through five acts, to read() on another"
+  >
+    <text class="strip__end" x="0" y="26">write()</text>
+    <text class="strip__end" x="360" y="26" text-anchor="end">read()</text>
+
+    <path class="strip__rail" d={RAIL} />
+
+    {
+      STOPS.map((s) => (
+        <>
+          <circle class="strip__stop" cx={s.x} cy="22" r="4.5" />
+          <text class="strip__numeral" x={s.x} y="41" text-anchor="middle">
+            {s.numeral}
+          </text>
+        </>
+      ))
+    }
+
+    <circle class="strip__packet" r="3.2" cx="0" cy="0" style={`offset-path:path('${RAIL}')`} />
+  </svg>
+</div>
+
+<style>
+  .strip {
+    max-width: 30rem;
+    margin: 0 auto;
+    /* The hero pads above; this pads below. Asymmetric on purpose — the strip has to read as part of
+       the hero rather than as the first item of the section under it. */
+    padding-block: 0 var(--s-10);
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .strip__rail {
+    fill: none;
+    stroke: var(--sl-color-hairline);
+    stroke-width: 1.5;
+  }
+
+  .strip__stop {
+    fill: var(--sl-color-bg);
+    stroke: var(--sl-color-gray-4);
+    stroke-width: 1.5;
+  }
+
+  .strip__end {
+    font-family: var(--kz-font-mono);
+    font-size: 11px;
+    fill: var(--sl-color-gray-3);
+  }
+
+  .strip__numeral {
+    font-size: 8.5px;
+    font-weight: var(--kz-w-semibold);
+    letter-spacing: 0.08em;
+    fill: var(--sl-color-gray-3);
+  }
+
+  .strip__packet {
+    fill: var(--sl-color-text-accent);
+    offset-rotate: 0deg;
+    animation: strip-run 5s var(--ease-standard) infinite;
+  }
+
+  /* The dot rests off-stage for the last fifth of the cycle rather than snapping back, so the loop
+     reads as successive packets rather than one pendulum. */
+  @keyframes strip-run {
+    0% { offset-distance: 0%; opacity: 0; }
+    6% { opacity: 1; }
+    74% { offset-distance: 100%; opacity: 1; }
+    82%, 100% { offset-distance: 100%; opacity: 0; }
+  }
+
+  /* No `offset-path` (Safari before 16) means the dot would land at the viewBox origin. Park it on
+     the rail instead and let the strip be the static diagram it already is. */
+  @supports not (offset-path: path('M0 0H1')) {
+    .strip__packet { transform: translate(150px, 22px); animation: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .strip__packet { animation: none; offset-distance: 38%; }
+  }
+</style>

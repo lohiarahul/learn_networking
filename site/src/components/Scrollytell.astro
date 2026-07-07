@@ -1,0 +1,111 @@
+---
+/**
+ * Registers `<kz-scrollytell>`: a sticky descent tracker for the capstone.
+ *
+ * `the-whole-stack.md` follows one packet through seven numbered stages, and it is the one page in the
+ * course whose subject is *the sequence itself*. Read as ordinary prose it loses exactly that: by stage
+ * five you are looking at `iptables` chains with no sense of how far down you are or what is left, which
+ * is the same disorientation the page exists to cure.
+ *
+ * So this makes scroll position mean something. The seven stages sit in a strip pinned under the
+ * header, and the one you are reading is marked — scroll distance *is* the packet's descent, which is
+ * the whole scrollytelling idea applied to the one page where it is not decoration.
+ *
+ * It reads its stages out of the rendered DOM rather than from a spec, because the stages are already
+ * written in the Markdown as `**1 · The name …**` and duplicating that list here would mean two places
+ * to edit and one of them silently going stale. The cost is a DOM contract: a stage is a paragraph
+ * whose leading `<strong>` opens with a number and an interpunct. That is the shape the lesson has, and
+ * `sync-content.mjs` does not touch it.
+ *
+ * No JS, or the page reworded past recognition: the element renders nothing and the prose is unaffected.
+ */
+---
+
+<script>
+  /** `**3 · The reliable stream (Act III).**` -> { n: 3, label: 'The reliable stream' } */
+  function parseStage(strong: HTMLElement): { n: number; label: string } | null {
+    const text = strong.textContent ?? '';
+    const m = /^\s*(\d+)\s*·\s*(.+?)\s*$/.exec(text);
+    if (!m) return null;
+    return {
+      n: Number(m[1]),
+      // Drop the trailing act citation — "(Act III)" is provenance for the prose, not a stage name,
+      // and it is the part that makes these too long for a strip.
+      label: m[2]!.replace(/\s*\((?:Act|scaled)[^)]*\)\s*\.?$/i, '').replace(/\.$/, ''),
+    };
+  }
+
+  class Scrollytell extends HTMLElement {
+    connectedCallback() {
+      if (this.dataset.ready === 'true') return;
+
+      const content = this.closest('.sl-markdown-content') ?? document;
+      const stages: Array<{ n: number; label: string; el: HTMLElement }> = [];
+      for (const strong of content.querySelectorAll<HTMLElement>('p > strong:first-child')) {
+        const parsed = parseStage(strong);
+        const para = strong.parentElement;
+        if (parsed && para) stages.push({ ...parsed, el: para });
+      }
+
+      // Fewer than three and there is no descent to track — better to render nothing than a two-item
+      // progress strip that tells the reader something they can already see.
+      if (stages.length < 3) return;
+      this.dataset.ready = 'true';
+
+      stages.sort((a, b) => a.n - b.n);
+
+      const nav = document.createElement('nav');
+      nav.className = 'scrolly not-content';
+      nav.setAttribute('aria-label', "The packet's descent");
+
+      const list = document.createElement('ol');
+      list.className = 'scrolly__list';
+
+      const items = stages.map((stage) => {
+        const li = document.createElement('li');
+        li.className = 'scrolly__stage';
+
+        // A link, not a button: the target is a real place on this page, so it should be
+        // middle-clickable, focusable and announced as navigation.
+        const a = document.createElement('a');
+        a.className = 'scrolly__link';
+        a.href = `#${(stage.el.id ||= `stage-${stage.n}`)}`;
+        a.textContent = stage.label;
+        a.title = `Stage ${stage.n} — ${stage.label}`;
+        li.append(a);
+        list.append(li);
+        return li;
+      });
+
+      nav.append(list);
+      this.append(nav);
+
+      const setActive = (index: number) => {
+        items.forEach((li, i) => {
+          li.dataset.state = i === index ? 'current' : i < index ? 'done' : 'ahead';
+        });
+      };
+      setActive(0);
+
+      // rootMargin pulls the trigger line up to roughly a third down the viewport: a stage becomes
+      // "current" when it is where you are actually reading, not when its first pixel appears at the
+      // bottom of the screen.
+      const seen = new Set<number>();
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            const i = stages.findIndex((s) => s.el === entry.target);
+            if (i === -1) continue;
+            if (entry.isIntersecting) seen.add(i);
+            else seen.delete(i);
+          }
+          if (seen.size) setActive(Math.min(...seen));
+        },
+        { rootMargin: '-33% 0px -50% 0px', threshold: 0 },
+      );
+      for (const stage of stages) observer.observe(stage.el);
+    }
+  }
+
+  if (!customElements.get('kz-scrollytell')) customElements.define('kz-scrollytell', Scrollytell);
+</script>

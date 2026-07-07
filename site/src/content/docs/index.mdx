@@ -1,0 +1,150 @@
+---
+title: Understand the network your code runs on
+description: A hands-on networking course built around one question — how does write() on one machine become read() on another? Five acts you run yourself, from the file-descriptor table to CNI.
+template: splash
+editUrl: false
+# A splash page has no single source lesson behind it, so a "last updated" line here would date the
+# marketing copy rather than the course. The dated pages are the lessons.
+lastUpdated: false
+hero:
+  tagline: |
+    Five acts of experiments you run yourself, not diagrams you're asked to believe. Everything here answers one question: <strong>how does <code>write()</code> on one machine become <code>read()</code> on another?</strong>
+  actions:
+    - text: Start the course
+      link: /course/
+      icon: right-arrow
+      variant: primary
+    - text: Install the lab
+      link: /setup/
+      variant: minimal
+---
+
+import Flag from 'lucide-astro/Flag';
+import Cable from 'lucide-astro/Cable';
+import Waypoints from 'lucide-astro/Waypoints';
+import Terminal from 'lucide-astro/Terminal';
+import CircleHelp from 'lucide-astro/CircleHelp';
+import ScanSearch from 'lucide-astro/ScanSearch';
+import BrandIcon from '../../components/BrandIcon.astro';
+import JourneyStrip from '../../components/JourneyStrip.astro';
+
+<div class="not-content">
+
+<JourneyStrip />
+
+<div class="kz-section" style="padding-block-end:var(--s-11)">
+  <div class="kz-terminal">
+    <div class="kz-terminal__bar"><span>the entire lab, Acts I–IV</span><span>bash</span></div>
+    <div class="kz-terminal__body">
+      {/* A JSX expression, not bare text: remark-smartypants rewrites `--` to an en dash in raw MDX
+          markup, which silently turned the headline command into `docker run –rm –privileged`. */}
+      <div class="kz-terminal__line"><span class="tok-prompt">$</span>{' docker run --rm -it --privileged nicolaka/netshoot'}</div>
+      <div class="kz-terminal__line tok-comment"># one throwaway container — break it as often as you like</div>
+    </div>
+  </div>
+  {/* A <div>, not a <p>: MDX wraps multi-line element content in its own <p>, and a <p> inside a <p>
+      is auto-closed by the parser — which rendered .kz-note as an empty box with the text loose
+      underneath it. */}
+  <div class="kz-note" style="margin-block-start:var(--s-4)">
+    Acts I–IV run inside that container. Act V swaps it for a real Kubernetes cluster on your laptop, built with <code>kind</code>.
+  </div>
+</div>
+
+<div class="kz-section">
+  <div class="kz-eyebrow" style="margin-block-end:var(--s-2)">The path</div>
+  <h2 class="kz-section__title">Five acts, in order</h2>
+  {/* Acts I, IV and V are about a named technology, so they carry its mark. Acts II and III keep a
+      Lucide glyph — a protocol has no vendor, and giving ARP a logo would be a lie. */}
+  <div class="kz-grid kz-grid--3">
+
+    <a class="kz-card" href="/orientation/">
+      <span class="kz-card__icon"><Flag aria-hidden="true" /></span>
+      <span class="kz-card__title">Orientation</span>
+      <p class="kz-card__desc">Set up the one-line lab, then two short pages: what a process is, and how two of them could ever talk.</p>
+      <span class="kz-card__meta">Start here · 3 pages</span>
+    </a>
+
+    <a class="kz-card kz-card--terra" href="/act-1/">
+      <span class="kz-card__icon kz-card__icon--brand"><BrandIcon name="linux" /></span>
+      <span class="kz-card__title">One machine talking to itself</span>
+      <p class="kz-card__desc">If everything's a file, what kind of file is a network connection? The fd table, the socket object, and <code>/proc/net/tcp</code> read by hand.</p>
+      <span class="kz-card__meta">Act I · 13 pages</span>
+    </a>
+
+    <a class="kz-card" href="/act-2/">
+      <span class="kz-card__icon"><Cable aria-hidden="true" /></span>
+      <span class="kz-card__title">Two machines on one wire</span>
+      <p class="kz-card__desc">Loopback only reaches itself. Trace a name to an IP to a route to a MAC — then subnet it on paper.</p>
+      <span class="kz-card__meta">Act II · 12 pages</span>
+    </a>
+
+    <a class="kz-card kz-card--clay" href="/act-3/">
+      <span class="kz-card__icon"><Waypoints aria-hidden="true" /></span>
+      <span class="kz-card__title">The internet</span>
+      <p class="kz-card__desc">IP drops, reorders and forges packets. Watch TCP build a reliable stream on top of it, then read an HTTPS exchange end to end.</p>
+      <span class="kz-card__meta">Act III · 10 pages</span>
+    </a>
+
+    <a class="kz-card" href="/act-4/">
+      <span class="kz-card__icon kz-card__icon--brand"><BrandIcon name="docker" /></span>
+      <span class="kz-card__title">One pretends to be many</span>
+      <p class="kz-card__desc">One honest IP per machine — so what happens when one machine hosts a crowd? Build container networking from kernel primitives.</p>
+      <span class="kz-card__meta">Act IV · 9 pages</span>
+    </a>
+
+    <a class="kz-card kz-card--terra" href="/act-5/">
+      <span class="kz-card__icon kz-card__icon--brand"><BrandIcon name="kubernetes" /></span>
+      <span class="kz-card__title">Kubernetes networking</span>
+      <p class="kz-card__desc">One host is a ceiling. Who wires up a fleet, declaratively — and how do you debug it when the wiring breaks?</p>
+      <span class="kz-card__meta">Act V · 13 pages</span>
+    </a>
+
+  </div>
+</div>
+
+<div class="kz-section">
+  <div class="kz-eyebrow" style="margin-block-end:var(--s-2)">How it teaches</div>
+  <h2 class="kz-section__title">Seek, don't receive</h2>
+  <div class="kz-grid kz-grid--3">
+
+    <div class="kz-card">
+      <span class="kz-card__icon"><CircleHelp aria-hidden="true" /></span>
+      <span class="kz-card__title">The question comes first</span>
+      <p class="kz-card__desc">Each topic opens with a wall you hit, not a truth we announce. Lessons ask you to predict the output before you run the command — so the answer lands as relief you earned.</p>
+    </div>
+
+    <div class="kz-card">
+      <span class="kz-card__icon"><Terminal aria-hidden="true" /></span>
+      <span class="kz-card__title">Earn the tool by trying the rival</span>
+      <p class="kz-card__desc">Nothing is asserted as best. Decode <code>/proc/net/tcp</code> by hand before you trust <code>ss</code>; feel <code>strace</code> stop the world before eBPF rescues you.</p>
+    </div>
+
+    <div class="kz-card">
+      <span class="kz-card__icon"><ScanSearch aria-hidden="true" /></span>
+      <span class="kz-card__title">Then prove you can use it</span>
+      <p class="kz-card__desc">Every act ends with recall from memory, on-call drills that break your machine for real, and the same ideas re-run on your own Mac.</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="kz-section">
+  <div class="kz-grid">
+    <a class="kz-card" href="/capstone/the-whole-stack/">
+      <span class="kz-card__title">The capstone — one packet, five acts</span>
+      <p class="kz-card__desc">At the end of Act V, follow a single packet from <code>write()</code> to <code>read()</code> through every layer you built — with the file that proves each one.</p>
+      <span class="kz-card__meta">Read the capstone →</span>
+    </a>
+    <a class="kz-card" href="/reference/journey-map/">
+      <span class="kz-card__title">Where the road ends, for now</span>
+      <p class="kz-card__desc">Acts I–V are built and teaching, with Act V scoped to Kubernetes networking. The rest of Kubernetes, cryptography, identity, and AWS are mapped but not yet written.</p>
+      <span class="kz-card__meta">See the whole journey →</span>
+    </a>
+  </div>
+</div>
+
+<div class="kz-note">
+  <strong>Who this is for:</strong> anyone who can use a shell and wants to see the mechanism under the abstractions instead of memorising flags. No prior networking required. To read along you need nothing; to run the experiments you need Docker, plus the two small C programs Act I compiles — <a href="/reference/the-code/">printed in full here</a>, so cloning the repo is optional. Act V adds <code>kind</code> and <code>kubectl</code>. <a href="/setup/">Setup takes about ten minutes →</a>
+</div>
+
+</div>

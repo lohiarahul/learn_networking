@@ -1,0 +1,23 @@
+name: pedagogy
+
+# Runs the deterministic pedagogy invariants on every push and PR.
+# Dormant until this repo is a git repository with a GitHub remote.
+# The semantic checks (learner-simulator, technical-accuracy-checker) run as
+# sub-agents and are not wired here yet — they need Docker/kind in the runner.
+
+on:
+  push:
+    paths: ["**/*.md", "tools/**"]
+  pull_request:
+    paths: ["**/*.md", "tools/**"]
+
+jobs:
+  check-pedagogy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Structural invariants (links, act-shape, prediction, ladder)
+        run: python3 tools/check_pedagogy.py

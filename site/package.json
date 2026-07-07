@@ -1,0 +1,26 @@
+{
+  "name": "learn-networking-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tutorial website for the learn_networking course, generated from the Markdown in networking-fundamentals/",
+  "scripts": {
+    "sync": "node scripts/sync-content.mjs",
+    "og": "node scripts/gen-og.mjs",
+    "dev": "npm run sync && astro dev",
+    "start": "npm run sync && astro dev",
+    "build": "npm run sync && npm run og && astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.7",
+    "astro": "^7.2.0",
+    "astro-mermaid": "^2.1.0",
+    "lucide-astro": "^0.556.0",
+    "mermaid": "^11.16.1",
+    "sharp": "^0.35.3",
+    "starlight-theme-flexoki": "^0.2.3"
+  }
+}

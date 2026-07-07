@@ -1,0 +1,34 @@
+---
+title: Your progress
+description: How far through the five acts you are — tracked in this browser only, with no account and nothing sent anywhere.
+editUrl: false
+# The content of this page is your own progress, which is live. A commit date would describe the
+# scaffolding around it and mean nothing to the reader.
+lastUpdated: false
+sidebar:
+  order: 3
+  label: Your progress
+---
+
+import CourseProgress from '../../components/CourseProgress.astro';
+import ReviewQueue from '../../components/ReviewQueue.astro';
+
+Tick **Mark this page as done** at the bottom of any lesson and it shows up here. There's no account and no server — it lives in this browser's local storage, so it won't follow you to another machine, and clearing site data resets it.
+
+<CourseProgress />
+
+<ReviewQueue />
+
+## A suggested order
+
+The acts build strictly on each other, so the reading order is the learning order. Where you have a choice:
+
+- **Do the lessons before the transfer layers.** Each act ends with *Test yourself* (recall from memory), *Diagnose it* (symptom-first drills that break your machine for real), and *In the wild* (the same ideas on your own Mac). They only work once the lessons are behind you.
+- **Don't skip *Diagnose it*.** It's the closest thing here to the actual job, and it's the part most people skip.
+- **The `b` and `c` lessons are on the main path**, not appendices — `01b`, `02b`, `03b`, `03c` sit where they do because that's when the question arises. The one genuine side road is *The container's filesystem*, which says so at the top.
+
+## How review works
+
+Most lessons carry a **Check yourself** box: a question with the answer folded away. Open the answer and it asks you to grade yourself — *Got it* or *Not yet*. That grade is the only thing that schedules anything.
+
+A missed question comes back the next day; one you got comes back after ten days. Both then appear in **Due for review** above, missed ones first. That's the whole mechanism — no streaks, no daily target, nothing to keep up with. The gap between attempts is what makes the second one worth anything, so a queue that's empty most of the time is the queue working.

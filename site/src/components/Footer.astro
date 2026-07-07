@@ -1,0 +1,25 @@
+---
+/**
+ * Footer override: prepends the "mark as done" toggle, then defers entirely to Starlight's own
+ * footer (edit link, last-updated, prev/next pagination) via the Default passthrough — so nothing
+ * Starlight provides is lost.
+ */
+import Default from '@astrojs/starlight/components/Footer.astro';
+import LessonDone from './LessonDone.astro';
+import Diagram from './Diagram.astro';
+import Predict from './Predict.astro';
+import Checkpoint from './Checkpoint.astro';
+import Annotate from './Annotate.astro';
+import Scrollytell from './Scrollytell.astro';
+---
+
+<LessonDone />
+<Default><slot /></Default>
+
+{/* All five render nothing — they only carry their custom-element definitions, and the footer is
+    the one override Starlight renders on every page. */}
+<Diagram />
+<Predict />
+<Checkpoint />
+<Annotate />
+<Scrollytell />

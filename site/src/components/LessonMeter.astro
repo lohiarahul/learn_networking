@@ -1,0 +1,67 @@
+---
+/**
+ * What this page is about to ask of you: how long, how many commands, and whether you need the lab up.
+ *
+ * The lessons here run 800–3000 words and some want three terminals open. A reader who opens one on a
+ * ten-minute break and hits "you need three terminals" four screens in closes the tab; a reader told
+ * up front chooses a lesson that fits, or comes back when it does. This is the cheapest thing on the
+ * page and it is the one that decides whether the page gets read at all.
+ *
+ * Figures come from `lesson-meta.generated.json`, which sync-content.mjs writes while it has the
+ * Markdown in hand — see `meterLesson` there for what is counted and why the command count is blocks
+ * rather than lines.
+ *
+ * Deliberately absent: any claim of difficulty. "Advanced" tells a reader nothing actionable and talks
+ * a good half of them out of a page they would have understood fine.
+ */
+import META from '../lib/lesson-meta.generated.json';
+
+interface LessonMeta {
+  minutes: number;
+  commands: number;
+  needsLab: boolean;
+}
+
+const meta = (META as Record<string, LessonMeta>)[Astro.url.pathname];
+
+/** Overviews and reference pages are not lessons, and a reading time on them is just noise. */
+const isLesson = Boolean(meta) && Astro.url.pathname.split('/').filter(Boolean).length > 1;
+---
+
+{
+  isLesson && meta && (
+    <p class="meter not-content">
+      <span class="meter__item">{meta.minutes} min read</span>
+      {meta.commands > 0 && (
+        <span class="meter__item">
+          {meta.commands} command {meta.commands === 1 ? 'block' : 'blocks'} to run
+        </span>
+      )}
+      {meta.needsLab && <span class="meter__item meter__item--lab">lab container needed</span>}
+    </p>
+  )
+}
+
+<style>
+  .meter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1) 0;
+    margin-block: var(--s-2) 0;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+
+  /* Interpunct separators via ::before, so a row that wraps never ends on a dangling dot. */
+  .meter__item + .meter__item::before {
+    content: '·';
+    padding-inline: var(--s-2);
+    color: var(--sl-color-gray-4);
+  }
+
+  /* The one item that is a prerequisite rather than an estimate — it changes what you do before you
+     start reading, so it gets the emphasis. */
+  .meter__item--lab {
+    color: var(--sl-color-text-accent);
+  }
+</style>

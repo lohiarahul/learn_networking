@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="learn_networking">
+  <!--
+    The journey strip, at 16px: a rail with one packet on it, mid-flight.
+
+    Same thesis as JourneyStrip.astro on the landing page — write() on the left, read() on the right,
+    something travelling between them — reduced until only the parts that survive a browser tab are
+    left. The five act stops and the end labels are gone; a rail and a packet is the least that still
+    means anything.
+
+    Two schemes rather than one, because a favicon's background is the browser's chrome, not the site's
+    page. A fixed dark tile vanishes into a dark tab bar and a fixed light one vanishes into a light
+    one, so the tile inverts to stay a visible object either way. Declared as CSS inside the SVG, which
+    every current browser honours for `rel=icon`; the fill attributes are the fallback for those that
+    don't and give the dark tile, matching `.kz-terminal`'s "always dark in both themes".
+  -->
+  <style>
+    .tile { fill: #100f0f; }
+    .rail { stroke: #6f6e69; }
+    .packet { fill: #3aa99f; }
+
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #fffcf0; }
+      .rail { stroke: #9f9d96; }
+      .packet { fill: #1c6c66; }
+    }
+  </style>
+
+  <rect class="tile" width="32" height="32" rx="7" />
+  <path class="rail" d="M7 16h18" fill="none" stroke-width="3" stroke-linecap="round" />
+  <circle class="packet" cx="20.5" cy="16" r="5" />
+</svg>

@@ -1,0 +1,64 @@
+---
+/**
+ * Starlight's `<head>`, plus the social card it never had.
+ *
+ * Starlight emits `twitter:card = summary_large_image` on every page and provides no image to go with
+ * it, so every Slack paste, every link preview and every tweet of this course rendered as a bare text
+ * row. This adds the image half of that contract.
+ *
+ * The card is chosen per *section*, not per page — see `scripts/gen-og.mjs` for why: at the thumbnail
+ * size these are actually viewed, "Act III · The internet" is the useful unit and a lesson title is
+ * unreadable.
+ *
+ * Emitted after `<Default />` on purpose. Starlight writes no `og:image` of its own, so there is
+ * nothing to collide with; if a future version starts to, the later tag is the one that wins in every
+ * scraper worth caring about, and this file is where to reconcile it.
+ */
+import Default from '@astrojs/starlight/components/Head.astro';
+
+/* `?url` so Vite resolves this to the final hashed, BASE_PATH-prefixed path — the same one the
+   @font-face in tokens.css emits, so the preload and the actual request are the same URL and the
+   browser reuses one fetch. Hardcoding `/fonts/…` here is the classic way to ship a preload the page
+   never uses (wrong hash) and a warning in every console. */
+import aspekta400 from '../styles/fonts/Aspekta-400.woff2?url';
+
+/** The card ids that `scripts/gen-og.mjs` writes. Anything else falls back to `default`. */
+const SECTION_CARDS = new Set([
+  'orientation',
+  'act-1',
+  'act-2',
+  'act-3',
+  'act-4',
+  'act-5',
+  'capstone',
+  'reference',
+]);
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const rest = base && Astro.url.pathname.startsWith(base)
+  ? Astro.url.pathname.slice(base.length)
+  : Astro.url.pathname;
+const segment = rest.replace(/^\/+/, '').split('/').filter(Boolean)[0] ?? '';
+const card = SECTION_CARDS.has(segment) ? segment : 'default';
+
+/* Absolute, because og:image is fetched by a scraper with no notion of the page it came from. */
+const ogImage = new URL(`${base}/og/${card}.png`, Astro.site);
+
+const { title } = Astro.locals.starlightRoute.entry.data;
+---
+
+<Default />
+
+{/* Body text is the first thing painted and the only weight every page needs. `font-display: swap`
+    means an unpreloaded face paints in the fallback and then reflows the whole article once it
+    arrives; preloading the one weight that matters removes that reflow. The other three are left to
+    load normally — they are headings and bold runs, and preloading all four would compete with the
+    CSS for the same early bandwidth. */}
+<link rel="preload" href={aspekta400} as="font" type="font/woff2" crossorigin="anonymous" />
+
+<meta property="og:image" content={ogImage} />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content={`${title} — learn_networking`} />
+<meta name="twitter:image" content={ogImage} />

@@ -1,0 +1,140 @@
+---
+/**
+ * A section motif: a 48×20 line drawing of what its act actually claims.
+ *
+ * These are one idea, drawn eight ways. Every act in this course is a different answer to the same
+ * question — how does `write()` on one machine become `read()` on another — so every motif is the
+ * same travelling dot on a different route. Act I's route leaves the box and comes straight back
+ * (loopback). Act II's crosses one wire. Act III's zig-zags through routers. Act IV's is three routes
+ * merging into one (NAT); Act V's is one route fanning out to three (a Service). The motif *is* the
+ * thesis, which is why these are drawn rather than picked from an icon set: no stock glyph knows what
+ * an act is about.
+ *
+ * Deliberately not looping. A dot circling forever beside sixty page titles is a distraction, so each
+ * runs twice on load and then rests, leaving a static diagram behind. `styles/global.css` holds the
+ * animation (the frame markup arrives via `set:html`, which Astro's scoped styles do not reach).
+ */
+import type { MotifName } from '../lib/sections';
+
+interface Props {
+  name: MotifName;
+  /** Slower for the capstone, whose route is the whole course. */
+  duration?: number;
+}
+
+const { name, duration } = Astro.props;
+
+interface MotifSpec {
+  /** Static structure: the boxes, routers and pods the dot travels between. */
+  frame: string;
+  /** One route per travelling dot. Used as the dot's `offset-path`, and drawn unless `wire` is false. */
+  routes: string[];
+  /** False where the point is that there *is* no wire yet. */
+  wire?: boolean;
+  seconds: number;
+}
+
+/** An outlined machine. `fill` makes it a solid little thing instead — a container, a Pod. */
+const BOX = (x: number, y: number, w: number, h: number, r = 2.5, fill = false) =>
+  `<rect${fill ? ' class="fill"' : ''} x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/>`;
+
+/** The "many" side of Acts IV and V: three solid bars. Outlines at this height are all stroke. */
+const STACK = (x: number) =>
+  [1.5, 7.75, 14].map((y) => BOX(x, y, 6, 4.5, 1.5, true)).join('');
+
+const DOT = (cx: number, cy: number, r = 1.6) =>
+  `<circle class="fill" cx="${cx}" cy="${cy}" r="${r}"/>`;
+
+const MOTIFS: Record<MotifName, MotifSpec> = {
+  // Two processes and no channel between them yet. No wire is drawn on purpose: the dot leaves the
+  // process, reaches the edge of the gap, and has nowhere to go.
+  orientation: {
+    frame: `${BOX(1, 4, 17, 12, 3)}${BOX(34, 4, 13, 12, 3)}<path d="M21 10H31" stroke-dasharray="1.5 2.2"/>`,
+    routes: ['M6 10H19'],
+    wire: false,
+    seconds: 1.6,
+  },
+  // Loopback, and the only motif whose route never leaves its box — which is the whole of Act I.
+  // The first two attempts hung the loop off the machine's right edge; flush against the outline it
+  // read as one blobby silhouette rather than as a journey. Putting the circuit *inside* says it.
+  'act-1': {
+    frame: BOX(1, 2, 46, 16, 4),
+    routes: ['M11 10A13 4.5 0 1 1 37 10A13 4.5 0 1 1 11 10'],
+    seconds: 2.2,
+  },
+  // One wire, two machines. The whole of Act II.
+  'act-2': {
+    frame: `${BOX(1, 5, 11, 10)}${BOX(36, 5, 11, 10)}`,
+    routes: ['M12 10H36'],
+    seconds: 1.8,
+  },
+  // Three hops, and the path stops being a straight line.
+  'act-3': {
+    frame: `${BOX(1, 6, 8, 8, 2)}${BOX(39, 6, 8, 8, 2)}${DOT(17, 5)}${DOT(24, 15)}${DOT(31, 5)}`,
+    routes: ['M9 10L17 5L24 15L31 5L39 10'],
+    seconds: 2.1,
+  },
+  // Many become one: three containers merging onto a single honest IP.
+  'act-4': {
+    frame: `${STACK(1)}${BOX(38, 5, 9, 10)}`,
+    routes: [
+      'M7 3.75C19 3.75 21 10 27 10H38',
+      'M7 10H38',
+      'M7 16.25C19 16.25 21 10 27 10H38',
+    ],
+    seconds: 2,
+  },
+  // One becomes many: one ClusterIP, three Pods behind it.
+  'act-5': {
+    frame: `${BOX(1, 5, 9, 10)}${STACK(41)}`,
+    routes: [
+      'M10 10H21C27 10 29 3.75 41 3.75',
+      'M10 10H41',
+      'M10 10H21C27 10 29 16.25 41 16.25',
+    ],
+    seconds: 2,
+  },
+  // One packet, five acts.
+  capstone: {
+    frame: [2, 13, 24, 35, 46].map((x) => DOT(x, 10, 1.5)).join(''),
+    routes: ['M2 10H46'],
+    seconds: 2.8,
+  },
+  // Not a journey — a list of them. Nothing to animate.
+  reference: {
+    frame: `${DOT(3, 5, 1.4)}${DOT(3, 10, 1.4)}${DOT(3, 15, 1.4)}<path d="M8 5H45M8 10H30M8 15H38"/>`,
+    routes: [],
+    seconds: 0,
+  },
+};
+
+const motif = MOTIFS[name];
+const seconds = duration ?? motif.seconds;
+
+/**
+ * Where a dot sits when it isn't allowed to move (`prefers-reduced-motion`).
+ *
+ * The fan-in and fan-out motifs share a trunk, so parking all three at one distance stacked them into
+ * a single blob and threw away the "three of them" that is the whole point. Spreading them puts one on
+ * each branch instead.
+ */
+const park = (i: number, routes: number) => (routes > 1 ? 30 + i * 20 : 62);
+---
+
+<svg class="kz-motif" viewBox="0 0 48 20" width="48" height="20" aria-hidden="true" focusable="false">
+  <g class="kz-motif__frame" set:html={motif.frame} />
+  {
+    motif.routes.map((d, i) => (
+      <>
+        {motif.wire !== false && <path class="kz-motif__wire" d={d} />}
+        <circle
+          class="kz-motif__dot"
+          r="2"
+          cx="0"
+          cy="0"
+          style={`offset-path:path('${d}');animation-duration:${seconds}s;animation-delay:${i * 0.22}s;--kz-park:${park(i, motif.routes.length)}%`}
+        />
+      </>
+    ))
+  }
+</svg>

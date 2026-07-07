@@ -1,0 +1,44 @@
+---
+/**
+ * A "mark this lesson as done" toggle, rendered above Starlight's own footer on every doc page.
+ * Splash pages (the landing page) opt out — there's nothing to complete there.
+ */
+const route = Astro.locals.starlightRoute;
+const isSplash = route.entry.data.template === 'splash';
+---
+
+{
+  !isSplash && (
+    <div class="lesson-done not-content" data-lesson-done>
+      <label class="lesson-done__label">
+        <input type="checkbox" class="lesson-done__box" hidden />
+        <span class="lesson-done__tick" aria-hidden="true" />
+        <span class="lesson-done__text">Mark this page as done</span>
+      </label>
+      <a class="lesson-done__link" href="/progress/">Your progress</a>
+    </div>
+  )
+}
+
+<script>
+  import { isDone, setDone } from '../lib/progress';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-lesson-done]')) {
+    const box = root.querySelector<HTMLInputElement>('.lesson-done__box');
+    if (!box) continue;
+
+    const path = location.pathname;
+    const sync = (on: boolean) => {
+      box.checked = on;
+      root.dataset.done = on ? 'true' : 'false';
+      const text = root.querySelector('.lesson-done__text');
+      if (text) text.textContent = on ? 'Done — nice work' : 'Mark this page as done';
+    };
+
+    sync(isDone(path));
+    box.addEventListener('change', () => {
+      setDone(path, box.checked);
+      sync(box.checked);
+    });
+  }
+</script>

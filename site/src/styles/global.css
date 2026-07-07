@@ -1,0 +1,1432 @@
+/* ============================================================================
+   global.css — structure and components only. Colour belongs to the theme.
+
+   `starlight-theme-flexoki` owns the palette and the type scale. Everything below is keyed to
+   Starlight's own variables (`--sl-color-*`, `--sl-text-*`) rather than to any literal hue, so
+   swapping the theme restyles this file for free. That's deliberate: the previous version hard-coded
+   a palette in unlayered `:root` rules, which would have overridden any theme installed on top.
+
+   Tailwind, daisyUI and @astrojs/starlight-tailwind have been removed — nothing used them once the
+   landing page moved to real component classes, and they were a standing source of conflict.
+   ============================================================================ */
+
+@import './tokens.css';
+
+:root {
+  --sl-font: var(--kz-font-body);
+  --sl-font-mono: var(--kz-font-mono);
+  --sl-nav-height: 4rem;
+}
+
+/* ── Borders ─────────────────────────────────────────────────────────────────
+   Flexoki declares `--sl-color-hairline: var(--sl-color-gray-6)` — and nearly every container in this
+   file is `background: var(--sl-color-gray-6)` with `border: 1px solid var(--sl-color-hairline)`. Those
+   are the same colour, so every one of those borders was painting the fill directly beneath it: a
+   1.00:1 edge on the act cards, the figures, the diagram surfaces, the details reveals, the progress
+   panel, and the rule under every h2 in the course. It looked deliberate — nothing was visibly broken,
+   there just wasn't an edge anywhere on the site.
+
+   Two values, because a card edge and a control edge have different jobs. Measured against Flexoki's
+   own greys, in both themes:
+
+     gray-4   vs panel 2.34 (dark) / 2.89 (light)   — clearly perceptible, still quiet
+     gray-3   vs panel 4.67 (dark) / 4.01 (light)   — passes the 3:1 WCAG needs for a UI boundary
+
+   Decorative edges take gray-4: a card is identified by its fill and its content, not its outline, so
+   the 3:1 rule doesn't bind and gray-3 all round would read as a wireframe. Anything you can type in
+   or click takes gray-3 via `--kz-border-control`, because there the border IS what says "control" —
+   `.predict__input` sits on the page background, so at gray-6 it was an invisible text field, which is
+   a poor showing for the course's signature device.
+
+   Flexoki sets hairline inside `@layer flexoki` on `:root`; this file is unlayered, so it wins. */
+:root {
+  --sl-color-hairline: var(--sl-color-gray-4);
+  --kz-border-control: var(--sl-color-gray-3);
+}
+
+/* ── Type scale ─────────────────────────────────────────────────────────────
+   Flexoki derives its *entire* scale — every `--sl-text-*`, including `--sl-text-h1` and
+   `--sl-text-code` — from these two fluid values, so retuning them here moves the whole site
+   proportionally and nothing else needs touching.
+
+   Its default is `min(calc(0.875rem + 0.3vw), 1.25rem)`: ~18.3px body on a 1440px screen, up to 20px
+   on a wide one. Generous for an essay, a touch large for 80,000 words of prose broken up by command
+   output every few paragraphs. This is ~10% smaller with a shallower slope and a lower cap, which
+   keeps the 14.6px floor on a phone (the steeper original slope is what would make a smaller base
+   unreadable there) and stops ultra-wide screens inflating body text past 17px.
+
+   Flexoki's rules live in `@layer flexoki`; this file is unlayered, so it wins without !important. */
+:root {
+  --sl-flexoki-text-base: min(calc(0.875rem + 0.15vw), 1.0625rem);
+  --sl-flexoki-text-sm: calc(0.875 * var(--sl-flexoki-text-base));
+}
+
+/* ── Reading measure ────────────────────────────────────────────────────────
+   The single biggest lever on readability for 80,000 words of prose. Measure is a character count,
+   not a pixel width, so it has to follow the type scale down: at the previous 45rem the smaller body
+   size fitted ~11% more characters per line, which is a slower read, not a faster one. 41rem restores
+   the same ~68 characters. The landing page's card grids need more room, and Starlight flags splash
+   pages with `data-has-hero` on <html>. */
+:root {
+  --sl-content-width: 41rem;
+}
+
+:root[data-has-hero] {
+  --sl-content-width: 72rem;
+}
+
+.sl-markdown-content {
+  line-height: 1.7;
+}
+
+/* ── Vertical rhythm ────────────────────────────────────────────────────────
+   All margins land on the 8px grid, and headings get clearly more space above than below so each one
+   binds to the text it introduces rather than floating between blocks. */
+.sl-markdown-content :is(p, ul, ol, blockquote):not(:where(.not-content *)) {
+  margin-block: var(--s-4);
+}
+
+.sl-markdown-content :is(ul, ol):not(:where(.not-content *)) {
+  line-height: 1.75;
+}
+
+.sl-markdown-content li + li {
+  margin-block-start: var(--s-2);
+}
+
+/* Headings are styled on `.sl-heading-wrapper`, not on the heading element.
+   Starlight wraps every Markdown heading in `<div class="sl-heading-wrapper level-hN">` and sets the
+   heading itself to `display: inline` so the ¶ anchor link can sit at the end of the last line. On an
+   inline box block margins are ignored outright and a border paints once *per line fragment* — so the
+   earlier `h2 { margin-block; border-block-end }` gave up all its spacing and drew the rule mid-line
+   on any heading that wrapped. The `.sl-heading-wrapper > *` exclusion keeps the inner heading from
+   matching and doubling the rule; the bare `h2`/`h3`/`h4` still match where nothing wraps them. */
+.sl-markdown-content
+  :is(h2, .sl-heading-wrapper.level-h2):not(:where(.not-content *, .sl-heading-wrapper > *)) {
+  margin-block: var(--s-10) var(--s-4);
+  padding-block-end: var(--s-3);
+  border-block-end: 1px solid var(--sl-color-hairline);
+}
+
+.sl-markdown-content
+  :is(h3, .sl-heading-wrapper.level-h3):not(:where(.not-content *, .sl-heading-wrapper > *)) {
+  margin-block: var(--s-8) var(--s-3);
+}
+
+.sl-markdown-content
+  :is(h4, .sl-heading-wrapper.level-h4):not(:where(.not-content *, .sl-heading-wrapper > *)) {
+  margin-block: var(--s-6) var(--s-2);
+}
+
+/* The first heading on a page shouldn't push itself away from the <h1> that already introduces it. */
+.sl-markdown-content > :is(h2, h3, .sl-heading-wrapper):first-child {
+  margin-block-start: 0;
+}
+
+/* Wide content scrolls inside itself; the page body never scrolls sideways. */
+.sl-markdown-content :is(table, pre) {
+  overflow-x: auto;
+}
+
+.sl-markdown-content table:not(:where(.not-content *)) {
+  display: block;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  padding: var(--s-3) var(--s-4);
+  border-block-start: 1px solid var(--sl-color-hairline);
+}
+
+.sl-markdown-content th:not(:where(.not-content *)) {
+  background: var(--sl-color-gray-6);
+  font-size: var(--sl-text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sl-color-gray-2);
+}
+
+/* ── Starlight's hero, on splash pages ──────────────────────────────────────
+   Above 50rem Starlight sets `grid-template-columns: 7fr 4fr` to seat a hero image beside the copy.
+   This page has no image, so that squeezed the copy into 7/11 of the width and pulled it off centre.
+   Its <h1> carries `id="_top"` (the skip-link target), which is why it's restyled rather than replaced. */
+.hero {
+  max-width: 52rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+@media (min-width: 50rem) {
+  .hero {
+    grid-template-columns: 100%;
+    /* Was `var(--s-8)` below. The journey strip that now follows the hero belongs *to* it — it draws
+       the question the tagline asks — so the hero holds it closer than the section beneath. */
+    padding-block: var(--s-11) var(--s-4);
+  }
+}
+
+.hero .stack { gap: var(--s-5); }
+.hero .copy { gap: var(--s-4); align-items: center; }
+.hero .copy > * { max-width: none; }
+.hero .tagline { max-width: 40rem; margin-inline: auto; }
+.hero .actions { gap: var(--s-3); justify-content: center; }
+
+/* ── Pedagogy callouts ─────────────────────────────────────────────────────
+   sync-content.mjs wraps the course's recurring blockquotes in `.callout--<kind>`.
+
+   Keyed to Starlight's *semantic* hue variables (`--sl-color-blue`, `-green`, `-orange`, `-purple`),
+   which every theme is expected to define and which Flexoki restyles — so these stay correct if the
+   theme changes again. Four hues, not seven: the design restraint matters more than a unique colour
+   per kind, and the icon carries the distinction where a hue is shared. */
+.callout {
+  --cal: var(--sl-color-gray-3);
+  --cal-bg: var(--sl-color-gray-6);
+  --cal-icon: none;
+
+  /* Explicit, because a callout is not always a `div`: the predict and checkpoint kinds are the
+     custom elements `<kz-predict>` and `<kz-checkpoint>`, and an unknown tag defaults to
+     `display: inline`. Inline, the 46px icon gutter became an empty first line box with the tint
+     painted behind it, so the icon sat in a stub above text that never got indented. */
+  display: block;
+  position: relative;
+  margin-block: var(--s-5);
+  padding: var(--s-4) var(--s-5) var(--s-4) 46px;
+  border-radius: var(--r-md);
+  background: var(--cal-bg);
+}
+
+.callout::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 1.1rem;
+  inset-inline-start: var(--s-4);
+  width: 18px;
+  height: 18px;
+  background-color: var(--cal);
+  -webkit-mask: var(--cal-icon) center / contain no-repeat;
+  mask: var(--cal-icon) center / contain no-repeat;
+}
+
+.callout > blockquote {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-style: normal;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+.callout > blockquote > * { margin-block: var(--s-2); }
+.callout > blockquote > :first-child { margin-block-start: 0; }
+.callout > blockquote > :last-child { margin-block-end: 0; }
+
+.callout > blockquote > p:first-child > strong:first-child {
+  color: var(--cal);
+  font-weight: var(--kz-w-semibold);
+}
+
+/* Blue — commit to a prediction before you run it. The course's signature device. */
+.callout--predict {
+  --cal: var(--sl-color-blue-high);
+  --cal-bg: var(--sl-color-blue-low);
+  --cal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 18h6M10 22h4M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14'/%3E%3C/svg%3E");
+}
+
+/* The commit box Predict.astro adds inside a prediction callout. These style only the parts the
+   script appends, so a no-JS page shows nothing extra. */
+.callout--predict .predict__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-block-start: var(--s-3);
+}
+
+/* Once an answer is locked the form is done — hiding it stops the reader editing a prediction after
+   reading the result, which is the one thing that would make the whole device pointless. */
+kz-predict[data-locked='true'] .predict__form { display: none; }
+
+.callout--predict .predict__input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--kz-border-control);
+  border-radius: var(--r-sm);
+  background: var(--sl-color-bg);
+  color: var(--sl-color-white);
+  font: inherit;
+  font-size: var(--sl-text-sm);
+}
+
+.callout--predict .predict__input:focus-visible {
+  outline: 2px solid var(--cal);
+  outline-offset: 1px;
+}
+
+.callout--predict .predict__button {
+  padding: var(--s-2) var(--s-4);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--cal);
+  color: var(--sl-color-black);
+  font: inherit;
+  font-size: var(--sl-text-sm);
+  font-weight: var(--kz-w-semibold);
+  cursor: pointer;
+}
+
+.callout--predict .predict__button:hover { opacity: 0.9; }
+
+.callout--predict .predict__locked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-block: var(--s-3) 0;
+  font-size: var(--sl-text-sm);
+}
+
+.callout--predict .predict__label {
+  color: var(--cal);
+  font-weight: var(--kz-w-semibold);
+}
+
+/* Monospace, because most predictions here are a number or a flag and want to sit beside the output
+   the reader is about to compare them against. */
+.callout--predict .predict__value {
+  font-family: var(--kz-font-mono, ui-monospace, monospace);
+  font-weight: var(--kz-w-medium);
+  color: var(--sl-color-white);
+}
+
+.callout--predict .predict__reset {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--sl-color-gray-3);
+  font: inherit;
+  font-size: var(--sl-text-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Green — you've got it. */
+.callout--mastery {
+  --cal: var(--sl-color-green-high);
+  --cal-bg: var(--sl-color-green-low);
+  --cal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.8 10A10 10 0 1 1 17 3.3'/%3E%3Cpath d='m9 11 3 3L22 4'/%3E%3C/svg%3E");
+}
+
+/* Cyan-ish (the accent) — stop and retrieve. Distinct from predict, which asks you to guess *before*
+   an experiment; a checkpoint asks you to recall something already taught. */
+.callout--checkpoint {
+  --cal: var(--sl-color-accent-high);
+  --cal-bg: var(--sl-color-accent-low);
+  --cal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3'/%3E%3Cpath d='M12 17h.01'/%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3C/svg%3E");
+}
+
+/* The answer reveal sits inside the callout, so it drops the standalone card styling it gets
+   elsewhere and reads as part of the box. */
+.callout--checkpoint details {
+  margin-block: var(--s-3) 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.callout--checkpoint details > summary {
+  padding: 0;
+  font-size: var(--sl-text-sm);
+  color: var(--cal);
+}
+
+.callout--checkpoint details > summary + * { margin-block-start: var(--s-2); }
+
+.callout--checkpoint details p {
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+.checkpoint__grade {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-block-start: var(--s-3);
+  padding-block-start: var(--s-3);
+  border-block-start: 1px solid var(--sl-color-hairline);
+  font-size: var(--sl-text-sm);
+}
+
+.checkpoint__gradeLabel {
+  margin-inline-end: var(--s-1);
+  color: var(--sl-color-gray-3);
+}
+
+.checkpoint__btn {
+  padding: var(--s-1) var(--s-3);
+  border: 1px solid var(--kz-border-control);
+  border-radius: var(--r-sm);
+  background: var(--sl-color-bg);
+  color: var(--sl-color-gray-2);
+  font: inherit;
+  font-size: var(--sl-text-xs);
+  cursor: pointer;
+}
+
+.checkpoint__btn:hover { border-color: var(--sl-color-gray-4); }
+
+/* The chosen grade is the state the reader needs to see on a return visit, so it is a real filled
+   button rather than a subtle outline. */
+.checkpoint__btn[aria-pressed='true'] {
+  border-color: transparent;
+  color: var(--sl-color-black);
+  font-weight: var(--kz-w-semibold);
+}
+
+.checkpoint__btn--got[aria-pressed='true'] { background: var(--sl-color-green-high); }
+.checkpoint__btn--notyet[aria-pressed='true'] { background: var(--sl-color-orange-high); }
+
+/* Orange — an incident. */
+.callout--ticket {
+  --cal: var(--sl-color-orange-high);
+  --cal-bg: var(--sl-color-orange-low);
+  --cal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z'/%3E%3Cpath d='M13 5v14'/%3E%3C/svg%3E");
+}
+
+/* Purple — leave the container, do this on your own Mac. */
+.callout--machine {
+  --cal: var(--sl-color-purple-high);
+  --cal-bg: var(--sl-color-purple-low);
+  --cal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v11H3z'/%3E%3Cpath d='M1 20h22'/%3E%3C/svg%3E");
+}
+
+/* Neutral — distinguished by icon, not hue. */
+.callout--where {
+  --cal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3C/svg%3E");
+}
+
+.callout--file {
+  --cal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v5h6M8 13h8M8 17h5'/%3E%3C/svg%3E");
+}
+
+.callout--sidenote {
+  --cal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 10 20 15 15 20'/%3E%3Cpath d='M4 4v7a4 4 0 0 0 4 4h12'/%3E%3C/svg%3E");
+}
+
+/* ── Answer-first lines ────────────────────────────────────────────────────
+   The one-sentence answer that sits directly under a question heading, wrapped by
+   sync-content.mjs. Deliberately *not* a boxed callout: one of these follows nearly every heading
+   in the course, and sixty boxes down a page would read as noise rather than emphasis. An accent
+   rule and a size bump are enough to say "this is the answer, the paragraphs below are the why". */
+.sl-markdown-content .answer {
+  margin-block: var(--s-4) var(--s-5);
+  padding-inline-start: var(--s-4);
+  border-inline-start: 2px solid var(--sl-color-accent);
+}
+
+.sl-markdown-content .answer > p {
+  margin: 0;
+  font-size: var(--sl-text-lg);
+  line-height: 1.5;
+  color: var(--sl-color-white);
+  text-wrap: pretty;
+}
+
+/* The sentence is authored as `**bold**` so GitHub emphasises it too. Here the accent rule already
+   carries that job, so the weight comes back down to something readable at this size. */
+.sl-markdown-content .answer > p > strong {
+  font-weight: var(--kz-w-medium);
+}
+
+/* ── Answer reveals ───────────────────────────────────────────────────────── */
+.sl-markdown-content details {
+  margin-block: var(--s-5);
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--r-md);
+  background: var(--sl-color-gray-6);
+  overflow: hidden;
+}
+
+.sl-markdown-content details > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  font-weight: var(--kz-w-semibold);
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-white);
+  cursor: pointer;
+  list-style: none;
+}
+
+.sl-markdown-content details > summary::-webkit-details-marker { display: none; }
+
+.sl-markdown-content details > summary::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  flex: none;
+  background-color: var(--sl-color-text-accent);
+  -webkit-mask: var(--reveal) center / contain no-repeat;
+  mask: var(--reveal) center / contain no-repeat;
+  --reveal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+  transition: transform var(--dur-base) var(--ease-standard);
+}
+
+.sl-markdown-content details[open] > summary::before { transform: rotate(90deg); }
+.sl-markdown-content details > summary:hover { background: var(--sl-color-gray-5); }
+.sl-markdown-content details > :not(summary) { margin-inline: var(--s-4); }
+.sl-markdown-content details > :last-child:not(summary) { margin-block-end: var(--s-4); }
+
+/* ── Mermaid ─────────────────────────────────────────────────────────────────
+   Mermaid bakes colours into the SVG at render time, which is why the first attempt pinned a fixed
+   light surface — producing a cream box on a dark page. Restyling the *rendered* SVG with CSS instead
+   makes diagrams properly theme-aware, with no re-render and no palette duplicated in astro.config.
+
+   `!important` is required because Mermaid writes inline `style` attributes on the shapes it emits,
+   and inline styles otherwise beat any stylesheet. */
+.sl-markdown-content .mermaid,
+.sl-markdown-content pre.mermaid {
+  /* One token for the diagram surface. The label knockouts below have to paint the *same* colour to
+     disappear into it, and keeping two copies of that value is how they drift apart. */
+  --kz-diagram-surface: var(--sl-color-gray-6);
+
+  margin-block: var(--s-6);
+  padding: var(--s-5) var(--s-4);
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--r-lg);
+  background: var(--kz-diagram-surface);
+  overflow-x: auto;
+  text-align: center;
+}
+
+/* astro-mermaid adds `[data-theme="dark"] pre.mermaid[data-processed]` with a translucent white wash
+   once it has rendered a diagram. That outranks the rule above (0,3,1 vs 0,2,1), so the surface was
+   never actually `--kz-diagram-surface` — and the opaque knockouts painted behind the labels sat
+   visibly lighter than the diagram they were supposed to vanish into. Match its specificity. */
+.sl-markdown-content pre.mermaid[data-processed],
+:root[data-theme='dark'] .sl-markdown-content pre.mermaid[data-processed],
+:root[data-theme='light'] .sl-markdown-content pre.mermaid[data-processed] {
+  background: var(--kz-diagram-surface);
+}
+
+.sl-markdown-content .mermaid svg { max-width: 100%; height: auto; }
+
+/* Mermaid renders on the client, so between first paint and the swap the reader is shown the literal
+   string `flowchart LR subgraph P["your process — private, sees only integers"]` — as a monospace slab
+   that looks exactly like broken command output. It lands on Orientation and Act I, the first pages
+   anyone opens.
+
+   `scripting: enabled` is the right gate rather than a `.js` class on <html>: where scripts cannot run,
+   the source block stays visible and remains the honest no-JS fallback that `astro-mermaid` intends.
+   Where they can, it is hidden until `data-processed` appears.
+
+   `visibility` rather than `display`, plus a reserved min-height, because the element has to keep
+   occupying space — collapsing it and then re-expanding when the SVG lands is a worse artefact than the
+   one being fixed. 8rem is roughly the smallest of these diagrams, so it under-reserves for the tall
+   ones and over-reserves for none. */
+@media (scripting: enabled) {
+  .sl-markdown-content pre.mermaid:not([data-processed]) {
+    visibility: hidden;
+    min-height: 8rem;
+  }
+}
+
+/* Nodes sit on the page background so they read as objects on the diagram surface. */
+.mermaid svg :is(.node, .actor) :is(rect, polygon, circle, path),
+.mermaid svg .label-container {
+  fill: var(--sl-color-bg) !important;
+  stroke: var(--sl-color-text-accent) !important;
+  stroke-width: 1.25px !important;
+}
+
+/* Subgraphs read as grouping, not as nodes: no fill, dashed hairline. */
+.mermaid svg .cluster rect {
+  fill: none !important;
+  stroke: var(--sl-color-gray-4) !important;
+  stroke-dasharray: 3 3 !important;
+}
+
+/* Sequence diagrams put the class on the shape itself — `<rect class="actor actor-top">` — so the
+   `:is(.node, .actor) rect` descendant selector above never matched an actor box, and actors kept
+   Mermaid's stock lavender fill and purple stroke on an otherwise Flexoki page. */
+.mermaid svg rect.actor {
+  fill: var(--sl-color-bg) !important;
+  stroke: var(--sl-color-text-accent) !important;
+  stroke-width: 1.25px !important;
+}
+
+/* `tspan` is in this list because Mermaid writes `fill: #000` as an *inline* attribute on the tspans
+   inside every <text>, which beats a rule aimed at the parent — actor and note labels were rendering
+   black on a dark diagram. The cluster/edge label rules below are later and win where they apply. */
+.mermaid svg :is(.nodeLabel, .label, text, tspan) {
+  fill: var(--sl-color-white) !important;
+  color: var(--sl-color-white) !important;
+}
+
+.mermaid svg :is(.cluster-label, .cluster text) {
+  fill: var(--sl-color-gray-2) !important;
+  color: var(--sl-color-gray-2) !important;
+}
+
+/* A subgraph's title is laid out centred on the cluster's top edge, so the dashed border ran straight
+   through the words ("kernel — the real fd table" read as struck out). Mermaid renders the title as
+   HTML in a foreignObject with no backdrop of its own, so paint the diagram surface behind it.
+
+   The backdrop goes on the foreignObject's own div, which Mermaid has already sized to the text.
+   Padding it instead pushes the text past that fixed width and the overflow gets clipped. */
+.mermaid svg .cluster-label > foreignObject > div {
+  background: var(--kz-diagram-surface) !important;
+}
+
+.mermaid svg :is(.edgePath .path, .flowchart-link, .messageLine0, .messageLine1) {
+  stroke: var(--sl-color-gray-3) !important;
+}
+
+.mermaid svg :is(marker path, .marker, #arrowhead path) {
+  fill: var(--sl-color-gray-3) !important;
+  stroke: var(--sl-color-gray-3) !important;
+}
+
+/* Edge labels sit flat on the diagram surface rather than on a coloured chip — but they still need to
+   knock the connector line out from behind the text. Mermaid draws that knockout as an HTML
+   `div.labelBkg` inside a foreignObject, not as an SVG rect: `fill` never reached it, and the
+   `background: transparent` that used to be here erased the one property that did, leaving every edge
+   label with its own arrow struck through it. Rects are kept for the diagram types that use them. */
+.mermaid svg .edgeLabel .labelBkg {
+  background: var(--kz-diagram-surface) !important;
+}
+
+.mermaid svg .edgeLabel rect {
+  fill: var(--kz-diagram-surface) !important;
+}
+
+.mermaid svg .edgeLabel :is(text, p, span) {
+  fill: var(--sl-color-gray-2) !important;
+  color: var(--sl-color-gray-2) !important;
+  background: transparent !important;
+}
+
+.mermaid svg .actor-line { stroke: var(--sl-color-gray-4) !important; }
+
+.mermaid svg .note {
+  fill: var(--sl-color-gray-5) !important;
+  stroke: var(--sl-color-gray-4) !important;
+}
+
+/* ── Figures ─────────────────────────────────────────────────────────────────
+   Outside Acts I and II the course draws its diagrams as ASCII inside bare fences. Shiki renders
+   those as plaintext — the same flat monospace slab as the command *output* blocks either side, so a
+   picture of the handshake looked exactly like a paste of what tcpdump printed. `<!-- figure -->` in
+   the lesson source (see scripts/sync-content.mjs) wraps such a block in `.kz-figure`, which reuses
+   the Mermaid surface so every diagram on the site sits on the same material.
+
+   The nested code block loses its own frame here on purpose: two borders around one diagram reads as
+   a box inside a box. */
+.kz-figure {
+  --kz-diagram-surface: var(--sl-color-gray-6);
+
+  display: block;
+  margin-block: var(--s-6);
+  padding: var(--s-4);
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--r-lg);
+  background: var(--kz-diagram-surface);
+}
+
+/* Neutralise Expressive Code by redefining its own custom properties rather than out-specifying its
+   selectors: `.expressive-code .frame pre` is (0,2,1) and beats anything reasonable written from
+   `.kz-figure`, but a custom property set here simply inherits down and wins wherever EC reads it. */
+.kz-figure {
+  --ec-brdWd: 0px;
+  --ec-brdRad: 0px;
+  --ec-brdCol: transparent;
+  --ec-codeBg: transparent;
+  --ec-codePadInl: 0;
+  --ec-codePadBlk: 0;
+}
+
+.kz-figure :is(.expressive-code, figure, pre) {
+  margin: 0;
+  background: transparent;
+}
+
+/* Full selector path, not a shorter one: the code-block section below tints every block with
+   `.expressive-code .frame pre { box-shadow: inset 0 0 0 100vmax … }` at (0,2,1), which outranks
+   anything written as `.kz-figure pre`. Inside a figure that tint drew a second panel inset within
+   the figure's own border — a box inside a box. */
+.kz-figure .expressive-code .frame pre {
+  box-shadow: none;
+  background: transparent;
+}
+
+/* A diagram is not a command, so there is nothing worth copying — and the button overlaps the
+   top-right corner of the drawing. */
+.kz-figure .copy {
+  display: none;
+}
+
+/* ── Scrollytelling descent (the capstone) ───────────────────────────────────
+   `<kz-scrollytell>` (src/components/Scrollytell.astro) pins the packet's seven stages under the
+   header and marks the one you are reading, so scroll distance reads as the descent itself. Styled
+   like the stack rail on purpose — a reader who has seen that strip on forty lesson pages should
+   recognise this immediately as the same idea, per-stage instead of per-lesson. */
+
+/* Same reason as `.callout`: an unknown tag is inline by default, and a sticky strip inside an
+   inline box has no reliable containing block to stick to. */
+kz-scrollytell { display: block; }
+
+.scrolly {
+  position: sticky;
+  top: var(--sl-nav-height);
+  z-index: 5;
+  margin-block: var(--s-4);
+  padding-block: var(--s-2);
+  background: var(--sl-color-bg);
+  border-block-end: 1px solid var(--sl-color-hairline);
+}
+
+.scrolly__list {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  /* Seven stage names never fit a content column, and wrapping them to three rows would take more
+     vertical space than the header itself. Scrolling keeps it one line tall at every width. */
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.scrolly__list::-webkit-scrollbar { display: none; }
+
+.scrolly__stage + .scrolly__stage::before {
+  content: '›';
+  padding-inline: var(--s-2);
+  color: var(--sl-color-gray-4);
+}
+
+.scrolly__stage { display: flex; align-items: center; }
+
+/* gray-3, not gray-4: at gray-4 this measured 2.61:1 (dark) / 3.59:1 (light) against the page, so the
+   stages you had not reached yet were below the 4.5:1 AA floor for text this size — on a strip whose
+   whole job is telling you where you are. The current stage is an accent pill, so it does not need the
+   others held below legibility to stand out; it already has a filled background doing that. */
+.scrolly__link {
+  white-space: nowrap;
+  font-size: var(--sl-text-xs);
+  letter-spacing: 0.02em;
+  color: var(--sl-color-gray-3);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+
+/* Stages already passed read brighter than the ones still ahead — history you have covered, versus
+   distance remaining. Both legible; only the ordering between them is a design choice. */
+.scrolly__stage[data-state='done'] .scrolly__link { color: var(--sl-color-gray-2); }
+
+.scrolly__stage[data-state='current'] .scrolly__link {
+  padding: 0.15em 0.5em;
+  border-radius: var(--r-sm);
+  background: var(--sl-color-accent);
+  color: var(--sl-color-black);
+  font-weight: var(--kz-w-semibold);
+}
+
+.scrolly__link:hover { color: var(--sl-color-text-accent); }
+.scrolly__stage[data-state='current'] .scrolly__link:hover { color: var(--sl-color-black); }
+
+/* Stage headings become anchor targets, so keep them clear of the sticky strip when jumped to. */
+.sl-markdown-content p[id^='stage-'] { scroll-margin-top: calc(var(--sl-nav-height) + 4rem); }
+
+@media print {
+  .scrolly { display: none; }
+}
+
+/* ── Annotated output ────────────────────────────────────────────────────────
+   `<kz-annotate>` (src/components/Annotate.astro) marks individual fields inside a line of raw kernel
+   output. Same no-JS contract as the built diagrams: the authored fence is what's in the DOM, and is
+   only hidden once the element has successfully placed every field. `[data-annotate]` is the part the
+   element built. */
+kz-annotate[data-ready='true'] > :not([data-annotate]) {
+  display: none;
+}
+
+.annotate__lead {
+  margin-block: 0 var(--s-3);
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-3);
+}
+
+/* Scrolls rather than wraps: these are fixed-width kernel rows, and wrapping one puts the field you
+   are pointing at on a different line from its neighbours, which is the one thing that must not
+   happen here. */
+.annotate__out {
+  margin: 0;
+  padding: var(--s-3);
+  overflow-x: auto;
+  border-radius: var(--r-md);
+  background: var(--sl-color-bg);
+  font-size: var(--sl-text-sm);
+  line-height: 1.7;
+  white-space: pre;
+}
+
+.annotate__field {
+  padding: 0.1em 0.2em;
+  border: 0;
+  border-radius: 3px;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-white);
+  font: inherit;
+  /* The dotted underline is what says "ask me about this" without adding a second colour per field. */
+  text-decoration: underline dotted var(--sl-color-accent-high);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.annotate__field:hover,
+.annotate__field:focus-visible {
+  background: var(--sl-color-accent-high);
+  color: var(--sl-color-black);
+  outline: none;
+}
+
+/* Reserves its own height so hovering fields doesn't reflow the page under the pointer. */
+.annotate__note {
+  min-height: 3em;
+  margin-block: var(--s-3) 0;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+.annotate__note strong { color: var(--sl-color-accent-high); }
+
+/* The legend carries the same content as the hover notes, for touch, print and screen readers. On a
+   pointer device it is redundant, so it is folded down small rather than removed. */
+.annotate__legend {
+  margin-block: var(--s-3) 0;
+  padding-inline-start: var(--s-5);
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-gray-3);
+}
+
+.annotate__legend li { margin-block: var(--s-1); }
+.annotate__legend strong { color: var(--sl-color-gray-2); }
+
+@media (hover: hover) and (pointer: fine) {
+  .annotate__legend { display: none; }
+}
+
+.annotate__caption {
+  margin-block: var(--s-4) 0;
+  font-size: var(--sl-text-xs);
+  font-style: italic;
+  color: var(--sl-color-gray-3);
+}
+
+/* ── Built diagrams ──────────────────────────────────────────────────────────
+   `<kz-diagram>` (src/components/Diagram.astro) builds an SVG from a named spec and assembles it a
+   step at a time, so the reader watches the ordering happen instead of being handed a finished
+   picture. Two kinds share this styling: `pw__*` is the time–space walk (lifelines and sloped
+   arrows), `pd__*` is the vertical path (stage boxes down a spine). Colour lives here rather than in
+   the builder, for the same reason Mermaid's does: one palette, owned by the theme.
+
+   Until the element reports `data-state="ready"` its children are the authored ASCII diagram, shown
+   as-is. That is the no-JS path, so it must stay visible by default and only be replaced once there
+   is something better to replace it with. `[data-pw]` marks the parts the element built itself. */
+kz-diagram[data-state='ready'] > :not([data-pw]) {
+  display: none;
+}
+
+.pw__viewport {
+  position: relative;
+}
+
+/* The diagram fading off its own right edge, shown only while there is more to scroll to. On a phone
+   the figure is wider than the column, and an undiscoverable scrollbar hides half the exchange. */
+.pw__viewport::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: var(--s-8);
+  background: linear-gradient(to right, transparent, var(--kz-diagram-surface));
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+
+.pw__viewport[data-overflow='true']::after {
+  opacity: 1;
+}
+
+.pw__frame {
+  overflow-x: auto;
+}
+
+/* Below this the labels stop being legible when the viewBox is scaled to fit, so let the figure
+   scroll rather than shrink — the same trade the Mermaid blocks make. */
+.pw__frame > svg {
+  display: block;
+  width: 100%;
+  min-width: 30rem;
+  height: auto;
+}
+
+.pw__lifeline {
+  stroke: var(--sl-color-gray-4);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.pw__lane-box {
+  fill: var(--sl-color-bg);
+  stroke: var(--sl-color-text-accent);
+  stroke-width: 1.25;
+}
+
+.pw__lane-text {
+  fill: var(--sl-color-white);
+  font-family: var(--kz-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.pw__arrow {
+  stroke: var(--sl-color-text-accent);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.pw__head {
+  fill: var(--sl-color-text-accent);
+}
+
+.pw__label {
+  fill: var(--sl-color-white);
+  font-family: var(--kz-font-mono);
+  font-size: 12px;
+  text-anchor: middle;
+}
+
+.pw__gloss {
+  fill: var(--sl-color-gray-3);
+  font-size: 11.5px;
+  font-style: italic;
+  text-anchor: middle;
+}
+
+.pw__band-line {
+  stroke: var(--sl-color-text-accent);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+/* `stroke` here is a knockout, not an outline: the builder sets `paint-order: stroke fill` so the
+   surface-coloured stroke paints *under* the glyphs and hides the phase line running behind the
+   words. Same problem, same fix as the Mermaid cluster labels above — without it "connection
+   ESTABLISHED" reads as struck out. */
+.pw__band-text {
+  fill: var(--sl-color-gray-2);
+  stroke: var(--kz-diagram-surface);
+  stroke-width: 6;
+  font-family: var(--kz-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* ── Path diagrams: one packet down a stack of stages ──────────────────────── */
+.pd__box {
+  fill: var(--sl-color-bg);
+  stroke: var(--sl-color-hairline);
+  stroke-width: 1;
+}
+
+.pd__arrow {
+  stroke: var(--sl-color-text-accent);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.pd__head { fill: var(--sl-color-text-accent); }
+
+.pd__title {
+  fill: var(--sl-color-white);
+  font-family: var(--kz-font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.pd__detail {
+  fill: var(--sl-color-gray-2);
+  font-family: var(--kz-font-mono);
+  font-size: 11.5px;
+}
+
+/* The label on the arrow *into* a stage — what moves the packet on. Set apart from the stage titles
+   by being the one non-mono text in the diagram: it is narration, not a value you could type. */
+.pd__via {
+  fill: var(--sl-color-gray-3);
+  font-size: 11.5px;
+  font-style: italic;
+}
+
+.pw__foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-block-start: var(--s-3);
+  padding-block-start: var(--s-3);
+  border-block-start: 1px solid var(--sl-color-hairline);
+}
+
+.pw__caption {
+  margin: 0;
+  font-size: var(--sl-text-xs);
+  line-height: 1.6;
+  color: var(--sl-color-gray-3);
+  text-wrap: pretty;
+}
+
+.pw__replay {
+  flex: none;
+  padding: var(--s-1) var(--s-3);
+  border: 1px solid var(--kz-border-control);
+  border-radius: var(--r-md);
+  background: var(--sl-color-bg);
+  color: var(--sl-color-gray-2);
+  font-family: var(--kz-font-mono);
+  font-size: var(--sl-text-xs);
+  cursor: pointer;
+}
+
+.pw__replay:hover {
+  border-color: var(--sl-color-text-accent);
+  color: var(--sl-color-white);
+}
+
+/* Nothing to replay when the diagram was never animated in the first place. */
+@media (prefers-reduced-motion: reduce) {
+  .pw__replay {
+    display: none;
+  }
+
+  .pw__viewport::after {
+    transition: none;
+  }
+}
+
+/* ── Code blocks ─────────────────────────────────────────────────────────────
+   Flexoki gives code blocks the same ink as the page (`#100f0f` on `#100f0f` in dark mode), separated
+   only by a 3px border — deliberate on its part, but they stop reading as blocks.
+
+   The surface is tinted with a neutral translucent inset rather than by setting a colour. Expressive
+   Code pairs each theme's background with a matching foreground, so overriding `--ec-codeBg` alone
+   risks light-on-light or dark-on-dark (which is what broke code blocks twice earlier). A grey overlay
+   at 7% lightens a dark surface and darkens a light one, leaving the syntax colours untouched either
+   way — safe in both themes by construction. */
+.expressive-code {
+  --ec-brdCol: var(--sl-color-gray-4) !important;
+}
+
+.expressive-code .frame pre {
+  box-shadow: inset 0 0 0 100vmax rgba(128, 128, 128, 0.07);
+}
+
+/* The copy button should be discoverable, not hover-only, on a teaching site where every block is
+   meant to be run. */
+.expressive-code .copy button {
+  opacity: 0.65;
+  transition: opacity var(--dur-fast) var(--ease-standard);
+}
+
+.expressive-code:hover .copy button,
+.expressive-code .copy button:focus-visible {
+  opacity: 1;
+}
+
+/* ── Lesson footer nav ───────────────────────────────────────────────────────
+   Only reached on pages in a section with no overview page — everywhere else `sync-content.mjs` drops
+   the footer nav line outright, because Starlight's pagination cards already carry prev/next and the
+   page-title eyebrow now carries "up". See `tagLessonNav` for the accounting.
+
+   Where it does survive, it's stacked one destination per row: on a single line the titles wrap
+   mid-phrase, and the interpuncts stop separating anything once a row has broken, so the destinations
+   read as one run-on sentence. Small and grey, because the pagination cards below are the louder,
+   better-formatted copy and this shouldn't compete with them. */
+.sl-markdown-content .lesson-nav {
+  display: grid;
+  gap: var(--s-2);
+  margin-block-start: var(--s-5);
+}
+
+/* (0,2,1), which is what it takes to beat the `margin-block: var(--s-4)` on every markdown <p>. */
+.sl-markdown-content .lesson-nav > p {
+  margin: 0;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-3);
+}
+
+/* ── Lesson progress ──────────────────────────────────────────────────────── */
+.lesson-done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-block-end: var(--s-5);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--r-md);
+  background: var(--sl-color-gray-6);
+  font-size: var(--sl-text-sm);
+}
+
+.lesson-done[data-done='true'] {
+  border-color: var(--sl-color-green);
+  background: var(--sl-color-green-low);
+}
+
+.lesson-done__label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  cursor: pointer;
+  font-weight: var(--kz-w-medium);
+  color: var(--sl-color-white);
+}
+
+.lesson-done__tick {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 1.5px solid var(--kz-border-control);
+  border-radius: var(--r-xs);
+  background: var(--sl-color-bg);
+}
+
+.lesson-done__tick::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  background-color: var(--sl-color-bg);
+  opacity: 0;
+  -webkit-mask: var(--tick) center / contain no-repeat;
+  mask: var(--tick) center / contain no-repeat;
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+}
+
+.lesson-done[data-done='true'] .lesson-done__tick {
+  border-color: var(--sl-color-green);
+  background: var(--sl-color-green);
+}
+
+.lesson-done[data-done='true'] .lesson-done__tick::after { opacity: 1; }
+
+.lesson-done__box:focus-visible + .lesson-done__tick {
+  outline: 2px solid var(--sl-color-text-accent);
+  outline-offset: 2px;
+}
+
+.lesson-done__link {
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-gray-3);
+}
+
+.progress {
+  margin-block: var(--s-6);
+  padding: var(--s-5);
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--r-lg);
+  background: var(--sl-color-gray-6);
+}
+
+.progress__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-block-end: var(--s-5);
+}
+
+.progress__count { font-size: var(--sl-text-sm); color: var(--sl-color-white); }
+
+.progress__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+
+.progress__row { display: grid; grid-template-columns: 1fr; gap: var(--s-2); align-items: center; }
+
+@media (min-width: 34rem) {
+  .progress__row { grid-template-columns: 15rem 1fr auto; gap: var(--s-4); }
+}
+
+.progress__label {
+  font-size: var(--sl-text-sm);
+  font-weight: var(--kz-w-medium);
+  color: var(--sl-color-white);
+  text-decoration: none;
+}
+
+.progress__label:hover { color: var(--sl-color-text-accent); }
+
+.progress__track {
+  block-size: 8px;
+  border-radius: var(--r-pill);
+  background: var(--sl-color-gray-5);
+  overflow: hidden;
+}
+
+.progress__fill {
+  block-size: 100%;
+  border-radius: var(--r-pill);
+  background: var(--sl-color-text-accent);
+  transition: inline-size var(--dur-slow) var(--ease-out);
+}
+
+.progress__row[data-complete='true'] .progress__fill { background: var(--sl-color-green); }
+
+/* The count sits in an `auto` grid column, so `0/3` and `0/13` used to give their rows different
+   track widths and the bars ended on a ragged right edge. Reserve the widest count ("12/13") and
+   right-align inside it. */
+.progress__num {
+  min-inline-size: 5ch;
+  font-family: var(--kz-font-mono);
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-gray-3);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.progress__reset {
+  margin-block-start: var(--s-5);
+  padding: var(--s-2) var(--s-4);
+  border: 1px solid var(--kz-border-control);
+  border-radius: var(--r-pill);
+  background: transparent;
+  font: inherit;
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-gray-2);
+  cursor: pointer;
+}
+
+.progress__reset:hover { border-color: var(--sl-color-white); color: var(--sl-color-white); }
+
+.progress__note { margin-block: var(--s-2) 0; font-size: var(--sl-text-xs); color: var(--sl-color-gray-3); }
+
+/* Small uppercase label. Shared by the landing page's section headers and the page-title eyebrow
+   `PageTitle.astro` puts beside each motif — the same device doing the same job in both places. */
+.kz-eyebrow {
+  display: block;
+  font-size: var(--sl-text-xs);
+  font-weight: var(--kz-w-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+}
+
+/* ── Section motifs ─────────────────────────────────────────────────────────
+   `Motif.astro` draws eight 48×20 line diagrams — see that file for what each one claims. The CSS
+   lives here rather than in the component because the static frame arrives through `set:html`, which
+   Astro's scoped styles never touch.
+
+   Two colour weights only: the route is furniture (hairline-ish grey), the packet is the accent. The
+   dot is the only thing on the page allowed to move. */
+.kz-motif {
+  flex: none;
+  overflow: visible;
+}
+
+.kz-motif__frame :is(rect, path, circle) {
+  fill: none;
+  stroke: var(--sl-color-gray-4);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+/* Anything under ~6 units tall is all stroke and no shape at this size, so the small things — a
+   container, a Pod, a router — are drawn solid instead of outlined. */
+.kz-motif__frame .fill {
+  fill: var(--sl-color-gray-4);
+  stroke: none;
+}
+
+.kz-motif__wire {
+  fill: none;
+  stroke: var(--sl-color-gray-4);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+/* Runs twice on load, then rests invisible — the wire it travelled is the diagram that remains.
+   `both` is what holds it at the final keyframe (opacity 0) instead of snapping back into view. */
+.kz-motif__dot {
+  fill: var(--sl-color-text-accent);
+  offset-rotate: 0deg;
+  animation-name: kz-motif-run;
+  animation-timing-function: var(--ease-standard);
+  animation-iteration-count: 2;
+  animation-fill-mode: both;
+}
+
+@keyframes kz-motif-run {
+  0% { offset-distance: 0%; opacity: 0; }
+  12% { opacity: 1; }
+  78% { offset-distance: 100%; opacity: 1; }
+  88%, 100% { offset-distance: 100%; opacity: 0; }
+}
+
+/* Without `offset-path` the dot would sit at the viewBox origin — a stray blob in the corner. Drop it
+   and keep the line drawing, which reads on its own. */
+@supports not (offset-path: path('M0 0H1')) {
+  .kz-motif__dot { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kz-motif__dot {
+    animation: none;
+    offset-distance: var(--kz-park, 62%);
+    opacity: 1;
+  }
+}
+
+/* ── Landing page ─────────────────────────────────────────────────────────── */
+.kz-section { padding-block-end: var(--s-11); }
+
+.kz-section__title {
+  font-size: var(--sl-text-2xl);
+  font-weight: var(--kz-w-semibold);
+  color: var(--sl-color-white);
+  margin-block: var(--s-2) var(--s-5);
+}
+
+.kz-grid { display: grid; gap: var(--s-4); grid-template-columns: 1fr; }
+
+@media (min-width: 40rem) { .kz-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 64rem) { .kz-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.kz-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--s-5);
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--r-lg);
+  background: var(--sl-color-gray-6);
+  text-decoration: none;
+  color: var(--sl-color-gray-2);
+  transition: border-color var(--dur-base) var(--ease-standard);
+}
+
+a.kz-card:hover { border-color: var(--sl-color-text-accent); color: var(--sl-color-gray-2); }
+
+.kz-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  margin-block-end: var(--s-4);
+  border-radius: var(--r-sm);
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text-accent);
+}
+
+.kz-card__icon > svg { width: 20px; height: 20px; }
+
+/* Brand marks are solid shapes; Lucide's are 2px strokes with no fill. At the same 20px they read
+   noticeably heavier, so the branded cards would jump out of the grid for no editorial reason. */
+.kz-card__icon--brand > svg { width: 17px; height: 17px; }
+
+.kz-card--terra .kz-card__icon { background: var(--sl-color-green-low); color: var(--sl-color-green-high); }
+.kz-card--clay .kz-card__icon { background: var(--sl-color-orange-low); color: var(--sl-color-orange-high); }
+
+.kz-card__title {
+  font-size: var(--sl-text-base);
+  font-weight: var(--kz-w-semibold);
+  line-height: 1.3;
+  color: var(--sl-color-white);
+  margin-block-end: var(--s-1);
+}
+
+.kz-card__desc { font-size: var(--sl-text-sm); line-height: 1.6; margin: 0; }
+
+.kz-card__meta {
+  margin-block-start: auto;
+  padding-block-start: var(--s-3);
+  font-size: var(--sl-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sl-color-gray-3);
+}
+
+/* Terminal: always dark, in both themes. */
+.kz-terminal {
+  border-radius: var(--r-md);
+  background: #100f0f;
+  border: 1px solid var(--sl-color-gray-5);
+  overflow: hidden;
+}
+
+.kz-terminal__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-2) var(--s-4);
+  border-block-end: 1px solid rgba(255, 255, 255, 0.12);
+  font-family: var(--kz-font-mono);
+  font-size: var(--sl-text-xs);
+  color: #878580;
+}
+
+.kz-terminal__body {
+  padding: var(--s-4);
+  font-family: var(--kz-font-mono);
+  font-size: var(--sl-text-sm);
+  line-height: 1.8;
+  color: #cecdc3;
+  overflow-x: auto;
+}
+
+.kz-terminal__line { white-space: pre; }
+.kz-terminal .tok-prompt { color: #3aa99f; }
+.kz-terminal .tok-comment { color: #878580; }
+
+/* On a phone the body's `overflow-x: auto` left the one command the whole page is selling half
+   off-screen behind a scroll nobody knows is there. Wrap it instead. */
+@media (max-width: 40rem) {
+  .kz-terminal__line { white-space: pre-wrap; }
+}
+
+.kz-note {
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--sl-color-gray-6);
+  font-size: var(--sl-text-sm);
+  line-height: 1.65;
+  color: var(--sl-color-gray-2);
+}
+
+/* MDX gives the note's prose its own <p>; the box supplies the spacing. */
+.kz-note > p { margin-block: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .progress__fill,
+  .kz-card,
+  .sl-markdown-content details > summary::before {
+    transition: none;
+  }
+}
