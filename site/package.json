@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Tutorial website for the learn_networking course, generated from the Markdown in networking-fundamentals/",
   "scripts": {
-    "sync": "node scripts/sync-content.mjs",
+    "sync": "node scripts/sync-content.mjs && node scripts/sync-illustrations.mjs",
     "og": "node scripts/gen-og.mjs",
     "dev": "npm run sync && astro dev",
     "start": "npm run sync && astro dev",

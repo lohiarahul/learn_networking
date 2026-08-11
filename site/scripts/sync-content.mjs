@@ -371,6 +371,12 @@ function rewriteLinks(body, srcRel, urlMap, unresolved) {
       .normalize(path.posix.join(srcDir, filePart))
       .replace(/\/$/, '');
 
+    // Illustrations are referenced *relatively* by the lessons (`../../illustrations/…`) so the image
+    // still renders when the Markdown is read on GitHub. scripts/sync-illustrations.mjs copies the
+    // same files into public/, so on the site that path becomes an absolute URL under BASE. Without
+    // this the relative path would fall through to `unresolved` and 404 on every lesson page.
+    if (resolved.startsWith('illustrations/')) return `](${BASE}/${resolved}${hash})`;
+
     const url = urlMap.get(resolved);
     if (url) return `](${url}${hash})`;
 

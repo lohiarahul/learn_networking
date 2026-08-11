@@ -25,3 +25,13 @@ site/src/content/docs/*
 !site/src/content/docs/index.mdx
 !site/src/content/docs/progress.mdx
 site/src/lib/lesson-meta.generated.json
+
+# illustrations/ at the repo root is the source of truth (SVGs plus the generator that draws them).
+# site/public/illustrations/ is a one-way projection of it, gallery page included — see
+# site/scripts/sync-illustrations.mjs. Tracking both would guarantee they drift.
+site/public/illustrations/
+
+# Contact-sheet PNGs for reviewing the illustration set: ~1.1MB of binary, regenerable from the SVGs
+# with `python3 illustrations/_build/sheet.py <category> <out.png>`. Tracking them would rewrite every
+# sheet on any drawing tweak. Drop this line if you'd rather review them on GitHub.
+illustrations/_previews/

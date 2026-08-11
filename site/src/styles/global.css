@@ -1430,3 +1430,28 @@ a.kz-card:hover { border-color: var(--sl-color-text-accent); color: var(--sl-col
     transition: none;
   }
 }
+
+/* --- Topic illustrations -----------------------------------------------------------------------
+   The spot illustrations in /illustrations are 320x240 SVGs used as a visual break near the top of a
+   lesson. They are decoration with a caption's worth of meaning, not figures to be studied, so they
+   are deliberately held *below* the width of the prose column: an illustration that spans the full
+   measure reads as a diagram and pulls attention away from the sentence that follows it.
+
+   Targeted by src attribute rather than a class because the lessons stay plain Markdown — they must
+   render on GitHub too, where a class would be stripped. */
+.sl-markdown-content img[src*='/illustrations/'] {
+  display: block;
+  width: 100%;
+  max-width: 20rem;
+  height: auto;
+  margin-block: var(--s-6, 1.5rem);
+  margin-inline: auto;
+}
+
+/* The plate is a light `#f1f5f9` rounded rectangle drawn inside the SVG. Against Flexoki's paper it
+   reads as a card; against the dark theme it would glare, so knock it back there. Filtering the whole
+   image keeps the internal palette relationships intact — recolouring shape by shape would need 76
+   hand-edits and would drift from the generator. */
+:root[data-theme='dark'] .sl-markdown-content img[src*='/illustrations/'] {
+  filter: brightness(0.82) saturate(0.9);
+}
