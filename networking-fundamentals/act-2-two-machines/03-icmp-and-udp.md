@@ -2,6 +2,8 @@
 
 The routing table tells the kernel where to send a packet — but that's just the map. What happens when a packet actually travels the route and fails silently partway? What if an application wants to fire one small message without a three-way handshake? And what stops a misrouted packet from circling the network forever? Bare IP answers none of these — we'll find each answer by provoking it on the wire and watching it happen.
 
+![An ordered acknowledged stream above an unacknowledged one](../../illustrations/05-transport/tcp-vs-udp.svg)
+
 ## ICMP — when the network needs to say something back
 
 Early IP networks had a maddening property: when a packet failed — no route, a router out of buffers — it simply vanished, and the sender never learned why. There was no way for the network *itself* to say anything. RFC 792 (1981) added a dedicated channel for exactly that: a way for a router to tell a sender "I dropped your packet, and here's the reason."

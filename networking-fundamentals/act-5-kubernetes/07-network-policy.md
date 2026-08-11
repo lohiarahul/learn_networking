@@ -2,6 +2,8 @@
 
 By default, Kubernetes is a flat, trusting network: every Pod can open a connection to every other Pod, in any namespace, on any port. That is wonderful for getting started and terrifying for production, where a compromised frontend should not be able to dial the database directly. NetworkPolicy is how you close those doors — and it turns out to be the firewall rules from Act IV, written in YAML instead of `iptables`.
 
+![No trusted interior: every party authenticates for every request](../../illustrations/07-security/zero-trust-networking.svg)
+
 ### Why isn't flat Pod connectivity enough?
 
 Flat connectivity means one breached Pod can reach everything. You want segmentation: the database should accept connections only from the API Pods, the API only from the frontend, and nothing should talk to internal services it has no business touching. In Act IV you already had the tool for "drop this packet unless it matches" — iptables filter rules. But Pod IPs are ephemeral; a firewall rule pinned to `10.244.1.7` is wrong the moment that Pod restarts with a new IP. You needed a way to express "allow traffic from the API Pods" that survives Pods coming and going.

@@ -2,6 +2,8 @@
 
 Act IV ended by handing you a task instead of an answer. A cluster gives you one stable address to dial for a service whose real processes are born and destroyed constantly; you know two ways an address can work — a device owns it, or a route leads to it — and Act IV showed you the machinery for a third, then told you to come here, go looking for that address with `ip addr` on every node, and see for yourself what is there before letting anyone settle it.
 
+![Short-lived pods reached through one stable service address](../../illustrations/09-cloud-modern/kubernetes-networking.svg)
+
 This lesson is built around that one experiment. Everything before it is the vocabulary you need in order to describe what you find, and there is not much of it: the name of the thing you are looking for, and the reason anybody wanted it.
 
 ### Why not just hand out a Pod's IP as "the database"?
@@ -220,6 +222,8 @@ No, and not because nobody implemented it. A `KUBE-SERVICES` rule matches on the
 ### And what is wrong with a coin flip?
 
 Nothing, for the traffic you have looked at so far. The probabilities distribute *connections* evenly, and if every connection is one short HTTP request to an identical Pod, even is exactly what you want.
+
+![One front address spreading requests over several servers](../../illustrations/06-core-services/load-balancing.svg)
 
 Now change one thing about the workload and predict what happens.
 

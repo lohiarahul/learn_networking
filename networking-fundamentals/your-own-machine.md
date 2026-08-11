@@ -58,6 +58,8 @@ The container taught you the Linux toolbox; macOS has the same *concepts* under 
 
 *Concept:* `1.1.1.1` is **anycast** — you and a friend in another city reach *different physical boxes*; routing picks the nearest.
 
+![One send reaching many receivers, and one address served by the nearest](../illustrations/04-routing-layer3/anycast-and-multicast.svg)
+
 - **Make Cloudflare confess its location:**
   ```
   dig CH TXT id.server @1.1.1.1 +short
@@ -110,6 +112,8 @@ The container taught you the Linux toolbox; macOS has the same *concepts* under 
 ### Where your latency actually lives (HTTP four-stage timing)
 
 *Concept:* a single request is layers stacked — DNS → TCP → TLS → server think-time. Time each.
+
+![A wide pipe moving many packets versus a narrow slow one](../illustrations/01-fundamentals/bandwidth-vs-latency.svg)
 
 1. Run this against a site you open daily:
    ```

@@ -2,6 +2,8 @@
 
 IP gets a packet from one machine to another, or it doesn't — and it never apologizes. A router under load drops your packet. Two packets take different paths and arrive out of order. A retransmission you didn't ask for shows up twice. IP promises nothing except that *if* a packet arrives, it arrived at the right address. Two processes that want to have an actual conversation — send a file, run a request, stream a reply — cannot live with that. So somewhere a layer has to take this hostile, lossy channel and turn it into something a program can trust. That layer is TCP, and the trust it sells is a lie maintained with enormous care.
 
+![A sending rate that climbs, collapses on loss, and climbs again](../../illustrations/05-transport/congestion-control.svg)
+
 ### Why should the kernel, not every app, handle reliability?
 
 **Because the code is subtle, identical in every program that needs it, and corrupts data silently when it is wrong.**
@@ -91,6 +93,8 @@ No — `write()` returning only means the bytes were copied into the kernel's se
 ### Can you watch flow control freeze a sender?
 
 In `docker run --rm -it --privileged --network host --name lab nicolaka/netshoot`, make a connection that deliberately sends faster than the reader drains, and watch bytes pile up in the queues. In one terminal, start a slow reader:
+
+![A receiver advertising how much data it can still accept](../../illustrations/05-transport/flow-control.svg)
 
 ```bash
 nc -l 8080 | (sleep 30; cat)

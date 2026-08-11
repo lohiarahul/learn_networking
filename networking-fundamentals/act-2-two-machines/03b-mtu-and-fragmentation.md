@@ -2,6 +2,8 @@
 
 In the very first frame diagram of this act, the payload had a ceiling: `46 – 1500` bytes. That `1500` wasn't decoration — it's a hard limit on how much an Ethernet link will carry in one frame. But IP packets can be far larger, and a single packet may cross links with *different* ceilings on its journey.
 
+![A packet wrapped inside a frame with header and trailer](../../illustrations/01-fundamentals/packets-and-frames.svg)
+
 So the network owes you an answer to a blunt question: what happens when a packet is too big for the next wire? The answer pulls together three things you've already met — the IP header, a one-bit flag, and the ICMP error channel from the last file — into one of the most quietly common failures in all of networking.
 
 ## The problem: every link has a maximum frame size

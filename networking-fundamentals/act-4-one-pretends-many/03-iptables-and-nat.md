@@ -2,6 +2,8 @@
 
 Our containers can talk to the host and to each other. But a container with a private address like `172.17.0.2` is invisible to the internet, and the internet is invisible to it. To fix that we need to *rewrite packets in flight*, which means first understanding the machinery that lets the kernel touch a packet at all.
 
+![Several inside addresses translated to a single outside address](../../illustrations/02-addressing/nat.svg)
+
 You have met the name of that machinery once already, as a promissory note. [Act III's conntrack lesson](../act-3-the-internet/02b-conntrack.md) described the kernel's NAT machinery as "the `iptables` chains Act IV takes apart" — a thing recording every translated connection, which you could read the *results* of and not the rules. This is where the note comes due.
 
 ### iptables — the kernel's packet processing hooks
@@ -88,6 +90,8 @@ Because of where the routing decision sits between them. DNAT changes the **dest
 ### NAT — sharing one IP across many processes
 
 **The problem that made this necessary** — Here's the puzzle. A container has `172.17.0.2`. The host has `192.168.1.5`. The container wants `google.com`. But `172.17.0.2` is a private address — the internet has never heard of it and will never route a reply to it. If the container just sends a packet with source `172.17.0.2`, the reply has nowhere to come back to. We need the host to *lie on the container's behalf*: rewrite the source so replies come back to the host, then quietly undo the lie. That trick is **NAT** (Network Address Translation), and it's how one public IP serves a whole house, a whole office, or a whole node full of containers.
+
+![Reusable inside addresses behind one globally routable address](../../illustrations/02-addressing/private-vs-public-ip.svg)
 
 **What it actually is** — Two directions:
 

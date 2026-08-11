@@ -2,6 +2,8 @@
 
 A ClusterIP lives only inside the cluster. NodePort and LoadBalancer punch a hole to the outside, but they are blunt: one IP (or one port) per Service, no understanding of hostnames, no understanding of URL paths, and no TLS unless you build it yourself. Real web traffic doesn't work that way. You have one public IP and dozens of sites and APIs behind it, told apart by `Host:` headers and paths, all on port 443, all encrypted. Ingress is the cluster's HTTP front door.
 
+![One gateway fronting many services behind it](../../illustrations/09-cloud-modern/api-gateways.svg)
+
 ### Why not just give every site its own LoadBalancer?
 
 Exposing every Service as its own LoadBalancer is wasteful and crude: each one burns a cloud load balancer and a public IP, and none of them can route on HTTP semantics. The web solved this decades ago with name-based virtual hosting and reverse proxies — one server on port 443 that reads the `Host:` header and the path and forwards to the right backend. Kubernetes needed that reverse proxy as a first-class, declarative object: state the routing rules, and have something implement them, terminate TLS at the edge, and forward plain HTTP to the right Service inside.
@@ -9,6 +11,8 @@ Exposing every Service as its own LoadBalancer is wasteful and crude: each one b
 ### So what is an Ingress, really?
 
 **Ingress** is two things. First, the *Ingress resource*: a declarative routing table you write, mapping hostnames and paths to Services:
+
+![A middleman in front of the clients, then one in front of the servers](../../illustrations/06-core-services/reverse-proxy-vs-forward-proxy.svg)
 
 ```
 host api.example.com  path /v1  ─►  Service api-service:8080

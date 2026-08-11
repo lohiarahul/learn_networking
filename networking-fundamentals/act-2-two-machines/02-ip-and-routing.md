@@ -2,6 +2,8 @@
 
 VLANs left you with a pile of isolated wires and a fresh frustration: a host on one wire *cannot* reach a host on another at Layer 2, and the MAC address — that hardware name — means nothing one hop away. But the whole point of a network is to reach machines that aren't on your wire.
 
+![A router deciding each packet's next hop from its table](../../illustrations/04-routing-layer3/routers-and-routing-tables.svg)
+
 For that you need two things you don't yet have: a name that means the same thing on *every* wire, and a rule that decides, at each junction, which way to send a packet so it gets closer. That name is the IP address. That rule is the routing table. This file builds both, and reads them straight out of the kernel.
 
 ## The problem: one name that means the same thing everywhere
@@ -37,6 +39,8 @@ Masking is literally a bitwise AND: the address AND the mask `11111111 11111111 
 ## Subnet one by hand — the arithmetic everything later is made of
 
 You have everything you need to do this yourself now: the mask is a run of ones, masking is an AND, and the diagram above already shows that the network address and the broadcast address are the two you don't get to hand to a host. So do two, before any tool and before any worked example. On paper.
+
+![One address block divided into three smaller subnets](../../illustrations/02-addressing/ipv4-subnetting.svg)
 
 > **Predict first —** for `10.244.6.37/22` and for `192.168.1.200/28`, work out the network address, the broadcast address, and the number of usable hosts. Six answers. Write all six down.
 

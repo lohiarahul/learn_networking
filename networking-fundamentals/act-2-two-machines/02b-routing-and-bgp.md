@@ -2,6 +2,8 @@
 
 The last file left you reading a routing table and predicting which row wins by longest-prefix match. It never asked the obvious question: *who put those rows there?* And it left a loose thread — how did one ISP's announcement in Pakistan reach routers across the whole planet in minutes? Both have the same answer.
 
+![Two separate networks peering to exchange reachability](../../illustrations/04-routing-layer3/bgp.svg)
+
 On your laptop a handful of routes arrived by hand or from DHCP, but the internet has nearly a million routes, spread across tens of thousands of independently run networks, changing every second. No human maintains that. The routers tell each other — and the protocol they use to do it runs the entire internet and trusts what it's told exactly as much as ARP did.
 
 ## The problem: no human can maintain a million routes

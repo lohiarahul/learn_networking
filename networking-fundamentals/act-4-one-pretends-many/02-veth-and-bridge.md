@@ -2,6 +2,8 @@
 
 A namespace is an isolated machine, and a cgroup fixes how big a bite of the host it may take. Neither gives it a way to talk. Now we build the cable to plug it in, and then the switch to plug many cables into.
 
+![Isolated containers sharing one host bridge to reach the network](../../illustrations/09-cloud-modern/containers-and-container-networking.svg)
+
 ### veth pairs — the virtual wire between namespaces
 
 **The problem that made this necessary** — Once you can create an isolated network namespace, you immediately want to *un*-isolate it, just a little — to run one wire from this private machine to the outside so packets can flow. On real hardware you'd run an Ethernet cable between two NICs. But there is no second NIC, and there is no cable; there's just one kernel holding two namespaces that can't see each other. The kernel needed a software object that behaves like a cable: a thing with two ends, where whatever goes in one end comes out the other, and where the two ends can live in two different namespaces. That object is the **veth pair** (virtual Ethernet).
@@ -85,6 +87,8 @@ Which makes the interesting question *what that binary has to be told*. It canno
 ### Linux bridge — the software Ethernet switch
 
 **The problem that made this necessary** — One veth pair connects one namespace to the host. But put ten containers on a host and you have ten dangling wires, and the containers can't talk to *each other* — only to the host, point to point. On real hardware you'd plug ten cables into a switch, and the switch would learn which machine is on which port and forward frames accordingly. The kernel needed that switch in software: a thing you plug many veth ends into, that learns MAC addresses and forwards Ethernet frames between ports. That's the **Linux bridge**.
+
+![A learned table mapping each hardware address to a switch port](../../illustrations/03-switching-layer2/switch-mac-tables.svg)
 
 **What it actually is** — A Linux bridge is a software Ethernet switch that lives in the kernel. You create it, plug interfaces into it (each veth end becomes a "port"), and it does what every switch does: it learns which MAC address it last saw on which port, builds a forwarding table, and forwards each frame only to the port where its destination lives. Containers plugged into the same bridge talk to each other at Layer 2 — frame to frame — without the packet ever leaving the host or touching IP routing. `docker0` and `cni0` are exactly this: bridges with a bunch of container veths plugged in.
 

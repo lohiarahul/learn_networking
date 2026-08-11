@@ -2,6 +2,8 @@
 
 Every machine in this act has had an IP address, a subnet mask, a default gateway, and a DNS server — and we've quietly assumed they were just *there*. The MTU file even leaned on it out loud.
 
+![A newly joined host handed its addressing settings](../../illustrations/06-core-services/dhcp.svg)
+
 But where does a freshly booted machine, one that has never spoken on this network, get all of that? It's a genuine chicken-and-egg: a host needs an address to use the network, but it wants to *get* its address *from* the network. The protocol that breaks the loop does it with the bluntest tool on the wire — a broadcast shouted by a machine that doesn't yet know who it is.
 
 ## The problem: you can't be told your address over a network you can't use

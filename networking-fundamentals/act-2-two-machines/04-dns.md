@@ -2,6 +2,8 @@
 
 DHCP just handed your machine, among other things, the address of a DNS server — which is the last admission this act has to make. You've been typing `8.8.8.8` and `google.com` as if they were the same kind of thing, but no human memorises 32-bit integers.
 
+![A name looked up by asking servers up the hierarchy](../../illustrations/06-core-services/dns-resolution.svg)
+
 Every name you've ever used to reach a machine — `google.com`, `kubernetes.default`, the host in a URL — had to become an IP *before* any of the routing and ARP and framing of this act could even begin. The thing that performs that translation is the largest distributed database on earth, and it's the final piece of getting `write()` on one machine to `read()` on another.
 
 ## The problem: one big file of names couldn't scale
@@ -31,6 +33,8 @@ flowchart TD
 ## The files that govern a name
 
 Three files decide how a name resolves — and one of the three decides the order the other two are consulted in:
+
+![Several kinds of record answering the same kind of question](../../illustrations/06-core-services/dns-record-types.svg)
 
 > **`/etc/hosts`** — static name→IP overrides, kept locally; the ancestor of `HOSTS.TXT`.
 > **`/etc/resolv.conf`** — `nameserver <IP>` (who to ask), `search <domains>`, options.

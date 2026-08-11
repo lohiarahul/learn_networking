@@ -2,6 +2,8 @@
 
 Act I was one machine talking to itself, and the hard problems hid because the same kernel sat on both ends of every `write()`. Now put the wire back.
 
+![A broadcast question about an address that one host answers](../../illustrations/02-addressing/arp.svg)
+
 You type `ping 192.168.1.1` and expect bytes to cross to another machine — but here is the first surprise, and it is a deep one: the packet that leaves your card does **not** leave as an IP packet addressed to `192.168.1.1`. It leaves wrapped in an Ethernet frame, addressed to a name your IP layer has never heard of.
 
 There are two completely separate naming systems stacked on top of each other, and a small protocol whose entire job is to translate between them. This file is about learning both names, then watching the translator work — live, in a file — and then working it yourself.
@@ -41,6 +43,8 @@ The preamble is just a clock-sync pattern the hardware strips off; the frame "re
 ## Read the card's name straight from the kernel
 
 You don't need a tool to see your card's hardware name — the kernel publishes it as a file, exactly like everything in Act I. Start the lab (this is the one line every lesson in this act opens with):
+
+![A hardware address fixed to a network interface card](../../illustrations/02-addressing/mac-addresses.svg)
 
 ```bash
 docker run --rm -it --privileged --network host --name lab nicolaka/netshoot

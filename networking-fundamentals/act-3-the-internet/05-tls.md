@@ -2,6 +2,8 @@
 
 HTTP is a conversation in plain text, and that was its genius — anyone could read it, debug it, implement it. But "anyone could read it" is also a catastrophe, because the conversation crosses dozens of routers owned by strangers, any of which can read every byte and change it. Your password, sent as `password=hunter2` in a request body, is visible to every machine on the path. The web needed a way to keep the simple text model while making the bytes on the wire unreadable and untamperable to everyone except the intended server. That is TLS.
 
+![Keys and a certificate exchanged before the channel is locked](../../illustrations/07-security/tls-ssl-handshake.svg)
+
 ### Why couldn't the web just stay plain text?
 
 **Because every router on the path could read your password and quietly rewrite the page — and the web started carrying money.**
@@ -155,6 +157,8 @@ Both are settled in Act V. Notice that the second one is not really about crypto
 ### What's inside the lock we didn't open?
 
 **The cryptography itself — and it is a deliberate hole, not an oversight.**
+
+![A page fetched over a channel that is locked end to end](../../illustrations/07-security/https.svg)
 
 Notice what you just did: you *used* the lock, read its label, and trusted it — but you never looked inside. What is a "cipher suite" actually doing? How does `TLS_AES_256_GCM_SHA384` turn a wire that any router can read into a secret only two endpoints share, when they've never met and the whole handshake crossed the network in the clear? How can a signature prove a stranger's identity?
 

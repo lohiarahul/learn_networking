@@ -2,6 +2,8 @@
 
 You just used `curl` to talk to minihttp, and it answered. That exchange created a **connection**, and your server is still **listening** for more. The kernel writes both of those facts down — live — in a single file. This lesson finds your server in that file and teaches you to read it by hand. Once you can, every fancy network tool stops being magic: each one is just a program that reads this same file and tidies it up.
 
+![A host with several numbered ports, each holding one conversation](../../illustrations/05-transport/ports-and-sockets.svg)
+
 ## Why there are ports at all
 
 Your machine has one IP address but runs many programs that all want the network at once — a web server, an SSH login, a database. A packet arrives addressed to your one IP. Which program is it for?

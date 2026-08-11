@@ -14,6 +14,8 @@ A stateless rewrite cannot do this; there is nothing in the reply packet that sa
 
 **Two tuples per connection: the addresses as the packet first appeared, and the addresses the reply is expected to carry.**
 
+![A wall judging each packet alone, then one judging it in context](../../illustrations/07-security/firewalls-stateful-vs-stateless.svg)
+
 `conntrack` (connection tracking) is the kernel subsystem that maintains a table of every active connection passing through it, along with the NAT translation applied to each. Every packet that traverses the kernel's NAT machinery — the `iptables` chains Act IV takes apart — is recorded: the kernel notes the *original tuple* (the addresses and ports as the packet first appeared) and the *reply tuple* (the addresses and ports it expects the reply to carry, after translation).
 
 When a packet arrives, the kernel looks it up in this table; if it matches the reply side of an existing entry, the reverse translation is applied automatically and the packet is sent to the right private host. `conntrack` is what makes NAT work at all.

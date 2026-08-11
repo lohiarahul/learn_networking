@@ -2,6 +2,8 @@
 
 The last file ended on an uncomfortable thought. ARP works by shouting onto a wire that *every* card hears, and *any* card may answer. For a roomful of colleagues that's fine.
 
+![One switch carrying two isolated groups of ports](../../illustrations/03-switching-layer2/vlans.svg)
+
 But the wire grows: hundreds of machines, every broadcast flooded to all of them, and any host free to claim it's the gateway. The shared wire that made addressing simple becomes both a noise problem and a trust problem the bigger it gets. So here's the question this file answers: how do you cut one physical wire into several smaller, isolated wires — without laying a single new cable? The answer, like the MAC and the IP before it, turns out to be just a number written into the frame.
 
 ## The problem: one shared wire neither scales nor isolates
@@ -13,6 +15,8 @@ You could fix it by buying a separate physical switch for each group — but tha
 ## What a VLAN actually is — a broadcast domain with a number on it
 
 A VLAN (Virtual LAN) is a **broadcast domain defined by a number** rather than by physical wiring. The number is a 12-bit **VLAN ID** (1–4094) carried in a 4-byte **802.1Q tag** slipped into the Ethernet frame right after the source MAC:
+
+![One shared collision domain beside two router-bounded broadcast domains](../../illustrations/03-switching-layer2/collision-vs-broadcast-domains.svg)
 
 <!-- figure -->
 

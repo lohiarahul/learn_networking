@@ -2,6 +2,8 @@
 
 TCP promises an ordered stream of bytes, where every byte has a number. But before the first byte of data can move, the two sides have a problem: neither knows where the other intends to start counting. There is no global clock, no shared origin. They have to *agree*, from scratch, on two numbers — one for each direction of the stream — and they have to do it over the same unreliable network that might drop the agreement itself. That negotiation is the three-way handshake, and it is the first thing any TCP connection does.
 
+![Three messages exchanged to open a connection](../../illustrations/05-transport/tcp-handshake.svg)
+
 ### Why can't both sides just start counting at zero?
 
 **Because zero is a number an old, delayed packet might also be carrying — so a fresh connection could not tell new bytes from ghosts.**

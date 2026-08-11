@@ -2,6 +2,8 @@
 
 Every connection is somewhere in its life: just starting up, open and talking, or shutting down. The kernel tracks exactly where, as the socket's **state** — the `State` column you saw in `ss`, the `st` code in the file. You only need a handful of states to understand everything that matters here, including a clever attack that maps your open ports while your server notices nothing at all.
 
+![Every port probed in turn to see which ones answer](../../illustrations/07-security/port-scanning.svg)
+
 ## A connection has a life: born, lives, dies
 
 Three beats, that's the spine:
