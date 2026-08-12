@@ -10,11 +10,11 @@ This is also the *right* way to do Act V on a Mac. The `--network host` flag fro
 
 ## Install and create a two-node cluster
 
-You run these in your own terminal (not inside netshoot), and you can run them from **any folder you like** — Act V needs no files from the course at all, since every manifest in it is written out by the lesson that uses it. First, the prerequisites ([the setup guide](../../README.md) has the full version, but in short): **Docker must be installed and running**, and you need `kind` and `kubectl`. Confirm and install:
+You run these in your own terminal (not inside netshoot), and you can run them from **any folder you like** — Act V needs no files from the course at all, since every manifest in it is written out by the lesson that uses it. First, the prerequisites — **Docker must be installed and running** (see [the orientation](../00-orientation/README.md) if it isn't yet), and you need `kind` and `kubectl`. Confirm and install:
 
 ```bash
 docker info >/dev/null 2>&1 && echo "Docker is up" || echo "start Docker Desktop first"
-brew install kind kubectl          # Homebrew; see the setup guide if you don't have brew
+brew install kind kubectl          # Homebrew — see brew.sh if you don't have it
 ```
 
 A single-node cluster is enough for Services, CoreDNS, and iptables. But the most illuminating experiments in this act are about packets crossing *between* nodes — that is the entire point of the CNI and overlay material — so create two nodes. Two extra details in the config below buy you the [Ingress](06-ingress.md) lesson for free later: the control-plane node gets the label `ingress-ready=true`, and host ports 80 and 443 are mapped into it. Drop the config into a file (this writes `kind-2node.yaml` in your current folder):

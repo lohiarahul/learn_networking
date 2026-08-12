@@ -100,8 +100,7 @@ const HAND_WRITTEN = new Set(['index.mdx', 'progress.mdx']);
 
 /** Standalone pages: [source relative to repo root, destination relative to docs root, order]. */
 const SINGLES = [
-  ['README.md', 'setup.md', 1],
-  [`${COURSE_DIR}/README.md`, 'course.md', 2],
+  [`${COURSE_DIR}/README.md`, 'course.md', 1],
   [`${COURSE_DIR}/the-whole-stack.md`, 'capstone/the-whole-stack.md', 1],
   [`${COURSE_DIR}/your-own-machine.md`, 'capstone/your-own-machine.md', 2],
   [`${COURSE_DIR}/code/README.md`, 'reference/build-the-lab-image.md', 1],
@@ -182,7 +181,6 @@ const SUPPORTING_LABELS = {
  * the course's pedagogy, not an oversight to "fix".
  */
 const LABEL_OVERRIDES = {
-  'README.md': 'Install & setup',
   'JOURNEY-MAP.md': 'The whole journey',
   [`${COURSE_DIR}/README.md`]: 'The reading path',
   // Its H1 is "The code, and running the lab on macOS", which was fine when it was the only page about
@@ -942,8 +940,8 @@ async function buildCodePage(lastUpdated) {
       + ' *"missing separator"*. The copy button on the block below preserves it; a manual retype may not.',
     '2. **`docker build -t netlab .`** — the `.` is the folder holding the `Dockerfile`, which is why the'
       + ' course writes `networking-fundamentals/code` instead when you have cloned. Same image either'
-      + ' way. Wherever the course shows the cloned form — the orientation, Act I lesson 1, the setup'
-      + ' guide — the `.` form is shown beside it.',
+      + ' way. Wherever the course shows the cloned form — the orientation, Act I lesson 1 — the `.` form'
+      + ' is shown beside it.',
     '3. **You never compile on macOS.** These are Linux programs reading Linux `/proc`. `cc` runs inside'
       + ' the container, against `/code`.',
     '',

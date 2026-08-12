@@ -4,6 +4,16 @@ The acts run inside a throwaway Linux container so you can break things safely. 
 
 It's organised by act, so each `> On your own machine —` link in the lessons lands here.
 
+**Optional, nicer tools.** Everything below runs with what macOS ships — `lsof`, `dig`, `tcpdump`,
+`nettop`, `networkQuality`, `arp`, `ping`, `traceroute`. A few commands read better with a nicer
+version of the same tool; each has a built-in fallback, so these are entirely optional:
+
+```bash
+brew install mtr      # per-hop latency and loss — nicer than traceroute
+brew install ldns     # provides `drill`, a DNSSEC-friendly dig
+brew install dog      # a colourful dig
+```
+
 ## macOS is not Linux — but you meet the swaps as you need them
 
 The container taught you the Linux toolbox; macOS has the same *concepts* under different commands. Rather than spoil later acts with one big table, **each section below flags only the swaps that act needs** — you meet a translation the moment an experiment calls for it, never before.

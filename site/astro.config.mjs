@@ -87,7 +87,6 @@ export default defineConfig({
         {
           label: 'Start here',
           items: [
-            { slug: 'setup' },
             { slug: 'course' },
             { slug: 'progress' },
           ],

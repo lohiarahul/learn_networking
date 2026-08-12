@@ -3,7 +3,7 @@
  *
  * Keyed on the first path segment, which the sync script derives from the source directory name —
  * so `networking-fundamentals/act-3-the-internet/05-tls.md` becomes `/act-3/05-tls/` and lands here
- * as `act-3`. Pages outside the course proper (`/setup/`, `/course/`, `/progress/`, the landing page)
+ * as `act-3`. Pages outside the course proper (`/course/`, `/progress/`, the landing page)
  * match nothing and get no header, which is the point: the marks should feel like chapter ornaments,
  * not site furniture.
  *

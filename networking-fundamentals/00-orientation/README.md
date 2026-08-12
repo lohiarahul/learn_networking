@@ -1,6 +1,22 @@
 # The lab
 
-Everything in this course runs in one container. Start it now, and keep it open in a couple of terminal tabs as you read — the experiments are written to be run, not admired.
+**Before you start, get Docker running.** Everything below is one container, and Docker Desktop must
+be installed and running first:
+
+```bash
+brew install --cask docker          # or download Docker Desktop from docker.com/products/docker-desktop
+open -a Docker                      # launch it; wait for the whale icon in the menu bar to settle
+docker info >/dev/null 2>&1 && echo "Docker is up and running" || echo "Docker is NOT running — open the Docker app and wait"
+```
+
+The first container you run downloads the `nicolaka/netshoot` image (~600 MB); every run after that
+is instant. Pre-pull it now if you'd rather not wait once you're mid-lesson:
+
+```bash
+docker pull nicolaka/netshoot
+```
+
+With that done, start the lab. Everything in this course runs in one container. Start it now, and keep it open in a couple of terminal tabs as you read — the experiments are written to be run, not admired.
 
 ```
 docker run --rm -it --privileged nicolaka/netshoot
