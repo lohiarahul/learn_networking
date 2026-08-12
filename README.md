@@ -26,7 +26,7 @@ git clone <this repository's URL>    # e.g. git clone https://github.com/you/lea
 cd learn_networking
 ```
 
-Where a command on this page names a path, it's relative to that repo root. `CSAPP_2016.pdf` in there is the textbook the course is anchored to.
+Where a command on this page names a path, it's relative to that repo root. `books/CSAPP_2016.pdf` in there is the textbook the course is anchored to (not tracked in git — see `.gitignore` — so grab your own copy if you cloned).
 
 **Not cloning:** the four files are published in full — sources and comments — on [the code page](networking-fundamentals/code/minihttp.c). Copy them into an empty directory:
 

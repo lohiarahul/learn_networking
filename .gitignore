@@ -9,6 +9,9 @@ __pycache__/
 # macOS
 .DS_Store
 
+# Copyrighted reference textbook — not ours to redistribute.
+books/*.pdf
+
 # --- site/ (the Astro + Starlight tutorial site) ---
 site/node_modules/
 site/dist/
