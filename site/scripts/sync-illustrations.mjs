@@ -43,6 +43,8 @@ const TITLES = {
   '07-security': 'Security',
   '08-wireless': 'Wireless',
   '09-cloud-modern': 'Cloud & Modern Networking',
+  '10-containers-and-kubernetes': 'Containers & Kubernetes',
+  '11-application-layer': 'Application Layer',
 };
 
 const esc = (s) =>
