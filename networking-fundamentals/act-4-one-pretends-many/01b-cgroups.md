@@ -2,6 +2,8 @@
 
 A namespace answered one question: **what can this process see?** It said nothing about a second question you can now ask on purpose — *how much of the machine can it use?* One namespace is not a smaller computer. It is the same computer with the view narrowed, and a process with a narrowed view can still eat all of it.
 
+![Namespace narrows what a process can see; cgroup caps how much it can use](../../illustrations/10-containers-and-kubernetes/cgroups.svg)
+
 ### cgroups — the other half of a container
 
 **The problem that made this necessary** — Cramming tenants onto one box gave the isolation problem two halves, and namespaces only solve the first. Suppose you have wired up ten perfectly isolated namespaces. Tenant 3 runs a program with a memory leak. It allocates until the kernel is out of RAM, and then the kernel — which cares about the machine, not about your tenancy scheme — starts killing whatever process looks worst, anywhere on the box. Tenant 7's database dies for something tenant 3 did. Nothing was breached, no view leaked, and the isolation still failed, because two processes that cannot see each other are still competing for one CPU and one pool of memory. What was needed was a way to say *this group of processes may use at most this much*, enforced by the kernel, with the group defined once and inherited by every child. That is a **control group** — `cgroups`, merged in 2007 and rebuilt as "cgroup v2" a decade later.

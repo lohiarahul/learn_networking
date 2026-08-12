@@ -1,6 +1,6 @@
 # Networking spot illustrations
 
-76 flat-vector spot illustrations, one per topic, generated as hand-written SVG. No
+83 flat-vector spot illustrations, one per topic, generated as hand-written SVG. No
 image-generation API was used and nothing is vendored from a third party — every
 shape in here is drawn by the primitive library in `_build/prims.py`.
 
@@ -68,6 +68,8 @@ illustrations/
 ├── 07-security/              12
 ├── 08-wireless/              06
 ├── 09-cloud-modern/          08
+├── 10-containers-and-kubernetes/  06
+├── 11-application-layer/     01
 ├── _previews/                contact-sheet PNGs (gitignored — regenerate with sheet.py)
 ├── _build/                   the generator (source of truth)
 └── MANIFEST.md               topic → filename → category
@@ -83,6 +85,11 @@ cd _build
 python3 b1_fundamentals.py          # rewrites ../01-fundamentals/*.svg
 python3 sheet.py ../01-fundamentals /tmp/b1.png 4   # contact sheet for eyeballing
 ```
+
+Batches 10 and 11 (`b10_containers_kubernetes.py`, `b11_application_layer.py`) follow
+the same pattern but read their output directory from the `ILLO_OUT` env var if set,
+falling back to the usual `../<category>` — useful when the working sandbox can't
+write outside this tree directly.
 
 `sheet.py` needs `rsvg-convert` (`brew install librsvg`); nothing else has dependencies.
 

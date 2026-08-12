@@ -2,6 +2,8 @@
 
 The bridge connected containers on one machine. But the Pod on this node and the Pod on that node are on two different bridges, separated by a physical network that has never heard of their addresses. To join them, we're going to do something that sounds absurd until you see it: put a packet inside another packet.
 
+![An original packet carried whole as cargo inside a new outer packet through the tunnel](../../illustrations/10-containers-and-kubernetes/vxlan-encap.svg)
+
 ### Overlay networking — a packet inside a packet
 
 **The problem that made this necessary** — Same-node containers talk through the bridge, at Layer 2, for free. But give a Pod the address `10.244.1.5` and ask it to reach `10.244.2.7` on another node, and the physical network just shrugs: `10.244.x.x` is the cluster's private pod CIDR, and the switches and routers between the two nodes have no routes for it and no idea such addresses exist. The Pod-to-Pod packet is unroutable the moment it leaves the node. You could try to teach the entire physical network about every Pod IP (some setups do — hold that thought), but a simpler, more portable answer is to *hide* the Pod packet from the physical network entirely: wrap it inside a normal packet addressed to the real nodes, which the physical network already knows how to route.

@@ -1,6 +1,6 @@
 # Manifest
 
-76 illustrations. Every file is `320 × 240` SVG, self-contained, with no text inside
+83 illustrations. Every file is `320 × 240` SVG, self-contained, with no text inside
 the artwork. The **Depicts** column is the file's own `aria-label` — usable as alt
 text as-is.
 
@@ -143,6 +143,27 @@ text as-is.
 | API gateways | `api-gateways.svg` | One gateway fronting many services behind it |
 | Service mesh | `service-mesh.svg` | Each service paired with a sidecar that handles its traffic |
 
+## Containers & Kubernetes
+
+`illustrations/10-containers-and-kubernetes/` — 6 files
+
+| Topic | File | Depicts |
+| --- | --- | --- |
+| Network namespaces | `namespaces.svg` | One kernel holding two private network stacks that cannot see each other |
+| cgroups | `cgroups.svg` | Namespace narrows what a process can see; cgroup caps how much it can use |
+| VXLAN encapsulation | `vxlan-encap.svg` | An original packet carried whole as cargo inside a new outer packet through the tunnel |
+| CNI across nodes | `cni-cross-node.svg` | Two nodes wiring pods identically, joined by one path between them |
+| CoreDNS search list | `coredns-ndots.svg` | A bare name tried against each entry in a search list until one query resolves |
+| Pod networking | `pod-networking.svg` | Several containers inside one pod sharing a single network namespace |
+
+## Application Layer
+
+`illustrations/11-application-layer/` — 1 file
+
+| Topic | File | Depicts |
+| --- | --- | --- |
+| HTTP exchange | `http-exchange.svg` | A request and its response, each split by a blank line into headers and body |
+
 ## Notes for placement
 
 - **Three list-shaped images look alike by nature:** `acls.svg`,
@@ -154,7 +175,7 @@ text as-is.
 
 ## Where these are used
 
-31 of 76 illustrations are placed on 20 lesson pages. This table is
+38 of 83 illustrations are placed on 27 lesson pages. This table is
 generated from the lessons themselves (`grep` for `illustrations/` in `networking-fundamentals/`),
 so it cannot drift from what is actually on the pages.
 
@@ -191,10 +212,24 @@ so it cannot drift from what is actually on the pages.
 | `09-cloud-modern/api-gateways.svg` | `act-5-kubernetes/06-ingress.md` |
 | `09-cloud-modern/containers-and-container-networking.svg` | `act-4-one-pretends-many/02-veth-and-bridge.md` |
 | `09-cloud-modern/kubernetes-networking.svg` | `act-5-kubernetes/03-services.md` |
+| `10-containers-and-kubernetes/namespaces.svg` | `act-4-one-pretends-many/01-namespaces.md` |
+| `10-containers-and-kubernetes/cgroups.svg` | `act-4-one-pretends-many/01b-cgroups.md` |
+| `10-containers-and-kubernetes/vxlan-encap.svg` | `act-4-one-pretends-many/04-overlay-vxlan.md` |
+| `10-containers-and-kubernetes/cni-cross-node.svg` | `act-5-kubernetes/05-cni.md` |
+| `10-containers-and-kubernetes/coredns-ndots.svg` | `act-5-kubernetes/04-coredns.md` |
+| `10-containers-and-kubernetes/pod-networking.svg` | `act-5-kubernetes/02-pod-networking.md` |
+| `11-application-layer/http-exchange.svg` | `act-3-the-internet/04-http.md` |
+
+These 7 were added specifically to close the inverse gap: topics the course
+genuinely teaches (Act IV/V kernel and Kubernetes internals, plus HTTP) that fell
+outside the original 76-topic taxonomy and so had no illustration at all, even
+though 1-2 lessons per topic already carried a hand-drawn ASCII diagram doing the
+detailed work. These spot illustrations sit beside those ASCII diagrams, not in
+place of them.
 
 ## Not placed
 
-The remaining 45 illustrations are built and served (visit `/illustrations/`) but sit on no
+The remaining 45 of the original 76 are built and served (visit `/illustrations/`) but sit on no
 lesson, because the course does not teach those topics. 21 of them are not mentioned anywhere in the
 course prose at all — the whole wireless category, spanning tree, RIP, route summarisation, ACLs,
 IPsec, DDoS, SDN, edge computing, network automation, CDNs, network topologies, analog vs digital,

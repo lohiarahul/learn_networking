@@ -2,6 +2,8 @@
 
 Everyone's first mistake with Kubernetes is to think a Pod is a fancy word for a container. It isn't. A Pod is the namespace from Act IV, and the containers are just processes that happen to share it.
 
+![Several containers inside one pod sharing a single network namespace](../../illustrations/10-containers-and-kubernetes/pod-networking.svg)
+
 ### How do several processes share one network identity?
 
 In Act IV you gave each isolated thing its own network namespace: its own interfaces, its own loopback, its own port space. That's perfect when each thing is one self-contained program.

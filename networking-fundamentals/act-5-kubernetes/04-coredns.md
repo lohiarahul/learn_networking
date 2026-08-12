@@ -4,6 +4,8 @@ A Service gives you a stable ClusterIP. But nobody wants to hardcode `10.96.55.1
 
 Act II also left you with a sentence about Kubernetes you could not check: that every Pod is born pointing at a cluster nameserver, with a `search` list that completes short names. You now have Pods. So the job here is verification, and it is a real one — that `search` list has an *order*, the order has consequences, and the consequences are the single most common way a working cluster looks broken. Read the file kubelet wrote and see whether you can predict the queries before you watch them go out.
 
+![A bare name tried against each entry in a search list until one query resolves](../../illustrations/10-containers-and-kubernetes/coredns-ndots.svg)
+
 ### Why can't we just dial the ClusterIP?
 
 ClusterIPs are stable relative to Pods, but they are still assigned by the cluster at Service-creation time, and they differ between every cluster and every environment. Wiring them into code or config means rewriting config for every deploy. What you actually want is the same thing humans have always wanted from a network: to say a name and have the machine find the address. Kubernetes already had the address — the ClusterIP — sitting in the API. It needed a nameserver that turns Service names into those ClusterIPs, automatically, for every Pod.

@@ -2,6 +2,8 @@
 
 A process already has a private view of memory and a private list of open files. The natural next question — the one that took Linux until 2002 to start answering and 2009 to finish — is: can a process have a private view of *the network* too?
 
+![One kernel holding two private network stacks that cannot see each other](../../illustrations/10-containers-and-kubernetes/namespaces.svg)
+
 ### Linux network namespaces — isolation as a file
 
 > **On your own machine —** none of this exists on a Mac: Docker Desktop runs a hidden Linux VM, and the namespaces live in there. Open a shell inside that VM and find them yourself in [Act IV in the wild](in-the-wild.md#peek-into-the-vm-where-the-primitives-actually-live).

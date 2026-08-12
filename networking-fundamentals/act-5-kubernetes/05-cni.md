@@ -4,6 +4,8 @@ At the end of Act IV you asked the question that this file answers: we can wire 
 
 Checking it is this lesson, and there is a specific claim on the table: that a CNI plugin runs the exact commands you typed, with no extra magic. If that is true, then the plugin's output must be visible in files you already know how to read — a veth, a bridge port, a route — and nothing else. Go look.
 
+![Two nodes wiring pods identically, joined by one path between them](../../illustrations/10-containers-and-kubernetes/cni-cross-node.svg)
+
 ### Who wires up a Pod's network, every time one is born?
 
 A Pod is a network namespace (you proved that two files ago), and a namespace with no wire reaches nothing (you proved that in Act IV). So at the instant kubelet creates a Pod, something must build the wire: create a veth pair, push one end into the Pod's namespace, assign an IP, bring the interfaces up, install the route.

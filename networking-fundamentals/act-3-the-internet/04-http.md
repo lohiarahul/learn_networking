@@ -2,6 +2,8 @@
 
 TCP hands you a reliable, ordered stream of bytes between two processes. But a stream of bytes is not a *conversation* — it has no notion of "here is a request," "here is where the reply begins," "here is how long the body is." Something has to impose structure on the stream so that a client can ask for a thing and a server can answer with that thing and know where the answer ends. The web's answer is almost shockingly simple: write the structure in plain text, with a few rules about punctuation. That is HTTP.
 
+![A request and its response, each split by a blank line into headers and body](../../illustrations/11-application-layer/http-exchange.svg)
+
 ### Why did the web need its own protocol?
 
 **Because a byte stream has no way to say "the request ends here" — and the web needed that boundary written in text anyone could read.**
