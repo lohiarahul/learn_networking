@@ -115,4 +115,4 @@ The surprise is the contrast. The local Pod resolves to `dev cali… / dev veth�
 
 ---
 
-← Prev: **[CoreDNS — /etc/hosts for the cluster](04-coredns.md)** · ↑ **[Act V overview](README.md)** · Next: **[Ingress — the front door](06-ingress.md)** →
+← Prev: **[Service shapes](04b-service-shapes.md)** · ↑ **[Act V overview](README.md)** · Next: **[Ingress — the front door](06-ingress.md)** →

@@ -100,4 +100,4 @@ The `ANSWER SECTION` of the `dig` output is one line: an A record whose value is
 
 ---
 
-← Prev: **[Services and kube-proxy](03-services.md)** · ↑ **[Act V overview](README.md)** · Next: **[CNI — the veth-pair installer](05-cni.md)** →
+← Prev: **[Services and kube-proxy](03-services.md)** · ↑ **[Act V overview](README.md)** · Next: **[Service shapes](04b-service-shapes.md)** →

@@ -54,6 +54,7 @@ Lab images: Act 1 = `netlab` (compiler) on bridge. Acts 2–5 = `nicolaka/netsho
 - `02-pod-networking.md` — a Pod = Act-4 netns held by the pause container — shared netns, `nsenter`
 - `03-services.md` — what answers to a ClusterIP (Act-4 DNAT + conntrack) — `KUBE-SERVICES`/`SVC`/`SEP` chains, EndpointSlice + readiness, the iptables-scaling → IPVS → eBPF arc, NodePort/LoadBalancer
 - `04-coredns.md` — Act-2 DNS scaled to the cluster — `/etc/resolv.conf`, search domains, `dig` in-Pod
+- `04b-service-shapes.md` — when a load-balanced VIP is wrong — `clusterIP: None` (headless: N A-records **and** zero `KUBE-SVC` chains), per-Pod DNS `<pod>.<svc>.<ns>`, **SRV** on named ports, `sessionAffinity: ClientIP` (conntrack again; coarse behind NAT), `type: ExternalName` (CNAME, no endpoints, invisible to NetworkPolicy), `externalTrafficPolicy: Local` vs `Cluster` (source IP vs off-node blackhole)
 - `05-cni.md` — the veth-pair installer (Act-4 wiring, run by a binary) — CNI contract, IPAM, Pod routes
 - `06-ingress.md` — Act-3 TLS terminated at the edge — Host-header routing, one IP many hosts
 - `06b-gateway-api.md` — the annotation wall → a real `weight` field — `GatewayClass`/`Gateway`/`HTTPRoute`, `parentRefs` + `allowedRoutes` (mutual consent), `kubectl explain` as the schema authority, `.status` conditions `Programmed`/`Accepted`/`ResolvedRefs`, `NoMatchingListenerHostname`, weighted canary (weights ≠ percentages), CRDs, **`reconciliation` named here** (from kube-proxy + the ingress controller); **the unreconciled-object trap planted here, cashed in `07`**
