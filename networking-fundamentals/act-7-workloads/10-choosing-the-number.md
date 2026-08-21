@@ -1,0 +1,264 @@
+# Choosing the number
+
+Every replica count in this act was a number you typed. `--replicas=3`, `completions: 6`, `count: 1` in an overlay. And in the last lesson you gave a kind you invented a `/scale` endpoint, which means something can change that number without knowing what it is changing.
+
+So close the loop: **what would it take for the cluster to pick the number itself?**
+
+Work out the requirements before reaching for a feature, because they turn out to be the entire lesson. Something would have to (1) know how loaded the workload currently is, (2) have an opinion about how loaded it *should* be, and (3) be able to write a replica count. You have the third — that is `/scale`. You have never had the first, and lesson 04 made a point of it:
+
+```bash
+kubectl top nodes
+```
+
+```
+error: Metrics API not available
+```
+
+That failure was a teaching point in lesson 04 and it is now a blocker. **Nothing in this cluster measures anything.**
+
+### The measurement has to come from somewhere
+
+That is not an oversight in your lab; it is how Kubernetes ships. The API server stores documents, and none of those documents contain "how much CPU is this Pod using" — that is a fact about a running machine, changing every second, and Act VI's store is the wrong shape for it entirely.
+
+So it is a separate component, and it has to be installed:
+
+```bash
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl -n kube-system rollout status deploy/metrics-server --timeout=90s
+```
+
+> **Predict first —** that rollout will not complete. Before reading on: the thing being installed has to ask every kubelet for its Pod statistics, and the kubelet serves those over HTTPS. Act VI walked you through this cluster's PKI in detail. Say what you think goes wrong.
+
+```bash
+kubectl -n kube-system logs deploy/metrics-server --tail=5
+```
+
+```
+scraping metrics: unable to fully scrape metrics: ... x509: cannot validate
+certificate for 172.18.0.3 because it doesn't contain any IP SANs
+```
+
+A **certificate verification failure**, and it is precisely the gap Act VI left open. That lesson showed you `/etc/kubernetes/pki` and the certificates kubeadm creates and signs — but the kubelet's *serving* certificate is not one of them. Unless a cluster explicitly turns on `serverTLSBootstrap`, each kubelet generates its own self-signed cert rather than asking the CSR API for one, so it is signed by nobody and no client can verify it against the cluster CA.
+
+Which leaves two honest options: make the kubelets get real certificates, or tell this one client to stop checking. Every kind tutorial does the second, and it is worth knowing that is what you are doing:
+
+```bash
+kubectl -n kube-system patch deploy metrics-server --type=json \
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+kubectl -n kube-system rollout status deploy/metrics-server --timeout=120s
+sleep 30
+kubectl top nodes
+kubectl top pods -A | head -5
+```
+
+Numbers, at last. Note what you have added: a Deployment that scrapes every kubelet and serves the results through the API server as a *different API*, not as objects in the store. `kubectl top` is not `kubectl get`, and there is nothing in etcd to find.
+
+### The number that has no denominator
+
+Now the autoscaler. Make something to scale, deliberately the way most people write it first:
+
+```bash
+kubectl create deployment web --image=nginx:1.27-alpine --replicas=1
+kubectl expose deployment web --port=80
+cat <<'EOF' | kubectl apply -f -
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web
+  minReplicas: 1
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+EOF
+sleep 60
+kubectl get hpa web
+```
+
+> **Predict first —** you asked it to keep CPU utilisation at 50%. The Pod is idle, so utilisation is near zero, which is well under target. Say what the `TARGETS` column shows and what you expect `REPLICAS` to do. Then look, because it is neither of the two obvious answers.
+
+```
+NAME   REFERENCE        TARGETS              MINPODS   MAXPODS   REPLICAS
+web    Deployment/web   cpu: <unknown>/50%   1         8         1
+```
+
+**`<unknown>`.** Not zero, not low — *unknown*. And metrics-server is working; you read real numbers out of it thirty seconds ago. Ask why:
+
+```bash
+kubectl describe hpa web | grep -A4 Conditions
+```
+
+```
+Type            Status  Reason                   Message
+AbleToScale     True    SucceededGetScale        the HPA controller was able to get the target's current scale
+ScalingActive   False   FailedGetResourceMetric  failed to get cpu utilization: missing request for cpu
+```
+
+**`missing request for cpu`.** Stop and derive what that tells you about the algorithm, because it is the single most useful fact in this lesson and almost nobody knows it.
+
+You asked for 50% *utilisation*. Utilisation is a ratio, so it needs a denominator — and the denominator is not the node's capacity, and it is not a limit. It is the container's **`requests`**. The HPA computes `actual usage ÷ requests`, and your Deployment, created by a one-liner, has no `requests` at all.
+
+So there is no denominator, so there is no ratio, so there is nothing to compare against 50%, and the autoscaler declines to guess. It does not scale. It does not error loudly. It sits there reporting `<unknown>` forever, and the Deployment stays at one replica through any amount of load.
+
+That is the third consequence of leaving `requests` out, and it completes the set from lesson 04. A Pod with no requests is invisible to the scheduler's arithmetic, first in line to be evicted, **and impossible to autoscale on utilisation.** All three from the same omission, and the omission is what happens by default.
+
+Fix the cause:
+
+```bash
+kubectl set resources deployment web --requests=cpu=50m,memory=32Mi
+kubectl rollout status deployment/web --timeout=90s
+sleep 60
+kubectl get hpa web
+```
+
+```
+NAME   REFERENCE        TARGETS         MINPODS   MAXPODS   REPLICAS
+web    Deployment/web   cpu: 0%/50%     1         8         1
+```
+
+A real ratio now. And notice the shape of what you did: you did not configure the autoscaler, you gave the workload a denominator.
+
+### Watching it decide
+
+```bash
+kubectl run load --image=busybox:1.36 --restart=Never -- \
+  sh -c 'while true; do wget -q -O- http://web/ >/dev/null; done'
+kubectl get hpa web -w        # Ctrl-C after a few minutes
+```
+
+Replicas climb. Read the arithmetic behind each step, because it is short enough to hold:
+
+**`desired = ceil( current × ( actual ÷ target ) )`**
+
+Two Pods averaging 90% against a 50% target gives `ceil(2 × 1.8) = 4`. It is proportional, not incremental — the HPA does not add one and check; it computes where it thinks it should be and jumps there, then re-evaluates on its next pass about fifteen seconds later. Which is why a load spike produces one large step rather than a staircase.
+
+Now stop the load and watch the other direction:
+
+```bash
+kubectl delete pod load --now
+kubectl get hpa web -w        # Ctrl-C once it settles
+```
+
+**It takes about five minutes to come back down**, long after the CPU is idle. That asymmetry is deliberate, it is configurable, and you can derive it:
+
+```yaml
+behavior:
+  scaleDown:
+    stabilizationWindowSeconds: 300      # the default
+  scaleUp:
+    stabilizationWindowSeconds: 0        # the default
+```
+
+Scaling up too eagerly costs money for a few minutes. Scaling down too eagerly costs an outage the moment load returns, and the load that just went away is exactly the load most likely to come straight back. So the defaults are asymmetric in the direction where being wrong is cheaper — which is the same reasoning, and the same shape, as lesson 02's `maxSurge` rounding up while `maxUnavailable` rounds down. When you meet an asymmetric default in this subject, ask which mistake it is refusing to make.
+
+Without that window an autoscaler oscillates: scale down, load per Pod rises, scale up, load per Pod falls, scale down. The stabilisation window is what makes a proportional controller stop hunting.
+
+### Three things called autoscaling
+
+They are routinely confused and they change three different fields.
+
+```bash
+kubectl get hpa web -o jsonpath='{.spec.scaleTargetRef}{"\n"}'
+```
+
+**The HPA changes `spec.replicas`** — a number in a document, through the `/scale` subresource, which is why it needs nothing but a `scaleTargetRef`. And that is the payoff of the last lesson: it never looks at what it is scaling. Point it at your `Website` kind and it works, because you defined `specReplicasPath` and that is the entire contract.
+
+**A VerticalPodAutoscaler changes `requests`** — the denominator itself. Which cannot be done to a running Pod, and you can now say exactly why from two separate directions: `requests` is read once by the scheduler when placing the Pod, and the placement decision cannot be revisited because `spec.nodeName` is written once. So changing requests means a new Pod. Vertical and horizontal autoscaling on the same CPU metric therefore fight — one raises the denominator while the other multiplies the numerator's count.
+
+**The Cluster Autoscaler changes the number of nodes**, and its input signal is the thing you have been treating purely as a diagnosis:
+
+```bash
+kubectl get hpa web -o jsonpath='{.spec.maxReplicas}{"\n"}'
+```
+
+Set `maxReplicas` above what your nodes can hold and the surplus Pods go `Pending` with `Insufficient cpu` — lesson 04's message exactly. On a cloud cluster, a component is watching for that specific state and buys a machine in response. **`Pending` is not only a symptom; it is the API between two autoscalers**, which is why an HPA whose `maxReplicas` exceeds your cluster capacity is either harmless or expensive depending entirely on whether that second component is installed.
+
+> **Check yourself —** A team sets an HPA on CPU at 70% for a service that spends almost all its time waiting on a slow database. Load doubles, response times triple, and the HPA never scales. Nothing is misconfigured. What is wrong with the plan?
+
+<details>
+<summary>Answer</summary>
+
+CPU is the wrong metric for that workload, and the HPA is behaving correctly.
+
+A process blocked on a network read consumes no CPU. Traffic can double while CPU stays flat, so utilisation never approaches 70% and the autoscaler correctly concludes nothing needs to change. The queue is growing somewhere the HPA cannot see.
+
+Worse, scaling on CPU would not have helped even if it had fired: more replicas hitting the same slow database makes the database slower. The constraint is not in the thing being scaled.
+
+The fix in this subject is that `metrics` is a *list*, and `type: Resource` is one of several. `Pods` and `Object` metrics let an HPA target something meaningful — requests per second, or a queue depth — via an adapter that serves those the way metrics-server serves CPU. Note the shape: same HPA, same `/scale` call, different source of numerator. The autoscaler was never CPU-specific.
+
+The habit worth taking: before choosing a target number, ask what the workload actually runs out of. CPU is the default because it is the only thing measured out of the box, not because it is usually the right answer.
+
+</details>
+
+<!-- figure -->
+
+```
+   WHO CHOOSES THE REPLICA COUNT
+
+   REQUIREMENT 1: a measurement. NOT IN THE CLUSTER BY DEFAULT.
+     "how much CPU right now" is a fact about a running machine,
+     changing every second -- the wrong shape for Act VI's store.
+     so metrics-server is a separate Deployment, scraping kubelets,
+     serving a DIFFERENT API. `kubectl top` is not `kubectl get`
+     and there is nothing in etcd to find.
+     it fails on kind until --kubelet-insecure-tls, because the
+     kubelet's SERVING cert is self-signed -- the one certificate
+     kubeadm does not issue (Act VI's PKI, minus one)
+
+   REQUIREMENT 2: a target.  REQUIREMENT 3: /scale (lesson 09)
+
+   >>> THE HPA COMPUTES  actual / REQUESTS  <<<
+     no requests => no denominator => TARGETS shows <unknown>
+     forever, and it never scales. no error, no event storm.
+     ScalingActive=False, "missing request for cpu"
+     => the THIRD cost of omitting requests, with lesson 04's two:
+        invisible to the scheduler, first evicted, unscalable.
+
+   desired = ceil( current x (actual / target) )
+     PROPORTIONAL, not incremental. one big jump, then re-evaluate
+     ~15s later. hence a spike gives a step, not a staircase.
+
+   asymmetric defaults, for the lesson-02 reason:
+     scaleUp   stabilizationWindow 0s    (being wrong = money)
+     scaleDown stabilizationWindow 300s  (being wrong = an outage)
+     without the window a proportional controller HUNTS.
+
+   THREE AUTOSCALERS, THREE FIELDS
+     HPA      -> spec.replicas, via /scale. kind-agnostic by design.
+     VPA      -> requests. cannot touch a running Pod: requests are
+                 read once, and spec.nodeName is written once.
+                 fights an HPA on the same metric.
+     Cluster  -> the NODE COUNT, and its input signal is `Pending`.
+                 so lesson 04's diagnosis is also an API between
+                 two autoscalers.
+```
+
+**Cleanup:**
+
+```bash
+kubectl delete hpa web
+kubectl delete deployment web
+kubectl delete svc web
+kubectl delete pod load --ignore-not-found --now
+kubectl delete -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl get pods -A | grep -c metrics-server || echo "gone"
+```
+
+Leaving metrics-server installed is harmless and useful if you would rather keep it — but lesson 04's `kubectl top` failure is load-bearing for anyone reading this act again, so removing it keeps the lab honest.
+
+> **You understand this when you can** explain why a cluster cannot autoscale without installing something first, and why usage data does not live in the same store as objects; say which certificate in Act VI's PKI is missing and what `--kubelet-insecure-tls` is actually waiving; state what the HPA divides by and derive from that why a Deployment created with a one-liner can never autoscale on utilisation, without an error ever appearing; compute a desired replica count from current, actual and target, and explain why the result is a jump rather than a step; derive why the scale-down window is long and the scale-up window is zero; and distinguish the three autoscalers by which field each one writes, including why one of them cannot act on a running Pod and why another one's input is a Pod that will not schedule.
+
+**Which raises:** you now have the whole shape — objects describing work, loops reading them, measurements feeding some of those loops, and your own kinds where the built-in ones fall short. Everything in this act assumed one thing without ever examining it: that whoever holds a kubeconfig may write any of these documents. You have created, patched and deleted freely for three acts, and nothing has ever refused you on the grounds of *who you are*.
+
+---
+
+← Prev: **[Adding a kind](09-adding-a-kind.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Test yourself](test-yourself.md)** →

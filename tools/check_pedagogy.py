@@ -26,7 +26,8 @@ COURSE = os.path.join(REPO, "networking-fundamentals")
 # ── Config ────────────────────────────────────────────────────────────────────
 # Acts that must carry the full four-file shape (README + test-yourself + diagnose + in-the-wild).
 ACT_DIRS = ["act-1-one-machine", "act-2-two-machines", "act-3-the-internet",
-            "act-4-one-pretends-many", "act-5-kubernetes", "act-6-control-plane"]
+            "act-4-one-pretends-many", "act-5-kubernetes", "act-6-control-plane",
+            "act-7-workloads"]
 # No exemptions: every act carries the full four-file shape. Act V used to fold its drills into
 # 08/09-debugging, but those are a method and a worked example — the reader receives the diagnosis
 # rather than reaching for it — so Act V now has a real diagnose.md and the invariant is enforced

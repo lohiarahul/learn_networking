@@ -80,10 +80,10 @@ kubectl get pvc
 ```
 
 ```
-NAME          STATUS   VOLUME     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
-data-db-0     Bound    pvc-...    64Mi       RWO            standard       60s
-data-db-1     Bound    pvc-...    64Mi       RWO            standard       45s
-data-db-2     Bound    pvc-...    64Mi       RWO            standard       30s
+NAME        STATUS   VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+data-db-0   Bound    pvc-a538...   64Mi       RWO            standard       <unset>                 45s
+data-db-1   Bound    pvc-c9a3...   64Mi       RWO            standard       <unset>                 41s
+data-db-2   Bound    pvc-52fc...   64Mi       RWO            standard       <unset>                 38s
 ```
 
 **Three PVCs, one per replica, named after the claim template *and* the Pod.** Not one shared volume — three separate ones, and the naming is the whole mechanism: `data-db-1` is derivable from the Pod's name, so any controller that recreates `db-1` can find `db-1`'s disk without storing a lookup table anywhere. Identity is a *string*, exactly as Act V found when it discovered the stable thing was a DNS name rather than an address.
@@ -109,6 +109,8 @@ kubectl get pvc
 
 **One Pod. Three PVCs.** The Pods went in *reverse* ordinal order — `db-2` first, then `db-1`, mirroring the creation order for the same reason — and the disks did not go anywhere at all.
 
+(If you were still watching, each departing Pod passed through `Error` rather than exiting cleanly. That is `terminationGracePeriodSeconds: 5` in the manifest: `sleep 3600` ignores the polite signal and gets killed five seconds later. It is the grace period expiring, not a failure.)
+
 ```bash
 kubectl scale statefulset db --replicas=3
 kubectl wait --for=condition=Ready pod/db-1 --timeout=90s
@@ -123,8 +125,11 @@ Two more consequences worth naming while the object is in front of you:
 
 ```bash
 kubectl get statefulset db -o jsonpath='{.spec.serviceName}{"\n"}'
-kubectl exec db-0 -- nslookup db-1.db.default.svc.cluster.local
+NS=$(kubectl config view --minify -o jsonpath='{..namespace}'); NS=${NS:-default}
+kubectl exec db-0 -- nslookup db-1.db.$NS.svc.cluster.local
 ```
+
+That name has to be spelled out in full, which is why the namespace is substituted in rather than typed. Busybox's `nslookup` does not consult the search list Act V taught you about, so the short `db-1.db` returns `NXDOMAIN` — a property of this very small client, not of the record.
 
 `serviceName` is not optional and not decoration: it is how the controller knows what to put in the middle of each Pod's DNS name. It is setting the `subdomain` field you set by hand in Act V. And the Service it names must be the headless one — put a normal ClusterIP there and you get a VIP that load-balances across three members that were the entire point of not being interchangeable.
 
@@ -140,7 +145,7 @@ kubectl get statefulset db -o jsonpath='{.spec.updateStrategy}{"\n"}'
 {"rollingUpdate":{"partition":0},"type":"RollingUpdate"}
 ```
 
-**No `maxSurge`.** Look for it and it is not a field — and by now you can say why without being told. `maxSurge` means "create an extra Pod before removing an old one," which requires a Pod that needs no particular name. There cannot be two `db-1`s; the name is the identity. And even if there could, `data-db-1` is `ReadWriteOnce` — the second one could not mount the disk. Surging is not disabled here, it is *unavailable in principle*, and both of the reasons are things this lesson has already shown you.
+**No `maxSurge`.** There is a `maxUnavailable` beside `partition` — ask `kubectl explain` and you will find it — but no surge at all, and by now you can say why without being told. `maxSurge` means "create an extra Pod before removing an old one," which requires a Pod that needs no particular name. There cannot be two `db-1`s; the name is the identity. And even if there could, `data-db-1` is `ReadWriteOnce` — the second one could not mount the disk. Surging is not disabled here, it is *unavailable in principle*, and both of the reasons are things this lesson has already shown you.
 
 So what replaces it? Change the template and watch:
 
@@ -150,6 +155,8 @@ kubectl get pods -l app=db -w      # Ctrl-C when all three are Running again
 ```
 
 **One at a time, highest ordinal first: `db-2`, then `db-1`, then `db-0`.** Strictly sequential, because with no surge there is no other option — the only way to replace three Pods that cannot coexist with their replacements is one after another. That is also why a StatefulSet rollout is slow in a way a Deployment's is not, and the slowness is not a defect to tune away.
+
+(`maxUnavailable` is the stranger of the two, because under the default `podManagementPolicy: OrderedReady` it does nothing at all — `kubectl explain` says so outright, on the grounds that the policy already guarantees one at a time. A field that is inert unless you change a *different* field is worth noticing as a shape: it means the two are competing descriptions of one constraint, and only one of them can be in charge.)
 
 Which makes `partition` the interesting field. It is a floor:
 
@@ -198,34 +205,100 @@ kubectl get nodes --no-headers | grep -c .
 
 Stop on that, because it is a genuine exception to this act's spine. Every other count you have written this act was a *claim* in `spec` — your intent, stored for a loop to read. A DaemonSet's count is a *derived fact* in `status`: the controller counted your nodes and wrote down what it found. You cannot ask for four; there is no field in which to ask. Add a node and the number changes without anyone editing the object.
 
-That is also, finally, why `kubectl drain` needs a special flag for these. Watch what a cordon does to one:
+That is also, finally, why `kubectl drain` needs a special flag for these — but to see the mechanism you need a DaemonSet of your own, because `kube-proxy` obscures it. Make the smallest possible one:
 
-> **Predict first —** Act VI established that `cordon` sets `spec.unschedulable`, and that a controller turns that into a `NoSchedule` taint so the scheduler stops placing Pods there. So: cordon a node and delete the DaemonSet Pod on it. Does it come back?
+```bash
+cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: agent
+spec:
+  selector:
+    matchLabels: { app: agent }
+  template:
+    metadata:
+      labels: { app: agent }
+    spec:
+      containers:
+      - name: a
+        image: busybox:1.36
+        command: ["sh", "-c", "sleep 3600"]
+EOF
+sleep 20
+kubectl get daemonset agent
+```
+
+```
+NAME    DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+agent   1         1         1       1            1           <none>          20s
+```
+
+**`DESIRED 1`, on a two-node cluster.** Which is a better demonstration of the previous point than `kube-proxy` was. The count is not "how many nodes exist" — it is how many nodes this DaemonSet can actually *use*, and the control-plane node carries a `NoSchedule` taint your Pod template says nothing about. The controller evaluated your spec against the node list and derived `1`. Nobody could have written that number, because it is a conclusion.
+
+Now the toleration question, and it matters *where* you look:
+
+> **Predict first —** you wrote no tolerations. Act VI established that `cordon` sets `spec.unschedulable`, and that a controller turns that into a `NoSchedule` taint so the scheduler stops placing Pods there. So: cordon the worker and delete the `agent` Pod on it. Does it come back?
 
 ```bash
 kubectl cordon netlab-worker
-POD=$(kubectl get pods -n kube-system -l k8s-app=kube-proxy \
-  --field-selector spec.nodeName=netlab-worker -o jsonpath='{.items[0].metadata.name}')
-kubectl delete pod -n kube-system $POD
-sleep 10
-kubectl get pods -n kube-system -l k8s-app=kube-proxy -o wide
+kubectl delete pod -l app=agent
+sleep 12
+kubectl get pods -l app=agent -o wide
 ```
 
-**It comes straight back, on the cordoned node.** Look at why:
+**It comes straight back, on the cordoned node.** So look at the two places a toleration could be:
+
+```bash
+echo "--- what YOU wrote (the template) ---"
+kubectl get daemonset agent \
+  -o jsonpath='{range .spec.template.spec.tolerations[*]}{.key}{" "}{.effect}{"\n"}{end}'
+echo "--- what the POD has ---"
+kubectl get pod -l app=agent \
+  -o jsonpath='{range .items[0].spec.tolerations[*]}{.key}{" "}{.effect}{"\n"}{end}'
+```
+
+```
+--- what YOU wrote (the template) ---
+--- what the POD has ---
+node.kubernetes.io/not-ready NoExecute
+node.kubernetes.io/unreachable NoExecute
+node.kubernetes.io/disk-pressure NoSchedule
+node.kubernetes.io/memory-pressure NoSchedule
+node.kubernetes.io/pid-pressure NoSchedule
+node.kubernetes.io/unschedulable NoSchedule
+```
+
+**Empty above, six entries below.** The DaemonSet controller does not modify the template you wrote; it adds these when it *creates each Pod*. Which is worth knowing as a habit as much as a fact: for a DaemonSet, reading the template tells you what you asked for and not what is running, and that distinction is exactly where this claim is easy to get wrong.
+
+The last of those six is the one that answers the prediction. A cordon is a `node.kubernetes.io/unschedulable` taint, and every DaemonSet Pod tolerates it by construction. (Look at the other five while they are in front of you — a DaemonSet Pod also stays through disk pressure, memory pressure and an unreachable node. That is the design: the thing collecting your logs should be running *especially* on the node that is in trouble.)
+
+So now the flag explains itself. `drain` evicts Pods so that something can put them elsewhere, and it cordons first precisely so the replacements do not land back on the node it is emptying. Against a DaemonSet Pod both halves fail: there is nowhere else it is *supposed* to be, and the cordon that would normally keep it away does not apply. Evicting it would produce an identical Pod on the same node about a second later. `--ignore-daemonsets` is not a convenience — it is `drain` refusing to enter a loop it cannot win.
+
+None of those six, though, gets you onto a *control-plane* node — which is why your `agent` reported `DESIRED 1`. Compare it with the thing that does:
 
 ```bash
 kubectl get daemonset kube-proxy -n kube-system \
-  -o jsonpath='{range .spec.template.spec.tolerations[*]}{.key}{" "}{.operator}{" "}{.effect}{"\n"}{end}'
+  -o jsonpath='{range .spec.template.spec.tolerations[*]}{"key=["}{.key}{"] op="}{.operator}{"\n"}{end}'
 ```
 
-Among the tolerations is `node.kubernetes.io/unschedulable NoSchedule` — added automatically by the DaemonSet controller to every Pod it creates. A cordon is a taint, and this Pod tolerates that taint by construction.
+```
+key=[] op=Exists
+```
 
-So now the flag explains itself. `drain` evicts Pods so that something can put them elsewhere; it cordons first precisely so the replacements do not land back on the node it is emptying. Against a DaemonSet Pod both halves fail: there is nowhere else it is *supposed* to be, and the cordon that would normally keep it away does not apply. Evicting it would produce an identical Pod on the same node about a second later. `--ignore-daemonsets` is not a convenience — it is `drain` refusing to enter a loop it cannot win.
+**One entry, with no key at all.** An empty key with `operator: Exists` reads as "tolerate every taint there is," and unlike the six above this one *is* in the template — somebody wrote it deliberately. That is how anything reaches a control-plane node, and it is the single line to add if you want a DaemonSet truly everywhere:
 
-The same toleration mechanism is why the control-plane node runs `kube-proxy` at all, despite carrying the `NoSchedule` taint Act VI showed you. Look at the toleration list again and you will find an entry with **no key at all** and `operator: Exists` — which reads as "tolerate every taint there is." That is how anything gets onto a control-plane node, and it is the only line you need in your own DaemonSet if you want it truly everywhere.
+```bash
+kubectl patch daemonset agent -p '{"spec":{"template":{"spec":{"tolerations":[{"operator":"Exists"}]}}}}'
+sleep 20
+kubectl get daemonset agent          # DESIRED is now 2
+```
+
+The number changed because the node list did not — your tolerations did. Which is the clearest possible statement of where a DaemonSet's count comes from.
 
 ```bash
 kubectl uncordon netlab-worker
+kubectl delete daemonset agent
 ```
 
 ### Assumption 3 is false: the Pod is supposed to stop
@@ -252,8 +325,8 @@ EOF
 **Rejected, by the API server, before anything runs:**
 
 ```
-The Job "once" is invalid: spec.template.spec.restartPolicy: Unsupported value:
-"Always": supported values: "OnFailure", "Never"
+The Job "once" is invalid: spec.template.spec.restartPolicy: Required value:
+valid values: "OnFailure", "Never"
 ```
 
 This is not a style rule, and it is worth deriving rather than memorising, because it is the shortest possible statement of what a Job is.
@@ -314,7 +387,7 @@ kubectl logs -l job-name=doomed --tail=1
 kubectl describe job doomed | tail -8
 ```
 
-`backoffLimit` bounds the retries and the delays between them grow exponentially, which is why that `sleep 90` was needed for a command that fails instantly. Two other fields belong in the same thought:
+`backoffLimit` bounds the retries, and the delays between them grow exponentially — the three Pods above were created at roughly 0, 10 and 30 seconds, so the Job was marked `Failed` about 33 seconds in. That growth is why a Job whose command fails instantly still takes a while to give up, and why the wait gets long quickly at a higher `backoffLimit`. Two other fields belong in the same thought:
 
 - **`activeDeadlineSeconds`** is a wall-clock limit on the whole Job, and it overrides `backoffLimit` — a Job that would be entitled to six more retries is killed anyway. Use it for work that must finish before something else starts; use `backoffLimit` for work that is probably just broken.
 - **`ttlSecondsAfterFinished`** deletes the Job — and, through the ownership chain from lesson 01, its Pods — some seconds after it finishes. You have already been bitten by this without knowing: Act V's Gateway API install ships a certificate-generating Job with `ttlSecondsAfterFinished: 30`, which is exactly why that lesson's cleanup needs `--ignore-not-found`.
@@ -349,6 +422,8 @@ Jobs named `tick-<number>` that you did not write. Read the chain the way lesson
 
 ```bash
 kubectl get job -o jsonpath='{range .items[*]}{.metadata.name}{"  owner="}{.metadata.ownerReferences[0].kind}{"\n"}{end}'
+# `once` and `doomed` are still here, printing `owner=` with nothing after it --
+# you created those two yourself, so nothing owns them
 ```
 
 **CronJob → Job → Pod**, one `ownerReference` per link, the same field and the same garbage collection as Deployment → ReplicaSet → Pod. A CronJob does not run anything. It writes Job objects on a schedule and lets the Job controller do the work — which is the third time in two acts that a loop's entire output has turned out to be *another object for a different loop to read*.
@@ -392,12 +467,19 @@ The habit to take away: `kubectl get pvc` before scaling a StatefulSet up, not a
 
    DaemonSet                   BREAKS "the count is yours"
                                 there is NO spec.replicas field at all.
-                                the count lives in STATUS: desiredNumberScheduled,
-                                derived from the node list.
-                                auto-tolerates node.kubernetes.io/unschedulable
+                                the count lives in STATUS: desiredNumberScheduled
+                                -- derived from the nodes it can USE, so a DS with
+                                no tolerations reports 1 on a 2-node cluster
+                                the controller adds 6 tolerations WHEN IT CREATES
+                                EACH POD, not to your template -- so read the POD.
+                                one of them is node.kubernetes.io/unschedulable
                                 -> a cordon does not keep it off
                                 -> which is WHY drain needs --ignore-daemonsets
-                                toleration with NO key + Exists = "runs anywhere"
+                                (the others: not-ready, unreachable, disk/memory/pid
+                                 pressure -- the log collector should run ESPECIALLY
+                                 on the node that is in trouble)
+                                a toleration with NO key + Exists = "runs anywhere",
+                                and that one you write yourself
 
    Job                         BREAKS "runs forever"
                                 restartPolicy: Always is REJECTED -- it would
