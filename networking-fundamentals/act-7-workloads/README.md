@@ -50,6 +50,8 @@ kubectl get pvc -A        # empty, unless a lesson explicitly told you to keep o
 2. **[Rolling updates, and the promise nobody wrote down](02-rolling-updates.md)** — the percentages you never typed, why a rollback is not an undo log, and the one bad deploy that rolling updates cannot save you from.
 3. **[Who decides a container is working](03-probes.md)** — two probes, identical syntax, opposite consequences. One is a load-balancer decision; the other is life or death.
 4. **[The claim made before there is a machine](04-scheduling.md)** — Act IV's unanswered question. Why a cluster can be full and idle at once, and every way to narrow where a Pod lands.
+5. **[Configuration, and where a secret actually ends up](05-configuration.md)** — why an env var cannot change under a running process but a file can, and the three places your password is sitting in plaintext.
+6. **[Three different promises called "survives"](06-storage.md)** — Act I's oldest unanswered question. Why the manifest that keeps your data through a machine failure and the one that loses it are the same manifest.
 
 ## What breaks here
 

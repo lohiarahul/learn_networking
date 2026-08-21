@@ -272,4 +272,4 @@ kubectl describe node netlab-worker | grep -A2 Taints    # no maintenance taint
 
 ---
 
-← Prev: **[Who decides a container is working](03-probes.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Act VII overview](README.md)** — configuration is being written →
+← Prev: **[Who decides a container is working](03-probes.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Configuration, and where a secret actually ends up](05-configuration.md)** →
