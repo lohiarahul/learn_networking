@@ -188,4 +188,4 @@ kubectl get nodes                       # both Ready, neither SchedulingDisabled
 
 ---
 
-↑ **[Act VII overview](README.md)** · Next: **[Act VII overview](README.md)** — rolling updates is being written →
+↑ **[Act VII overview](README.md)** · Next: **[Rolling updates, and the promise nobody wrote down](02-rolling-updates.md)** →

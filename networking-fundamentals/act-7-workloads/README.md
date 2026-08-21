@@ -47,6 +47,7 @@ kubectl get pvc -A        # empty, unless a lesson explicitly told you to keep o
 *(This act is being written. Lessons appear here as they land.)*
 
 1. **[From a Pod to a Deployment](01-pod-to-deployment.md)** — you have used all three of these objects without being told why there are three.
+2. **[Rolling updates, and the promise nobody wrote down](02-rolling-updates.md)** — the percentages you never typed, why a rollback is not an undo log, and the one bad deploy that rolling updates cannot save you from.
 
 ## What breaks here
 
