@@ -21,7 +21,7 @@ Each act is a chain of lessons that ends by pointing at the next, so you never h
 | **[III — The internet](act-3-the-internet/README.md)** | IP drops, reorders, and forges — how do we get a stream that's reliable? | Name every TCP state; read an HTTPS exchange end to end. |
 | **[IV — One pretends to be many](act-4-one-pretends-many/README.md)** | One honest IP per machine — what happens when one machine hosts a crowd? | Build container networking by hand from kernel primitives. |
 | **[V — Kubernetes](act-5-kubernetes/README.md)** | One host is a ceiling — who wires up a fleet, declaratively? | Debug a cluster network call by reading the files in order. |
-| **[VI — The control plane](act-6-control-plane/README.md)** *(half-built)* | Act V never said who was arranging any of it. Scheduled by whom, watched from where? | Stop a controller and know, from the symptom alone, which loop is missing. |
+| **[VI — The control plane](act-6-control-plane/README.md)** *(unfinished)* | Act V never said who was arranging any of it. Scheduled by whom, watched from where? | Stop a controller and know, from the symptom alone, which loop is missing. |
 
 ## The capstone
 
