@@ -100,7 +100,7 @@ POD=$(kubectl get pod -l app=web -o jsonpath='{.items[0].metadata.name}')
 kubectl exec $POD -- rm /tmp/ready
 sleep 15
 kubectl get pods -l app=web
-kubectl describe pod $POD | grep -A3 'Events:'
+kubectl describe pod $POD | grep -A10 'Events:'
 ```
 
 **`RESTARTS` is `1`**, and the events say the container was killed — `Liveness probe failed` followed by `Killing`. And note what the container came back as: a fresh `nginx`, whose startup command ran `touch /tmp/ready` again. **The restart fixed the symptom**, which is exactly what liveness is for and exactly why it is dangerous.
@@ -160,7 +160,8 @@ Five minutes of patience during boot, four seconds of vigilance afterwards, and 
 ### The knobs, and which one is the trap
 
 ```bash
-kubectl explain deployment.spec.template.spec.containers.livenessProbe | tail -25
+kubectl explain deployment.spec.template.spec.containers.livenessProbe \
+  | grep -E 'initialDelay|periodSeconds|timeoutSeconds|failureThreshold|successThreshold'
 ```
 
 Six fields matter, and their defaults are worth knowing because you inherit them by silence:

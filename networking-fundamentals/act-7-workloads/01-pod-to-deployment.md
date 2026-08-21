@@ -16,7 +16,7 @@ So: **three objects to run one program. Why three, and what would break if there
 Start at the bottom, with the thing you have used least. Make a Pod with nothing wrapped around it:
 
 ```bash
-kubectl run solo --image=hashicorp/http-echo -- /http-echo -text=solo -listen=:5678
+kubectl run solo --image=hashicorp/http-echo --command -- /http-echo -text=solo -listen=:5678
 kubectl wait --for=condition=Ready pod/solo --timeout=90s
 kubectl get pod solo -o wide
 ```
@@ -30,7 +30,7 @@ sleep 10
 kubectl get pod solo
 ```
 
-(The container is called `solo`, not `http-echo`. `kubectl run` names the container after the *Pod*; `kubectl create deployment` names it after the *image*. That inconsistency is why the `kubectl set image` command further down this lesson addresses `http-echo=` instead.)
+(Two inconsistencies between `kubectl run` and `kubectl create deployment` are worth banking now, because both cost people marks. The **container name**: `run` names it after the *Pod*, `create deployment` names it after the *image* — which is why the container above is `solo` and why the `kubectl set image` command further down addresses `http-echo=`. And **what `--` means**: for `create deployment` it sets `command`, but for `run` it sets `args`, which are *appended to the image's existing entrypoint*. Leave off `--command` above and the container execs `/http-echo /http-echo -text=solo …`, prints `Too many arguments!`, and exits 127 — after `kubectl wait` has already reported success, because the Pod was briefly Ready before the first exit.)
 
 **`RESTARTS` is `1`, and the Pod is `Running` again.** Something restarted it, and it is worth naming who: the kubelet on that node, which Act VI established watches Pods assigned to it. A container that exits gets started again — in the same Pod, on the same node, with the same IP. That is the default `restartPolicy: Always`, and it is a promise made entirely locally.
 
@@ -44,11 +44,17 @@ kubectl drain netlab-worker --ignore-daemonsets --delete-emptydir-data
 **Drain refuses, and it refuses over `solo` specifically:**
 
 ```
-error: unable to drain node "netlab-worker" due to error: cannot delete Pods
-declare no controller (use --force to override): default/solo
+node/netlab-worker cordoned
+error: unable to drain node "netlab-worker" due to error: cannot delete Pods that
+declare no controller (use --force to override): default/solo, continuing command...
+There are pending nodes to be drained:
+ netlab-worker
+cannot delete Pods that declare no controller (use --force to override): default/solo
 ```
 
-That refusal *is* the answer to the first half of the prediction, handed to you by a tool that already knows. Drain is willing to delete a Pod it can see something will replace. It will not quietly delete one that nothing owns, because it has no reason to believe that Pod will ever come back — and it makes you say `--force` to accept that.
+Read the first line before the error, because it is the trap Act VI warned about in a different form: **it cordoned the node anyway.** The refusal came second. Anyone who runs a bare `drain` "just to see what it says" has quietly disabled scheduling on that node, and the error does not mention it again.
+
+The refusal itself *is* the answer to the first half of the prediction, handed to you by a tool that already knows. Drain is willing to delete a Pod it can see something will replace. It will not quietly delete one that nothing owns, because it has no reason to believe that Pod will ever come back — and it makes you say `--force` to accept that.
 
 So say it, and watch:
 
@@ -113,9 +119,12 @@ That something is the Deployment. **A ReplicaSet keeps a number of identical Pod
 You can see the seam by hand. Ask the Deployment for a change, and watch how many ReplicaSets exist:
 
 ```bash
-kubectl set image deployment/web http-echo=hashicorp/http-echo:0.2.3
+kubectl set image deployment/web http-echo=hashicorp/http-echo:1.0
+kubectl rollout status deployment/web --timeout=60s
 kubectl get rs -l app=web
 ```
+
+(The `rollout status` line is not decoration. Run the two `kubectl` commands back to back and you catch the rollout in flight — the new ReplicaSet at `1`, the old one still at `2` — which is a true picture of a moment you are not trying to look at yet.)
 
 **Two ReplicaSets now** — the original at `DESIRED 0`, and a new one at `DESIRED 2`. The old one was not deleted. It was scaled to zero and left there, with its template intact, which is a fact with a use you will meet in the next lesson.
 

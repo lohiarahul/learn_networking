@@ -11,7 +11,7 @@ So: **what did the Deployment assume, and what is that dead ReplicaSet for?**
 Set up something to watch, with enough replicas that the arithmetic is visible:
 
 ```bash
-kubectl create deployment web --image=hashicorp/http-echo:0.2.3 --replicas=4 \
+kubectl create deployment web --image=hashicorp/http-echo:1.0 --replicas=4 \
   -- /http-echo -text=v1 -listen=:5678
 kubectl rollout status deployment/web        # blocks until the Deployment says it is done
 kubectl get deployment web -o jsonpath='{.spec.strategy}{"\n"}'
@@ -89,17 +89,41 @@ kubectl get pods -l app=web
 kubectl get deployment web
 ```
 
-**Four Pods still serving, and one stuck `ImagePullBackOff`.** The rollout stopped dead at its first step and *stayed* stopped, because it is not allowed to remove an old Pod until a new one is available — and this one never will be.
+```
+NAME                   READY   STATUS         RESTARTS   AGE
+web-5c7f954f84-95mpc   0/1     ErrImagePull   0          30s
+web-5c7f954f84-pcv27   0/1     ErrImagePull   0          31s
+web-6bf8d7bb78-bc6ht   1/1     Running        0          44s
+web-6bf8d7bb78-nwkrf   1/1     Running        0          45s
+web-6bf8d7bb78-snd5d   1/1     Running        0          45s
 
-That is `maxUnavailable` earning its keep. A rolling update is not a script that runs to completion; it is a controller that advances only while the availability promise holds. **A broken image is the safe kind of bad deploy**: nothing is lost, nothing is dropped, and you can take as long as you like to notice.
+NAME   READY   UP-TO-DATE   AVAILABLE   AGE
+web    3/4     2            3           2m47s
+```
+
+**Three serving, two stuck**, and it stays exactly there — `ErrImagePull` becomes `ImagePullBackOff` after a minute or two and nothing else changes.
+
+Now check those numbers against the arithmetic you did a moment ago, because they are not the numbers a careless reading predicts. Four replicas at 25% gives `maxUnavailable` **1** and `maxSurge` **2**. So the controller was entitled to retire one old Pod immediately — and it did, which is why `AVAILABLE` is `3` and not `4`. Having done that, its surge budget allowed two new ones. Three old plus two new is five, which is the cap. Then it stopped, because retiring a second old Pod would breach the promise and no new Pod is ever going to become available to buy it room.
+
+So the guarantee is **not** "an old Pod is never removed until a new one is available" — that is the sentence people carry around, and this experiment disproves it in one line. The guarantee is that availability never drops below `replicas − maxUnavailable`. On four replicas that permits losing one, permanently, to a deploy that never succeeds.
+
+That is still `maxUnavailable` earning its keep, and **a broken image is the safe kind of bad deploy** — you keep serving and you can take as long as you like to notice. But notice what "safe" cost you here: a quarter of your capacity, indefinitely, on a rollout that will never finish. On three replicas it would have cost nothing at all, because `maxUnavailable` rounds down to zero — which is the asymmetry from earlier in this lesson turning out to matter rather more than it looked.
 
 It does eventually stop trying, and says so in the object rather than in the terminal:
 
 ```bash
+kubectl get deployment web -o jsonpath='{.spec.progressDeadlineSeconds}{"\n"}'
 kubectl get deployment web -o jsonpath='{range .status.conditions[*]}{.type}={.status}  {.reason}{"\n"}{end}'
 ```
 
-`Progressing=False` with reason **`ProgressDeadlineExceeded`**, once `spec.progressDeadlineSeconds` — 600 by default, so ten minutes — has passed with no progress. That condition is what a CI pipeline or an alert should be watching, and it is the reason `kubectl rollout status` eventually returns non-zero instead of hanging forever.
+Right now that prints `Progressing=True` with reason `ReplicaSetUpdated`, because `progressDeadlineSeconds` is **600** and the deadline has not passed. Which is worth sitting with rather than skipping: for a full ten minutes, a Deployment that is permanently and unrecoverably stuck reports that it is *progressing*. Come back later, or start a timer and carry on reading, and it becomes:
+
+```
+Available=True    MinimumReplicasAvailable
+Progressing=False  ProgressDeadlineExceeded
+```
+
+**`Progressing=False`** with reason **`ProgressDeadlineExceeded`** — ten minutes after the `set image`, not ten minutes after you noticed. That condition is what a CI pipeline or an alert should be watching, and it is the reason `kubectl rollout status` eventually returns non-zero instead of hanging forever.
 
 Undo it:
 
@@ -120,10 +144,12 @@ Act V taught you where that idea comes from — a Pod joins a Service's endpoint
 You can see the knob that would have caught it:
 
 ```bash
-kubectl get deployment web -o jsonpath='{.spec.minReadySeconds}{"\n"}'
+kubectl get deployment web -o jsonpath='{.spec.minReadySeconds}{"\n"}'   # prints an empty line
 ```
 
-`0`. A Pod counts as available the moment it is ready, with no probation. `minReadySeconds: 10` says *stay ready for ten seconds before I believe you*, which is a crude but real defence against a container that reports ready and then falls over.
+An **empty line** — and that is the answer, not a failed command. Unlike `revisionHistoryLimit` (`10`) and `progressDeadlineSeconds` (`600`), which the API server fills in and which therefore print, `minReadySeconds` has no server-side default at all, so the field is simply absent from the stored object. Absent means zero: a Pod counts as available the moment it is ready, with no probation.
+
+(That distinction is worth keeping. An empty `jsonpath` result means *this field is not in the object*, which is a different statement from "its value is zero" — even when the effect is the same. It is the same reading skill Act VI needed for a Pod with no `nodeName`.) `minReadySeconds: 10` says *stay ready for ten seconds before I believe you*, which is a crude but real defence against a container that reports ready and then falls over.
 
 **The uncomfortable summary: a rolling update is only as truthful as your readiness signal**, and you have not yet written one. What you have been relying on all lesson is a default — a container with no probe at all is considered ready as soon as it starts.
 

@@ -33,15 +33,15 @@ Rate yourself in the last column as you go: `-` untried · `?` shaky · `✓` ca
 
 ## Troubleshooting — 30%
 
-The largest domain, and the one where time bleeds. The course's network-troubleshooting material is
-its strongest asset; the cluster-component half is the gap.
+The largest domain, and the one where time bleeds. All five bullets are now covered, and the course
+carries two independent diagnostic methods — one for a broken *cluster*, one for a broken *workload*.
 
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
-| Troubleshoot clusters and nodes | ❌ gap | — needs `journalctl -u kubelet`, node `NotReady` triage, `crictl` | `-` |
-| Troubleshoot cluster components | ❌ gap | — needs static-pod recovery, `crictl ps -a` / `crictl logs` when the apiserver is down | `-` |
-| Monitor cluster and application resource usage | ❌ gap | — needs metrics-server, `kubectl top` | `-` |
-| Manage and evaluate container output streams | 🟡 partial | — `kubectl logs` discipline (`--previous`, `-c`, `--since`) is never taught | `-` |
+| Troubleshoot clusters and nodes | ✅ covered | [node maintenance](../networking-fundamentals/act-6-control-plane/07-node-maintenance.md) · [when the control plane breaks](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md) — the five-question descent, `journalctl -u kubelet`, `crictl` · [the drills](../networking-fundamentals/act-6-control-plane/diagnose.md) | `-` |
+| Troubleshoot cluster components | ✅ **covered, above exam depth** | [when the control plane breaks](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md) — a deliberately broken static-pod manifest, plus `crictl ps -a` / `crictl logs` with the apiserver down · [7 drills](../networking-fundamentals/act-6-control-plane/diagnose.md) | `-` |
+| Monitor cluster and application resource usage | ✅ covered | [choosing the number](../networking-fundamentals/act-7-workloads/10-choosing-the-number.md) — metrics-server installed and made to fail first, `kubectl top` | `-` |
+| Manage and evaluate container output streams | 🟡 partial | used throughout ([`logs --previous`](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md), `crictl logs`, [`logs -l`](../networking-fundamentals/act-7-workloads/07-the-other-workload-kinds.md)) but no lesson treats `-c` / `--since` / multi-container selection as a subject | `-` |
 | Troubleshoot services and networking | ✅ **covered, above exam depth** | [the five-question method](../networking-fundamentals/act-5-kubernetes/08-debugging.md) · [a worked failure](../networking-fundamentals/act-5-kubernetes/09-debugging-walkthrough.md) · [the drills](../networking-fundamentals/act-5-kubernetes/diagnose.md) | `-` |
 
 **The two traps candidates name most:**
@@ -55,22 +55,38 @@ its strongest asset; the cluster-component half is the gap.
 **Do the broken-cluster tasks last.** Two independent sources say so: this domain is 30% of the
 marks and roughly 90% of the time-sink risk.
 
+**Two methods, and picking the wrong one wastes minutes.** [Act VI's five questions](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md)
+descend a *dependency stack* — does the API server answer, then the runtime, then the kubelet, then
+the disk — and are for when the cluster itself is sick. [Act VII's six questions](../networking-fundamentals/act-7-workloads/diagnose.md)
+walk the *claim chain* — is there a Pod, does it have a node, is the container running, is it in the
+Service — and are for when the cluster is fine and a workload is not. Read the symptom for which one
+it is before starting: `kubectl get nodes` answering normally means you want the second.
+
 ---
 
 ## Cluster Architecture, Installation and Configuration — 25%
 
-The course's biggest gap, and the domain that changed most in 2025.
+The domain that changed most in 2025, and now the only one with real holes left — all of them
+clustered around RBAC and building a cluster from bare machines.
 
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
-| Manage role based access control (RBAC) | ❌ gap | — | `-` |
-| Prepare underlying infrastructure for installing a Kubernetes cluster | ❌ gap | — | `-` |
-| Create and manage Kubernetes clusters using kubeadm | ❌ gap | `kubeadm` appears only incidentally in [the kind lab](../networking-fundamentals/act-5-kubernetes/01-lab-with-kind.md) | `-` |
-| Manage the lifecycle of Kubernetes clusters | ❌ gap | — this is where **upgrades** now live | `-` |
-| Implement and configure a highly-available control plane | ❌ gap | — | `-` |
-| **Use Helm and Kustomize to install cluster components** | ❌ gap | — see the warning below | `-` |
-| **Understand extension interfaces (CNI, CSI, CRI, etc.)** | 🟡 partial | CNI is ✅ [covered well](../networking-fundamentals/act-5-kubernetes/05-cni.md); CSI and CRI are gaps | `-` |
-| **Understand CRDs, install and configure operators** | ❌ gap | — `CustomResourceDefinition` appears nowhere in the course | `-` |
+| Manage role based access control (RBAC) | ❌ **gap — the largest one left** | — planned for Act X. See the note below | `-` |
+| Prepare underlying infrastructure for installing a Kubernetes cluster | ❌ gap | — `kind` cannot teach this honestly; needs two VMs | `-` |
+| Create and manage Kubernetes clusters using kubeadm | 🟡 partial | Act VI reads a *real* kubeadm cluster from the inside — [static pods](../networking-fundamentals/act-6-control-plane/02-static-pods.md) · [the cluster's own PKI](../networking-fundamentals/act-6-control-plane/04-the-clusters-own-pki.md) (`kubeadm certs check-expiration`/`renew`) · [etcd backup and restore](../networking-fundamentals/act-6-control-plane/05-etcd-backup-and-restore.md). A genuine `kubeadm init` + `join` is not done | `-` |
+| Manage the lifecycle of Kubernetes clusters | ✅ covered | [upgrades and version skew](../networking-fundamentals/act-6-control-plane/06-upgrades-and-version-skew.md) — skew derived rather than memorised, half an upgrade done by hand, `upgrade plan`/`apply`/`node` | `-` |
+| Implement and configure a highly-available control plane | ❌ gap | — one control-plane node in the lab | `-` |
+| **Use Helm and Kustomize to install cluster components** | ✅ covered | [shipping a set of objects](../networking-fundamentals/act-7-workloads/08-shipping-a-set-of-objects.md) — both, contrasted; see the drill warning below | `-` |
+| **Understand extension interfaces (CNI, CSI, CRI, etc.)** | ✅ covered | CNI [in depth](../networking-fundamentals/act-5-kubernetes/05-cni.md) · CRI via `crictl` throughout [Act VI](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md) · CSI derived from the `ExternalExpanding` event in [storage](../networking-fundamentals/act-7-workloads/06-storage.md) | `-` |
+| **Understand CRDs, install and configure operators** | ✅ **covered, above exam depth** | [adding a kind](../networking-fundamentals/act-7-workloads/09-adding-a-kind.md) — write a CRD, discover it adds no behaviour, then write the controller in shell | `-` |
+
+> **On RBAC:** this is now the single biggest hole between you and a pass, and it is worth being
+> blunt about the arithmetic — it is one bullet of eight in a 25% domain, so perhaps 3% of the marks,
+> but it is also the domain's most commonly reported task. [Act VII's CRD lesson](../networking-fundamentals/act-7-workloads/09-adding-a-kind.md)
+> lays the groundwork by making `status` a separate subresource *because permissions can differ*, but
+> the four-object model (Role, ClusterRole, RoleBinding, ClusterRoleBinding) and
+> `kubectl auth can-i` are genuinely untaught. Until Act X lands, drill this externally — it is
+> small, self-contained, and entirely on an allowed doc.
 
 ### Helm and Kustomize — the most-named weak spot
 
@@ -87,6 +103,11 @@ doc.** Your only reference is
 [the single kustomization page on kubernetes.io](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/).
 Practise base/overlay layout, `kustomize build`, `kubectl apply -k`, patches,
 `configMapGenerator`/`secretGenerator`, `namePrefix` and `images` **from memory**.
+[The lesson](../networking-fundamentals/act-7-workloads/08-shipping-a-set-of-objects.md) builds a base and an overlay using every one of
+those fields except `secretGenerator`, and flags the three deprecated spellings (`bases:`,
+`patchesStrategicMerge:`, `patchesJson6902:`) you will meet in existing repositories. What it does
+*not* do is make you fast, and this is the competency where speed decides the mark — so re-type the
+overlay from a blank directory a few times rather than re-reading it.
 
 ### What changed in February 2025
 
@@ -146,29 +167,39 @@ editor worth using to check your intuition.
 
 ## Workloads and Scheduling — 15%
 
+**Fully covered**, and Act VII goes past exam depth on most of it.
+
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
-| Understand application deployments and how to perform rolling update and rollbacks | ❌ gap | Deployments are *used* throughout Act V but never taught | `-` |
-| Use ConfigMaps and Secrets to configure applications | ❌ gap | one hands-on beat only: [a TLS Secret is just base64](../networking-fundamentals/act-5-kubernetes/06-ingress.md) | `-` |
-| **Configure workload autoscaling** | ❌ gap | — HPA. Note the verb changed from "know how to scale applications" | `-` |
-| Understand the primitives used to create robust, self-healing, application deployments | 🟡 partial | readiness probes are taught well as an [endpoint gate](../networking-fundamentals/act-5-kubernetes/03-services.md); liveness and startup probes are gaps | `-` |
-| **Configure Pod admission and scheduling (limits, node affinity, etc.)** | 🟡 partial | cgroup limits are ✅ [taught from the kernel up](../networking-fundamentals/act-4-one-pretends-many/01b-cgroups.md), but `requests` and the scheduler are an [open question the course deliberately never answers](../networking-fundamentals/act-4-one-pretends-many/01b-cgroups.md) | `-` |
+| Understand application deployments and how to perform rolling update and rollbacks | ✅ **above exam depth** | [Pod → ReplicaSet → Deployment](../networking-fundamentals/act-7-workloads/01-pod-to-deployment.md) · [rolling updates](../networking-fundamentals/act-7-workloads/02-rolling-updates.md) — `maxSurge`/`maxUnavailable` rounding, and why `rollout undo` is *not* an undo log | `-` |
+| Use ConfigMaps and Secrets to configure applications | ✅ **above exam depth** | [configuration](../networking-fundamentals/act-7-workloads/05-configuration.md) — env vs mounted file, the `..data` swap, `subPath` silently never reloading, and the three plaintext locations | `-` |
+| **Configure workload autoscaling** | ✅ covered | [choosing the number](../networking-fundamentals/act-7-workloads/10-choosing-the-number.md) — HPA, and the reason a Deployment made by a one-liner can never scale | `-` |
+| Understand the primitives used to create robust, self-healing, application deployments | ✅ covered | [probes](../networking-fundamentals/act-7-workloads/03-probes.md) — readiness, liveness and startup, with the outage each one causes when swapped · [the other workload kinds](../networking-fundamentals/act-7-workloads/07-the-other-workload-kinds.md) | `-` |
+| **Configure Pod admission and scheduling (limits, node affinity, etc.)** | ✅ **above exam depth** | [scheduling](../networking-fundamentals/act-7-workloads/04-scheduling.md) — `requests` vs `limits` and their different enforcers, QoS, `nodeSelector`/affinity, taints and tolerations, `topologySpreadConstraints`, and the auto-added `tolerationSeconds: 300` | `-` |
 
-**Small-detail losses candidates report:** the container name in `kubectl set image` must match
-exactly; **changing a ConfigMap does not restart Pods** (needs `kubectl rollout restart`); and
-unmentioned taints silently blocking scheduling.
+**Small-detail losses candidates report**, and where the course already addresses each:
+
+- **The container name in `kubectl set image` must match exactly.** And it is not the name you
+  expect: [lesson 01](../networking-fundamentals/act-7-workloads/01-pod-to-deployment.md) shows that `kubectl run` names the container
+  after the *Pod* while `kubectl create deployment` names it after the *image*.
+- **Changing a ConfigMap does not restart Pods.** [Lesson 05](../networking-fundamentals/act-7-workloads/05-configuration.md) explains
+  precisely which half updates and which cannot; `kubectl rollout restart` is the exam answer, and
+  [lesson 08](../networking-fundamentals/act-7-workloads/08-shipping-a-set-of-objects.md)'s `configMapGenerator` hash is the production one.
+- **Unmentioned taints silently blocking scheduling.** [Lesson 04](../networking-fundamentals/act-7-workloads/04-scheduling.md) drills
+  reading the whole `FailedScheduling` tally — the per-reason counts must add up to the node count,
+  and a node missing from that arithmetic is one you forgot was excluded.
 
 ---
 
 ## Storage — 10%
 
-The course's cleanest gap — nothing here is covered.
+**Fully covered**, in one lesson that answers a question Act I posed six acts earlier.
 
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
-| **Implement storage classes and dynamic volume provisioning** | ❌ gap | — the verb strengthened from "understand" to "implement" | `-` |
-| Configure volume types, access modes and reclaim policies | ❌ gap | nearest is [overlayfs and Docker volumes](../networking-fundamentals/act-1-one-machine/06b-the-container-filesystem.md), which deliberately *poses* the PV/PVC question without answering it | `-` |
-| Manage persistent volumes and persistent volume claims | ❌ gap | — | `-` |
+| **Implement storage classes and dynamic volume provisioning** | ✅ covered | [three promises called "survives"](../networking-fundamentals/act-7-workloads/06-storage.md) — `WaitForFirstConsumer` derived rather than quoted, and `allowVolumeExpansion` accepted-then-ignored | `-` |
+| Configure volume types, access modes and reclaim policies | ✅ covered | [storage](../networking-fundamentals/act-7-workloads/06-storage.md) — `emptyDir` vs PVC, `ReadWriteOnce` as *one node* not one Pod, `Delete` vs `Retain` | `-` |
+| Manage persistent volumes and persistent volume claims | ✅ covered | [storage](../networking-fundamentals/act-7-workloads/06-storage.md) · [`volumeClaimTemplates` and why scale-down keeps volumes](../networking-fundamentals/act-7-workloads/07-the-other-workload-kinds.md) | `-` |
 
 **The precise binding rule**, which resolves most "why won't my PVC bind" tasks: a PVC binds when
 **capacity ≥ request AND accessModes match AND storageClassName matches**. Check those three before
@@ -180,13 +211,25 @@ anything else.
 
 | Domain | Weight | Course covers |
 |---|---|---|
-| Troubleshooting | 30% | ~1 of 5 bullets, but that one (networking) very well |
-| Cluster Architecture | 25% | ~0.5 of 8 bullets |
-| Servicing and Networking | 20% | 5 of 6 bullets, most above exam depth |
-| Workloads and Scheduling | 15% | ~0.5 of 5 bullets |
-| Storage | 10% | 0 of 3 bullets |
+| Troubleshooting | 30% | 4½ of 5 bullets, two of them above exam depth |
+| Cluster Architecture | 25% | 4½ of 8 bullets — the gaps are RBAC, HA, and bare-metal install |
+| Servicing and Networking | 20% | 6 of 6 bullets, most above exam depth |
+| Workloads and Scheduling | 15% | 5 of 5 bullets, most above exam depth |
+| Storage | 10% | 3 of 3 bullets |
 
-Roughly **20–25% of CKA** is covered today, concentrated almost entirely in one domain. The fastest
-paths to a passing score, in value-per-hour order: **Gateway API** (adjacent to material already
-written, and the thinnest-covered competency anywhere), then **Helm and Kustomize**, then **cluster
-component troubleshooting**, then **storage** (small, self-contained, 10% of the marks).
+Roughly **85% of the CKA syllabus** is now covered, and what remains is concentrated and nameable:
+
+| Gap | Domain share | Why it is still open |
+|---|---|---|
+| **RBAC** | ~3% | Needs the identity material planned for Acts IX–X. The most commonly reported of the three. |
+| **HA control plane** | ~3% | The lab has one control-plane node. |
+| **`kubeadm init` / `join` from bare machines** | ~3% | `kind` nodes arrive already provisioned; this needs two VMs. |
+| **`kubectl logs` as a subject** | ~1% | Used constantly, never taught deliberately. |
+
+**And the honest caution, which has not changed.** Coverage is not readiness. This course will make
+you understand Kubernetes considerably better than a typical CKA holder, and it will not make you
+*fast* — 15–20 hands-on tasks in two hours is decided by recall and typing speed. The load-bearing
+remaining work is [`kubectl-speed.md`](kubectl-speed.md), re-typing manifests from a blank file, and
+a timed simulator. Two killer.sh sessions ship with your exam registration; they are the only
+environment that reproduces the SSH-per-task structure, and using both is worth more per hour at
+this point than any further reading.

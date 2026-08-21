@@ -21,7 +21,7 @@ reconcile** in the cloud.
 > | **6** — one machine pretends to be many (containers) | Act IV | ✅ **built & teaching** |
 > | **7.3** — Kubernetes *networking* (incl. Gateway API, Service shapes) | Act V | ✅ **built & teaching** |
 > | **7.1** — the control plane: API server as a filesystem, static pods, the reconciliation loop, cluster PKI, etcd backup/restore, upgrades & version skew, node maintenance, control-plane troubleshooting | Act VI | ✅ **built & teaching** — 8 lessons + all supporting pages, every lesson run against a real cluster |
-> | **7.2, 7.4, 7.6–7.9** — workloads, scheduling, storage, config, Helm/Kustomize/CRDs, autoscaling, observability | Act VII | 🚧 **in progress** — 7 of ~10 lessons; lessons 01–06 verified against a real cluster, lesson 07 not yet; no supporting pages |
+> | **7.2, 7.4, 7.6–7.8** — workloads, scheduling, storage, config, Helm/Kustomize, CRDs/operators, autoscaling | Act VII | ✅ **built & teaching** — 10 lessons + all supporting pages; lessons 01–07 run against a real cluster and corrected, 08–10 pending verification |
 > | **4** — cryptography & trust | *(planned as Act VIII)* | 🔜 **roadmap** |
 > | **5** — identity & access | *(planned as Act IX)* | 🔜 **roadmap** |
 > | **7.5, 7.9** — CKS security: hardening, etcd encryption, seccomp/AppArmor, admission, supply chain | *(planned as Act X)* | 🔜 **roadmap** |
@@ -43,9 +43,10 @@ reconcile** in the cloud.
 > for a control plane that will not answer.
 >
 > Between them that is a real slice of CKA — most of Cluster Architecture, all of Servicing and
-> Networking, and the harder half of Troubleshooting. Act VII now covers **workloads, scheduling,
-> storage and config**; still missing are **RBAC, Helm, Kustomize, CRDs, autoscaling and observability**,
-> and nothing here teaches CKS at all, **so this is not yet a CKA/CKAD/CKS course.** Every "you can now" line in Stage 7 that reaches past
+> Networking, and the harder half of Troubleshooting. Act VII closes the rest of it — **workloads,
+> scheduling, storage, config, Helm, Kustomize, CRDs and autoscaling** — which between them leave
+> **Acts I–VII covering essentially all of CKA.** Still missing: **RBAC and observability**, and nothing
+> here teaches CKS at all, **so this is not yet a CKS course.** Every "you can now" line in Stage 7 that reaches past
 > those topics is roadmap.
 >
 > If you came here *for* those exams, read [`exam-prep/`](exam-prep/README.md) first — it maps every
