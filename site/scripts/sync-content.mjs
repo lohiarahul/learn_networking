@@ -89,6 +89,7 @@ const ACTS = [
   { srcDir: 'act-3-the-internet', slug: 'act-3' },
   { srcDir: 'act-4-one-pretends-many', slug: 'act-4' },
   { srcDir: 'act-5-kubernetes', slug: 'act-5' },
+  { srcDir: 'act-6-control-plane', slug: 'act-6' },
 ];
 
 /**
@@ -106,6 +107,14 @@ const SINGLES = [
   [`${COURSE_DIR}/code/README.md`, 'reference/build-the-lab-image.md', 1],
   ['JOURNEY-MAP.md', 'reference/journey-map.md', 3],
   ['Toolbelt.md', 'reference/toolbelt.md', 4],
+  // exam-prep is deliberately NOT a course act — it is rehearsal for a timed exam, which is the
+  // banking the course refuses to do. It publishes under its own section so a reader can find it
+  // without it ever appearing beside the lessons.
+  ['exam-prep/README.md', 'exam-prep/index.md', 1],
+  ['exam-prep/cka-domain-map.md', 'exam-prep/cka-domain-map.md', 2],
+  ['exam-prep/cks-domain-map.md', 'exam-prep/cks-domain-map.md', 3],
+  ['exam-prep/kubectl-speed.md', 'exam-prep/kubectl-speed.md', 4],
+  ['exam-prep/exam-day.md', 'exam-prep/exam-day.md', 5],
 ];
 
 /**

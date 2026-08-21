@@ -43,3 +43,7 @@ Kubernetes assembles all of Act IV automatically, thousands of times a second, a
 The cure is not more magic. The cure is to remember that every layer is still a file, and to read the files in order. First see the whole machine working in [the whole stack](../the-whole-stack.md) — one packet from `write()` to `read()` across all five layers. Then learn the diagnostic walk for when it breaks: [the five-question method](08-debugging.md) and its [worked example](09-debugging-walkthrough.md), the last and most important files in this course — and then go break a cluster on purpose in [Diagnose it](diagnose.md).
 
 > **The question to carry forward:** when the abstraction breaks, which file do you read first, and which do you read next?
+
+## Then keep going
+
+This act taught the network and deliberately never said who was arranging it. kube-proxy "watches the API server"; the kubelet "writes `/etc/resolv.conf`"; a CNI plugin is "invoked when a Pod is scheduled" — scheduled by whom, watched from where? **[Act VI opens the control plane](../act-6-control-plane/README.md)**, and the surprise is how little is inside: one document store, and a set of processes that each watch it for one specific discrepancy.

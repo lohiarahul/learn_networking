@@ -21,6 +21,7 @@ Each act is a chain of lessons that ends by pointing at the next, so you never h
 | **[III — The internet](act-3-the-internet/README.md)** | IP drops, reorders, and forges — how do we get a stream that's reliable? | Name every TCP state; read an HTTPS exchange end to end. |
 | **[IV — One pretends to be many](act-4-one-pretends-many/README.md)** | One honest IP per machine — what happens when one machine hosts a crowd? | Build container networking by hand from kernel primitives. |
 | **[V — Kubernetes](act-5-kubernetes/README.md)** | One host is a ceiling — who wires up a fleet, declaratively? | Debug a cluster network call by reading the files in order. |
+| **[VI — The control plane](act-6-control-plane/README.md)** *(half-built)* | Act V never said who was arranging any of it. Scheduled by whom, watched from where? | Stop a controller and know, from the symptom alone, which loop is missing. |
 
 ## The capstone
 
@@ -30,4 +31,8 @@ Then **[`your-own-machine.md`](your-own-machine.md)** points the same reflexes a
 
 ## Where the road ends (for now)
 
-The built course is Acts I–V, and Act V is scoped to Kubernetes **networking** — Pods, CNI, Services, CoreDNS, Ingress, NetworkPolicy and a debugging discipline. The rest of Kubernetes (the control plane, Deployments, storage, RBAC, Helm/GitOps, observability), cryptography (opening the TLS lock), identity/access, and AWS networking & security are **mapped but not yet written** — see the roadmap banner in [`../JOURNEY-MAP.md`](../JOURNEY-MAP.md). `Toolbelt.md` and the JOURNEY-MAP describe the full nine-stage destination; this folder is the part you can run today.
+The built course is Acts I–V plus half of Act VI. Act V is scoped to Kubernetes **networking** — Pods, CNI, Services (with headless, SRV and the traffic-policy shapes), CoreDNS, Ingress, Gateway API, NetworkPolicy and a debugging discipline. **[Act VI](act-6-control-plane/README.md)** has four of eight lessons: the API server as a filesystem over etcd, static pods, the reconciliation loop, and the cluster's own PKI — and none of its supporting pages yet.
+
+Still **mapped but not written**: the rest of the control plane (etcd backup/restore, upgrades, node maintenance, control-plane troubleshooting), workloads and scheduling, storage and config, Helm/Kustomize/CRDs, autoscaling, observability, cryptography (opening the TLS lock), identity/access, Kubernetes security, and AWS networking & security — see the roadmap banner in [`../JOURNEY-MAP.md`](../JOURNEY-MAP.md).
+
+If you are here for **CKA or CKS**, start at [`../exam-prep/`](../exam-prep/README.md): it maps every competency to the lesson that covers it and is honest about the ones nothing covers yet.
