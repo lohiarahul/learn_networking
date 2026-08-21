@@ -433,4 +433,4 @@ That `delete pvc` line is the lesson repeating itself one last time. Deleting th
 
 ---
 
-← Prev: **[Three different promises called "survives"](06-storage.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Act VII overview](README.md)** — packaging is being written →
+← Prev: **[Three different promises called "survives"](06-storage.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Shipping a set of objects](08-shipping-a-set-of-objects.md)** →
