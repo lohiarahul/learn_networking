@@ -277,7 +277,9 @@ kubectl -n kube-system get pods                                    # all Running
 
 **Which raises:** you can now operate a cluster below `kubectl` — start it, break it, restore it, and find out why it will not start. But every object you have used to do that was one the cluster came with. You have never made Kubernetes run *your* software: not a Deployment you designed, not storage that outlives a Pod, not configuration kept out of the image. Act V taught you how traffic reaches a workload and this act taught you what runs it. What have you still never said about the workload itself?
 
-That question is genuinely open — this is the last written page of the course, and the act it points at does not exist yet. [The journey map](../../JOURNEY-MAP.md) is where the road ahead is planned, including which parts of it are built. This act is also still missing the three pages every other act carries: a `test-yourself`, a set of `diagnose` drills, and an `in-the-wild`.
+That question is genuinely open — this is the last lesson written, and the act it points at does not exist yet. [The journey map](../../JOURNEY-MAP.md) is where the road ahead is planned, including which parts of it are built.
+
+Before you leave the act, though, three pages are waiting: **[Test yourself](test-yourself.md)**, then the seven **[on-call drills](diagnose.md)** — which are where the five questions above stop being a method you read and become one you have used — and **[Act VI in the wild](in-the-wild.md)**.
 
 ---
 

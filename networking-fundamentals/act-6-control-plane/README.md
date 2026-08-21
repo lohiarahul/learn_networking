@@ -31,7 +31,13 @@ A cluster missing its scheduler looks completely healthy until the moment someth
 7. **[Taking a node out of service](07-node-maintenance.md)** — cordon is one field; drain is a loop in your terminal. Then meet the one request the cluster is allowed to refuse.
 8. **[When the control plane breaks](08-when-the-control-plane-breaks.md)** — Act V's five questions, pointed down the dependency stack instead of the network stack. Break the API server on purpose and find out where the evidence went.
 
-> **Act VI is not finished.** Lessons **1–4** are verified command-by-command on a real cluster. Lessons **5, 6 and 8** are built from measurements taken on one — every claim about timing and output was checked — but have not been re-run start to finish since they were rewritten. Lesson **7** has not been near a cluster at all; treat its timings as provisional. Still to come: this act's `test-yourself`, `diagnose` and `in-the-wild` pages, which every other act carries and this one does not yet. **The act's supporting pages do not exist yet either** — every other act carries a `test-yourself`, a `diagnose` set of on-call drills and an `in-the-wild`, and this one will when it is finished. The roadmap banner in [the journey map](../../JOURNEY-MAP.md) tracks what is real.
+Then, when you have worked through all eight:
+
+- **[Test yourself](test-yourself.md)** — twenty questions, answers folded away. Attempt each before opening it.
+- **[Diagnose it](diagnose.md)** — seven on-call drills that put your cluster into a genuinely broken state and hand you only the symptom.
+- **[Act VI in the wild](in-the-wild.md)** — why every managed Kubernetes service hides exactly the four things this act taught you to read, and which of your commands survive that.
+
+> **On verification.** Lessons **1–4** are verified command-by-command on a real cluster. Lessons **5, 6 and 8** are built from measurements taken on one — every claim about timing and output was checked — but have not been re-run start to finish since they were rewritten. Lesson **7** and the drills in `diagnose.md` have not been executed end to end; treat their timings as provisional and expect a `sleep` to want lengthening. **The act's supporting pages do not exist yet either** — every other act carries a `test-yourself`, a `diagnose` set of on-call drills and an `in-the-wild`, and this one will when it is finished. The roadmap banner in [the journey map](../../JOURNEY-MAP.md) tracks what is real.
 
 ## What breaks here
 

@@ -21,7 +21,7 @@ Each act is a chain of lessons that ends by pointing at the next, so you never h
 | **[III — The internet](act-3-the-internet/README.md)** | IP drops, reorders, and forges — how do we get a stream that's reliable? | Name every TCP state; read an HTTPS exchange end to end. |
 | **[IV — One pretends to be many](act-4-one-pretends-many/README.md)** | One honest IP per machine — what happens when one machine hosts a crowd? | Build container networking by hand from kernel primitives. |
 | **[V — Kubernetes](act-5-kubernetes/README.md)** | One host is a ceiling — who wires up a fleet, declaratively? | Debug a cluster network call by reading the files in order. |
-| **[VI — The control plane](act-6-control-plane/README.md)** *(unfinished)* | Act V never said who was arranging any of it. Scheduled by whom, watched from where? | Stop a controller and know, from the symptom alone, which loop is missing. |
+| **[VI — The control plane](act-6-control-plane/README.md)** | Act V never said who was arranging any of it. Scheduled by whom, watched from where? | Operate a cluster below `kubectl` — break it, restore it, and find out why it will not start. |
 
 ## The capstone
 
@@ -31,7 +31,7 @@ Then **[`your-own-machine.md`](your-own-machine.md)** points the same reflexes a
 
 ## Where the road ends (for now)
 
-The built course is Acts I–V plus half of Act VI. Act V is scoped to Kubernetes **networking** — Pods, CNI, Services (with headless, SRV and the traffic-policy shapes), CoreDNS, Ingress, Gateway API, NetworkPolicy and a debugging discipline. **[Act VI](act-6-control-plane/README.md)** has four of eight lessons: the API server as a filesystem over etcd, static pods, the reconciliation loop, and the cluster's own PKI — and none of its supporting pages yet.
+The built course is Acts I–VI. Act V is scoped to Kubernetes **networking** — Pods, CNI, Services (with headless, SRV and the traffic-policy shapes), CoreDNS, Ingress, Gateway API, NetworkPolicy and a debugging discipline. **[Act VI](act-6-control-plane/README.md)** is the control plane in eight lessons: the API server as a filesystem over etcd, static pods, the reconciliation loop, the cluster's own PKI, etcd backup and restore, upgrades and version skew, node maintenance, and the diagnostic walk for a control plane that will not answer. Its lessons 1–4 are verified command by command on a real cluster; 5–8 and its drills are built from measurements but have not been re-run end to end.
 
 Still **mapped but not written**: the rest of the control plane (etcd backup/restore, upgrades, node maintenance, control-plane troubleshooting), workloads and scheduling, storage and config, Helm/Kustomize/CRDs, autoscaling, observability, cryptography (opening the TLS lock), identity/access, Kubernetes security, and AWS networking & security — see the roadmap banner in [`../JOURNEY-MAP.md`](../JOURNEY-MAP.md).
 

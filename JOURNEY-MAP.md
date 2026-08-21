@@ -20,8 +20,7 @@ reconcile** in the cloud.
 > | **0–3** — process → sockets → two machines → the internet | orientation + Acts I–III | ✅ **built & teaching** |
 > | **6** — one machine pretends to be many (containers) | Act IV | ✅ **built & teaching** |
 > | **7.3** — Kubernetes *networking* (incl. Gateway API, Service shapes) | Act V | ✅ **built & teaching** |
-> | **7.1** — the control plane: API server as a filesystem, static pods, the reconciliation loop, cluster PKI, etcd backup/restore, upgrades, node maintenance, control-plane troubleshooting | Act VI | 🚧 **lessons complete, act not** — all 8 lessons written (1–4 cluster-verified), no `test-yourself`/`diagnose`/`in-the-wild` yet |
-> | **7.1 remainder** — etcd backup/restore, upgrades & version skew, node maintenance, control-plane troubleshooting | Act VI | 🔜 **roadmap** |
+> | **7.1** — the control plane: API server as a filesystem, static pods, the reconciliation loop, cluster PKI, etcd backup/restore, upgrades & version skew, node maintenance, control-plane troubleshooting | Act VI | ✅ **built & teaching** — 8 lessons + all supporting pages; lessons 1–4 cluster-verified, 5–8 and the drills built from measurements but not re-run end to end |
 > | **7.2, 7.4, 7.6–7.9** — workloads, scheduling, storage, config, Helm/Kustomize/CRDs, autoscaling, observability | *(none yet)* | 🔜 **roadmap** |
 > | **4** — cryptography & trust | *(planned as Act VIII)* | 🔜 **roadmap** |
 > | **5** — identity & access | *(planned as Act IX)* | 🔜 **roadmap** |
@@ -38,11 +37,16 @@ reconcile** in the cloud.
 >
 > **Read Stage 7 below as the destination, not the delivery.** Act V teaches Kubernetes *networking*
 > from first principles — Pods, CNI, Services (including headless, SRV and the traffic-policy shapes),
-> CoreDNS, Ingress, Gateway API, NetworkPolicy, and a debugging discipline. Act VI has begun on the
-> control plane: the API server as a filesystem over etcd, static pods, the reconciliation loop, and
-> the cluster's own PKI. Neither act teaches workloads, scheduling, storage, RBAC, Helm, GitOps or
-> observability, **so this is still not a CKA/CKAD/CKS course.** Every "you can now" line in Stage 7
-> that reaches past those topics is roadmap.
+> CoreDNS, Ingress, Gateway API, NetworkPolicy, and a debugging discipline. Act VI teaches the control
+> plane: the API server as a filesystem over etcd, static pods, the reconciliation loop, the cluster's
+> own PKI, etcd backup and restore, upgrades and version skew, node maintenance, and a diagnostic walk
+> for a control plane that will not answer.
+>
+> Between them that is a real slice of CKA — most of Cluster Architecture, all of Servicing and
+> Networking, and the harder half of Troubleshooting. But neither act teaches **workloads, scheduling,
+> storage, config, RBAC, Helm, Kustomize, CRDs or observability**, and nothing here teaches CKS at all,
+> **so this is not yet a CKA/CKAD/CKS course.** Every "you can now" line in Stage 7 that reaches past
+> those topics is roadmap.
 >
 > If you came here *for* those exams, read [`exam-prep/`](exam-prep/README.md) first — it maps every
 > CKA and CKS competency to the lesson that covers it, and marks honestly the ones nothing covers yet.
