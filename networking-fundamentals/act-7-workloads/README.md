@@ -48,6 +48,8 @@ kubectl get pvc -A        # empty, unless a lesson explicitly told you to keep o
 
 1. **[From a Pod to a Deployment](01-pod-to-deployment.md)** — you have used all three of these objects without being told why there are three.
 2. **[Rolling updates, and the promise nobody wrote down](02-rolling-updates.md)** — the percentages you never typed, why a rollback is not an undo log, and the one bad deploy that rolling updates cannot save you from.
+3. **[Who decides a container is working](03-probes.md)** — two probes, identical syntax, opposite consequences. One is a load-balancer decision; the other is life or death.
+4. **[The claim made before there is a machine](04-scheduling.md)** — Act IV's unanswered question. Why a cluster can be full and idle at once, and every way to narrow where a Pod lands.
 
 ## What breaks here
 

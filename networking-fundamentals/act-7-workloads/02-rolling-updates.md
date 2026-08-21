@@ -186,4 +186,4 @@ kubectl get rs -A -l app=web       # nothing left behind
 
 ---
 
-← Prev: **[From a Pod to a Deployment](01-pod-to-deployment.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Act VII overview](README.md)** — the other workload kinds are being written →
+← Prev: **[From a Pod to a Deployment](01-pod-to-deployment.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Who decides a container is working](03-probes.md)** →
