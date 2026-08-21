@@ -10,7 +10,7 @@ One question runs through every page here: **how does `write()` on one machine b
 
 1. **[`00-orientation/`](00-orientation/README.md)** — set up the one-line lab container, then two short pages: what a process is, and how processes communicate. **Do this first.**
 
-## The six acts — read in order
+## The acts — read in order
 
 Each act is a chain of lessons that ends by pointing at the next, so you never have to guess where to go. After the lessons come three transfer layers: **`test-yourself`** (recall, answers hidden), **`diagnose`** (symptom-first on-call drills — the real job), and **`in-the-wild`** (re-run the act's ideas on your own Mac).
 
@@ -22,6 +22,7 @@ Each act is a chain of lessons that ends by pointing at the next, so you never h
 | **[IV — One pretends to be many](act-4-one-pretends-many/README.md)** | One honest IP per machine — what happens when one machine hosts a crowd? | Build container networking by hand from kernel primitives. |
 | **[V — Kubernetes](act-5-kubernetes/README.md)** | One host is a ceiling — who wires up a fleet, declaratively? | Debug a cluster network call by reading the files in order. |
 | **[VI — The control plane](act-6-control-plane/README.md)** | Act V never said who was arranging any of it. Scheduled by whom, watched from where? | Operate a cluster below `kubectl` — break it, restore it, and find out why it will not start. |
+| **[VII — Describing the work](act-7-workloads/README.md)** *(in progress)* | Two acts of Kubernetes and you have never described a workload. What must you tell it, and what does it work out? | *(being written)* |
 
 ## The capstone
 
@@ -33,6 +34,6 @@ Then **[`your-own-machine.md`](your-own-machine.md)** points the same reflexes a
 
 The built course is Acts I–VI. Act V is scoped to Kubernetes **networking** — Pods, CNI, Services (with headless, SRV and the traffic-policy shapes), CoreDNS, Ingress, Gateway API, NetworkPolicy and a debugging discipline. **[Act VI](act-6-control-plane/README.md)** is the control plane in eight lessons: the API server as a filesystem over etcd, static pods, the reconciliation loop, the cluster's own PKI, etcd backup and restore, upgrades and version skew, node maintenance, and the diagnostic walk for a control plane that will not answer. Every lesson in it has been run against a real cluster and corrected against what actually happened.
 
-Still **mapped but not written**: workloads and scheduling, storage and config, Helm/Kustomize/CRDs, autoscaling, observability, cryptography (opening the TLS lock), identity/access, Kubernetes security, and AWS networking & security — see the roadmap banner in [`../JOURNEY-MAP.md`](../JOURNEY-MAP.md).
+Act VII has just begun on workloads and configuration. Still **mapped but not written**: most of that act — scheduling, storage, Helm/Kustomize/CRDs, autoscaling — plus observability, cryptography (opening the TLS lock), identity/access, Kubernetes security, and AWS networking & security — see the roadmap banner in [`../JOURNEY-MAP.md`](../JOURNEY-MAP.md).
 
 If you are here for **CKA or CKS**, start at [`../exam-prep/`](../exam-prep/README.md): it maps every competency to the lesson that covers it and is honest about the ones nothing covers yet.
