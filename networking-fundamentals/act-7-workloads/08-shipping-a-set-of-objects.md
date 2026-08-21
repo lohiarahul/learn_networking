@@ -324,4 +324,4 @@ kubectl get ns | grep -c staging || echo "gone"
 
 ---
 
-← Prev: **[When replicas are not interchangeable](07-the-other-workload-kinds.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Act VII overview](README.md)** — custom kinds are being written →
+← Prev: **[When replicas are not interchangeable](07-the-other-workload-kinds.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Adding a kind](09-adding-a-kind.md)** →

@@ -54,6 +54,7 @@ kubectl get pvc -A        # empty, unless a lesson explicitly told you to keep o
 6. **[Three different promises called "survives"](06-storage.md)** — Act I's oldest unanswered question, and how much of the answer you cannot read off the manifest.
 7. **[When replicas are not interchangeable](07-the-other-workload-kinds.md)** — you built a StatefulSet by hand in Act V. Four workload kinds, each existing because one assumption about a replica is false.
 8. **[Shipping a set of objects](08-shipping-a-set-of-objects.md)** — two tools that disagree about what a manifest is, and the discovery that neither is a Kubernetes feature at all.
+9. **[Adding a kind](09-adding-a-kind.md)** — Act V made you install eleven of something and never said what. Then you write a controller, in shell, in twenty-five lines.
 
 ## What breaks here
 
