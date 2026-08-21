@@ -24,11 +24,13 @@ kubectl get pod solo -o wide
 Running, on a node, with an IP. Now kill the container underneath it — not the Pod, the container — using the tool Act VI gave you for exactly this, one layer below `kubectl`:
 
 ```bash
-CID=$(docker exec netlab-worker sh -c "crictl ps --name http-echo -q | head -1")
+CID=$(docker exec netlab-worker sh -c "crictl ps --name solo -q | head -1")
 docker exec netlab-worker crictl stop $CID
 sleep 10
 kubectl get pod solo
 ```
+
+(The container is called `solo`, not `http-echo`. `kubectl run` names the container after the *Pod*; `kubectl create deployment` names it after the *image*. That inconsistency is why the `kubectl set image` command further down this lesson addresses `http-echo=` instead.)
 
 **`RESTARTS` is `1`, and the Pod is `Running` again.** Something restarted it, and it is worth naming who: the kubelet on that node, which Act VI established watches Pods assigned to it. A container that exits gets started again — in the same Pod, on the same node, with the same IP. That is the default `restartPolicy: Always`, and it is a promise made entirely locally.
 

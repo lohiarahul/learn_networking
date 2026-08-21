@@ -307,4 +307,4 @@ That the PV vanished with the claim is `persistentVolumeReclaimPolicy: Delete`, 
 
 ---
 
-← Prev: **[Configuration, and where a secret actually ends up](05-configuration.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Act VII overview](README.md)** — the other workload kinds are being written →
+← Prev: **[Configuration, and where a secret actually ends up](05-configuration.md)** · ↑ **[Act VII overview](README.md)** · Next: **[When replicas are not interchangeable](07-the-other-workload-kinds.md)** →

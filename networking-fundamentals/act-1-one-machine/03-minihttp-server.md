@@ -86,7 +86,7 @@ The trailing **`16`** is just the struct's size in bytes (`sizeof(struct sockadd
 
 ## A connection arrives: accept mints a new fd
 
-Now knock. From your **second shell** (`docker exec -it lab zsh` if you closed it).
+Now knock. From your **second shell** (`docker exec -it lab zsh` if you closed it — if that errors with `No such container: lab`, the first shell's `lab` container exited too; restart it with `docker run --rm -it --privileged --name lab netlab` and rerun minihttp before trying again).
 
 > **Predict first —** minihttp's listening socket is fd 3, and `accept()` is about to hand back a descriptor for this one conversation. Which integer will it be, and why that one?
 

@@ -52,6 +52,7 @@ kubectl get pvc -A        # empty, unless a lesson explicitly told you to keep o
 4. **[The claim made before there is a machine](04-scheduling.md)** — Act IV's unanswered question. Why a cluster can be full and idle at once, and every way to narrow where a Pod lands.
 5. **[Configuration, and where a secret actually ends up](05-configuration.md)** — why an env var cannot change under a running process but a file can, and the three places your password is sitting in plaintext.
 6. **[Three different promises called "survives"](06-storage.md)** — Act I's oldest unanswered question. Why the manifest that keeps your data through a machine failure and the one that loses it are the same manifest.
+7. **[When replicas are not interchangeable](07-the-other-workload-kinds.md)** — you built a StatefulSet by hand in Act V. Four workload kinds, each existing because one assumption about a replica is false.
 
 ## What breaks here
 

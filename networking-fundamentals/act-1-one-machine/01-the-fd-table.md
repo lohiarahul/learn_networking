@@ -82,12 +82,14 @@ int sock_fd = socket(AF_INET, SOCK_STREAM, 0);   // open a socket -> get an fd
 getchar();                                        // then wait, so you can look
 ```
 
-It opens a file, opens a socket, and **waits**. `open()` and `socket()` are the two system calls; each just returns "the next free integer" — ignore the C around them for now. Build and run it:
+It opens a file, opens a socket, and **waits**. `open()` and `socket()` are the two system calls; each just returns "the next free integer" — ignore the C around them for now. Build and run it (you're already inside the `netlab` container you just started, and it drops you at `/code` by default, so no `cd` is needed):
 
 ```
 cc -Wall -o /tmp/fd-demo /code/fd-demo.c
 /tmp/fd-demo
 ```
+
+**Leave this running** — don't press Enter yet, and don't close this terminal. It blocks on purpose so you can inspect it from elsewhere; pressing Enter (or closing the tab) ends the process and, because the container was started with `--rm`, deletes `lab` along with it, so the second shell below would have nothing to `exec` into.
 
 It prints the two descriptors it got, then waits:
 
@@ -105,7 +107,7 @@ So **fd 3 is a file, fd 4 is a socket**, and the program holds both. It now owns
 docker exec -it lab zsh
 ```
 
-> **`docker exec -it lab zsh`** opens another interactive shell inside the *already-running* container named `lab`, sharing its processes and network. You'll use this second-shell trick constantly from here on.
+> **`docker exec -it lab zsh`** opens another interactive shell inside the *already-running* container named `lab`, sharing its processes and network. You'll use this second-shell trick constantly from here on. **If this errors with `No such container: lab`**, `lab` already exited — either the first shell's `fd-demo` already got its Enter, or that terminal got closed. Go back to the first shell, rerun `docker run --rm -it --privileged --name lab netlab` and then `fd-demo`, and open the second shell *before* touching the first one again.
 
 In that second shell, look at fd-demo's table (use the PID it printed):
 
