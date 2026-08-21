@@ -21,7 +21,7 @@ kubectl wait --for=condition=Ready pod/solo --timeout=90s
 kubectl get pod solo -o wide
 ```
 
-Running, on a node, with an IP. Now kill the container underneath it — not the Pod, the container — using the tool Act VI gave you for exactly this, one layer below `kubectl`:
+Running, on a node, with an IP. Now kill the container underneath it — not the Pod, the container. Act VI used `crictl` to *look* at containers one layer below `kubectl`; the same tool can also stop one, which is the first time in this course you reach past the API server to change something:
 
 ```bash
 CID=$(docker exec netlab-worker sh -c "crictl ps --name solo -q | head -1")
@@ -86,7 +86,7 @@ kubectl get pod -l app=web -o jsonpath='{range .items[*]}{.metadata.name}{"  own
 kubectl get rs -l app=web -o jsonpath='{range .items[*]}{.metadata.name}{"  owner="}{.metadata.ownerReferences[0].kind}/{.metadata.ownerReferences[0].name}{"\n"}{end}'
 ```
 
-Each Pod carries an **`ownerReference`** to a ReplicaSet; the ReplicaSet carries one to the Deployment. That is not decoration — it is a field, in the store, that a controller reads. This is how a loop knows which Pods are *its* Pods, and it is also the mechanism behind something you saw in Act VI without an explanation: delete a namespace and everything in it goes, because deleting an owner marks its dependents for collection.
+Each Pod carries an **`ownerReference`** to a ReplicaSet; the ReplicaSet carries one to the Deployment. That is not decoration — it is a field, in the store, that a controller reads. This is how a loop knows which Pods are *its* Pods, and you have already relied on the other thing it does: Act V's Gateway lesson pointed out that deleting the Gateway you wrote garbage-collects the Deployment and Service a controller wrote for it, because those carry an owner reference back to it. Same field, same collector.
 
 Now prove the count lives where you think it does:
 

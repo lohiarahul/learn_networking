@@ -2,7 +2,7 @@
 
 Twice now the answer has come down to what "ready" means, and both times it was a default you did not choose. A container with no probe is considered ready the moment it starts — which cannot be right for anything that opens a database connection, loads a cache, or reads config at boot.
 
-So the question this lesson exists to answer is not "how do I write a health check." It is: **who asks, and what do they do with the answer?** Because there are two probes with nearly identical syntax and opposite consequences, and getting them the wrong way round is the most reliable way to turn a small problem into an outage.
+So the question this lesson exists to answer is not "how do I write a health check." It is: **who asks, and what do they do with the answer?** Because there are two probes with nearly identical syntax, and swapping them is the most reliable way to turn a small problem into an outage. Both are about to be put in front of you, deliberately without labels on what each one costs you when it fires.
 
 ### A container you can break on demand
 
@@ -83,6 +83,8 @@ kubectl get pods -l app=web        # 1/1 again, still RESTARTS 0
 Now change nothing but the field name:
 
 ```bash
+# --type=json is a different patch from Act V's: a list of explicit operations
+# against a path, rather than a fragment of the object to merge in
 kubectl patch deployment web --type=json -p='[
   {"op":"remove","path":"/spec/template/spec/containers/0/readinessProbe"},
   {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe",

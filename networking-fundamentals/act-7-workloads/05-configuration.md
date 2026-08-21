@@ -72,7 +72,7 @@ kubectl logs -f -l app=watcher            # leave this running
 kubectl patch configmap app-config --patch '{"data":{"LOG_LEVEL":"debug"}}'
 ```
 
-Now wait, and keep watching. For about a minute nothing happens at all. Then:
+Now wait, and keep watching. For about a minute nothing happens at all — 64 seconds, on this lab, timed from the moment `patch` returned. Then:
 
 ```
 env=info  file=info
@@ -83,7 +83,13 @@ env=info  file=debug
 
 **The file changed. The environment variable did not.** And it never will, for the life of that process.
 
-That is not a bug and it is not a Kubernetes quirk — it is a fact about processes that Act I already gave you. An environment variable is **copied into a process's memory when it is created**. There is no mechanism by which anything outside can reach in and alter it afterwards; the kernel does not offer one. So `env` is a snapshot taken at `exec` time, and the only way to change it is to make a new process.
+That is not a bug and it is not a Kubernetes quirk. It follows from something Act I established about processes, though Act I never spelled out this consequence, so spell it out now.
+
+Act I's first lesson defined a process as **a private address space it cannot escape**. The environment is *inside* that space: a block of `KEY=value` strings the kernel copies in when the process is created, at `exec()`, and never touches again. That is the whole argument. There is no syscall for "change another process's environment" — not because nobody wrote one, but because the address space is private in both directions, and the kernel would have to violate the guarantee it exists to make.
+
+You have even seen the window onto it. Act I read `/proc/<pid>/environ` and noted it as an attack surface; what you were reading was that block, and note that it is exposed **read-only**. A `/proc` file you can read and not write is the kernel telling you the shape of what is possible.
+
+So `env` is a snapshot taken at `exec()` time, and the only way to change it is to make a new process. One further consequence worth having now: every **child** process inherits that copy, which is why this matters more for secrets than for log levels.
 
 The file, meanwhile, is a *file*. Something can rewrite it, and something does: the kubelet, on a polling interval, which is why it took about a minute rather than being instant. Look at how it does it, because the mechanism is one you already know:
 
@@ -91,7 +97,9 @@ The file, meanwhile, is a *file*. Something can rewrite it, and something does: 
 kubectl exec deploy/watcher -- ls -la /etc/config/
 ```
 
-Those entries are **symlinks**, into a `..data` directory that is itself a symlink to a timestamped one. The kubelet writes a whole new directory and then swings one symlink — so a process reading the file never sees a half-written value. It is an atomic swap, built out of the same magic-symlink machinery Act I had you read in `/proc`.
+Those entries are **symlinks**, into a `..data` directory that is itself a symlink to a timestamped one. The kubelet writes a whole new directory and then swings one symlink — so a process reading the file never sees a half-written value.
+
+And these are ordinary symlinks, which is worth saying because Act I taught you a kind that is not. The `/proc/<pid>/fd/3` entries you read there were **magic** symlinks: nothing was stored, the size was always 64 whatever the target, and the kernel computed the answer on every read. Here `readlink` returns bytes that were genuinely written to a tmpfs, and the whole trick is that *rename of a symlink is atomic* — a plain filesystem guarantee, on a plain symlink. The kubelet is not using a kernel special case; it is using the oldest safe-update pattern there is.
 
 Which gives you the rule, and it is not a preference:
 
@@ -104,11 +112,32 @@ So an application that re-reads its config file can be reconfigured without a re
 
 There is one way to mount a ConfigMap that silently gives up the hot reload:
 
+**`subPath`** places one key as a single file inside a directory that already has other things in it — a very common need, and the reason the field exists. Mount the same ConfigMap both ways and the difference is visible before you test it:
+
 ```bash
-kubectl exec deploy/watcher -- cat /etc/config/LOG_LEVEL
+kubectl set volumes deploy/watcher --add --name=sub -t configmap \
+  --configmap-name=appconf --sub-path=LOG_LEVEL --mount-path=/etc/app/LOG_LEVEL
+kubectl rollout status deploy/watcher --timeout=90s
+kubectl exec deploy/watcher -- ls -la /etc/app/ /etc/config/
 ```
 
-If you had written the mount with **`subPath`** — to place a single file into a directory that already has other things in it, which is a very common need — you would get the file, and it would **never update**. Ever. The symlink swap the kubelet relies on works at the directory level, and `subPath` mounts the file directly, bypassing it.
+```
+/etc/app/LOG_LEVEL      -rw-r--r--  1 root root  5    <- an ordinary file
+/etc/config/LOG_LEVEL   lrwxrwxrwx  1 root root 16 -> ..data/LOG_LEVEL
+```
+
+**One is a plain file; the other is the symlink you just traced.** And that is the whole explanation — you can predict the rest of this section from it. The atomic swap works by repointing `..data`, which is one level *up* from the file. A `subPath` mount is not in that directory: the kubelet copied the content in at start-up, and there is no symlink to repoint.
+
+So change the value and wait well past the interval that worked a moment ago:
+
+```bash
+kubectl patch configmap appconf -p '{"data":{"LOG_LEVEL":"trace"}}'
+sleep 90
+kubectl exec deploy/watcher -- cat /etc/config/LOG_LEVEL       # trace
+kubectl exec deploy/watcher -- cat /etc/app/LOG_LEVEL          # still debug
+```
+
+**The directory mount followed. The `subPath` mount did not, and never will** — not slowly: still stale ten minutes later, with the container never restarted.
 
 That is worth knowing precisely because the failure is silent and delayed: it works in testing, where you restart things constantly, and fails in production, where you expected a config change to take effect and it didn't.
 
@@ -132,6 +161,7 @@ kubectl get secret db-creds -o jsonpath='{.data.password}{"\n"}'
 So a Secret differs from a ConfigMap in almost no mechanical way. Same two consumption paths, same hot-reload behaviour, same `immutable` field. What differs is where the value ends up — and it ends up in more places than most people count.
 
 ```bash
+# --type=json again: explicit add/remove/replace operations against a path
 kubectl patch deployment watcher --type=json -p='[
   {"op":"add","path":"/spec/template/spec/containers/0/env/-",
    "value":{"name":"DB_PASSWORD","valueFrom":{"secretKeyRef":{"name":"db-creds","key":"password"}}}},
@@ -150,7 +180,7 @@ kubectl exec deploy/watcher -- cat /etc/secret/password; echo
 kubectl exec deploy/watcher -- sh -c 'mount | grep /etc/secret'
 ```
 
-`hunter2`, decoded for you — and the mount is **`tmpfs`**. That matters: a Secret volume is memory, not disk, so the plaintext is never written to the node's filesystem. It is the one place Kubernetes takes real care.
+`hunter2`, decoded for you — and the mount is **`tmpfs`**. So a Secret volume is memory, not disk: the plaintext is never written to the node's filesystem, and it does not survive the node rebooting. Decide for yourself whether that is protection, and hold the answer for a few lines.
 
 **Location two — the process's own environment:**
 
@@ -163,10 +193,10 @@ There it is, in `/proc/1/environ`, in plaintext. And that is a worse place than 
 **Location three — the node:**
 
 ```bash
-UID=$(kubectl get pod -l app=watcher -o jsonpath='{.items[0].metadata.uid}')
+PODUID=$(kubectl get pod -l app=watcher -o jsonpath='{.items[0].metadata.uid}')
 NODE=$(kubectl get pod -l app=watcher -o jsonpath='{.items[0].spec.nodeName}')
-docker exec $NODE ls /var/lib/kubelet/pods/$UID/volumes/kubernetes.io~secret/sec/
-docker exec $NODE cat /var/lib/kubelet/pods/$UID/volumes/kubernetes.io~secret/sec/password; echo
+docker exec $NODE ls /var/lib/kubelet/pods/$PODUID/volumes/kubernetes.io~secret/sec/
+docker exec $NODE cat /var/lib/kubelet/pods/$PODUID/volumes/kubernetes.io~secret/sec/password; echo
 ```
 
 Your password, readable with a shell on the node and no cluster credentials at all. It is `tmpfs`, so it is in that node's memory rather than on its disk — but "in memory on a machine someone has root on" is not a meaningful protection. This is the same lesson Act VI taught about `ca.key`: **a shell on a node is close to a shell in the cluster**, and the boundary you are relying on is filesystem permissions.
@@ -210,7 +240,8 @@ And the corollary for secrets, which is the reason rotation is hard: rotating a 
      a DIRECTORY, one file per key.
      the kubelet rewrites it on a poll (~1 min) via an ATOMIC SYMLINK SWAP
        ls -la shows key -> ..data -> ..2026_..._timestamp/
-       (the same magic-symlink trick Act I read in /proc)
+       (ordinary symlinks on tmpfs -- NOT Act I's magic ones;
+        the trick is only that renaming a symlink is atomic)
      so it changes UNDER a running process.
      EXCEPT with subPath -- which mounts the file directly, bypasses the
      swap, and NEVER updates. silent, and only bites in production.
@@ -243,7 +274,7 @@ kubectl delete secret db-creds
 
 > **You understand this when you can** explain, from what a process *is*, why an environment variable cannot change under a running container while a mounted file can; describe the mechanism the kubelet uses to update that file without a reader ever seeing a partial value, and the one mount option that silently disables it; name the three places a Secret's plaintext exists and which of them a node shell reaches without credentials; and say what property a Secret actually provides, given that it provides no confidentiality.
 
-**Which raises:** a mounted ConfigMap survived a config change, and a Secret volume was `tmpfs` — memory, gone the instant the Pod is. Which is fine for configuration, and useless for anything the application *writes*. Act I left you exactly this question and pointed at the wrong act for the answer: the writable layer dies with the container, a mount outlives it, and **who decides where the surviving path points?** Time to find out — and to discover that "survives" is not one promise.
+**Which raises:** a mounted ConfigMap survived a config change, and a Secret volume was `tmpfs` — memory, gone the instant the Pod is. Which is fine for configuration, and useless for anything the application *writes*. Act I left you exactly this question and it has been waiting since: the writable layer dies with the container, a mount outlives it, and **who decides where the surviving path points?** Time to find out — and to discover that "survives" is not one promise.
 
 ---
 

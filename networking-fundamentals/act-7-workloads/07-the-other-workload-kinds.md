@@ -128,6 +128,49 @@ kubectl exec db-0 -- nslookup db-1.db.default.svc.cluster.local
 
 `serviceName` is not optional and not decoration: it is how the controller knows what to put in the middle of each Pod's DNS name. It is setting the `subdomain` field you set by hand in Act V. And the Service it names must be the headless one — put a normal ClusterIP there and you get a VIP that load-balances across three members that were the entire point of not being interchangeable.
 
+### What an update looks like when there is no spare replica
+
+Lesson 02 gave you a whole vocabulary for rolling updates, and every word of it assumed replicas were fungible. Try to spend it here:
+
+```bash
+kubectl get statefulset db -o jsonpath='{.spec.updateStrategy}{"\n"}'
+```
+
+```
+{"rollingUpdate":{"partition":0},"type":"RollingUpdate"}
+```
+
+**No `maxSurge`.** Look for it and it is not a field — and by now you can say why without being told. `maxSurge` means "create an extra Pod before removing an old one," which requires a Pod that needs no particular name. There cannot be two `db-1`s; the name is the identity. And even if there could, `data-db-1` is `ReadWriteOnce` — the second one could not mount the disk. Surging is not disabled here, it is *unavailable in principle*, and both of the reasons are things this lesson has already shown you.
+
+So what replaces it? Change the template and watch:
+
+```bash
+kubectl set image statefulset/db shell=busybox:1.37
+kubectl get pods -l app=db -w      # Ctrl-C when all three are Running again
+```
+
+**One at a time, highest ordinal first: `db-2`, then `db-1`, then `db-0`.** Strictly sequential, because with no surge there is no other option — the only way to replace three Pods that cannot coexist with their replacements is one after another. That is also why a StatefulSet rollout is slow in a way a Deployment's is not, and the slowness is not a defect to tune away.
+
+Which makes `partition` the interesting field. It is a floor:
+
+```bash
+kubectl patch statefulset db -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":2}}}}'
+kubectl set image statefulset/db shell=busybox:1.36
+sleep 20
+kubectl get pods -l app=db -o jsonpath='{range .items[*]}{.metadata.name}{"  "}{.spec.containers[0].image}{"\n"}{end}'
+```
+
+**Only `db-2` moved.** Ordinals below the partition are left alone, indefinitely, until you lower the number.
+
+Stop and notice what that is: a canary **keyed to identity**. Lesson 02's canary was statistical — a fraction of anonymous Pods, and you could not say which. Here you deploy to exactly one named member, watch that member, and advance the floor by hand. A Deployment cannot express this at all, and not because the feature is missing: "update one specific replica" is a meaningless sentence when the replicas have no names.
+
+`updateStrategy.type: OnDelete` is the same idea taken to its end — the controller updates *nothing* on its own, and each Pod picks up the new template only when you delete it yourself. For a workload where a human must choose the moment for each member, that is the honest setting.
+
+```bash
+kubectl patch statefulset db -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":0}}}}'
+kubectl rollout status statefulset/db --timeout=120s
+```
+
 ### Assumption 2 is false: the count is not yours
 
 Act VI made you type `--ignore-daemonsets` and told you what a DaemonSet *means* — one Pod on every node — and then moved on. Look at one properly:

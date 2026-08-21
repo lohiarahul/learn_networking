@@ -4,10 +4,11 @@
 lightweight identifiers). One line per lesson: `file — gist — introduces`. If a tool isn't listed,
 `grep` or spawn an Explore subagent; then add it here.
 
-**Build status (2026-08-21):** Acts 1–6 are **complete and teaching** — Stages 0–3, 6, 7.3 (Act 5
-networking) and 7.1 (Act 6 control plane). Every Act 6 lesson has been run against a real cluster and corrected against
-what happened; its `diagnose.md` drills reuse those commands but have not been walked as drills. The genuinely *unbuilt* stages are **4 (crypto), 5 (identity), 7.2/7.4 (workloads,
-scheduling, storage, config), 7.5/7.9 (cluster security), 8 (AWS networking), 9 (AWS security)** —
+**Build status (2026-08-22):** Acts 1–6 are **complete and teaching** — Stages 0–3, 6, 7.3 (Act 5
+networking) and 7.1 (Act 6 control plane). Act 7 is **in progress**: 7 lessons, no supporting pages;
+lessons 01–06 have been run against a real cluster and corrected, lesson 07 has not. Every Act 6 lesson has been run against a real cluster and corrected against
+what happened; its `diagnose.md` drills reuse those commands but have not been walked as drills. The genuinely *unbuilt* stages are **4 (crypto), 5 (identity), 7.6–7.8 (Helm/Kustomize,
+CRDs, autoscaling), 7.5/7.9 (cluster security), 8 (AWS networking), 9 (AWS security)** —
 see the roadmap banner in `JOURNEY-MAP.md`. Fill those next; don't rewrite Acts 3–6, which are done.
 
 There is also a sibling `exam-prep/` track (CKA/CKS domain maps, kubectl speed, exam-day). It is

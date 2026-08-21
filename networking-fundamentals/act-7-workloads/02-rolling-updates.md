@@ -13,7 +13,7 @@ Set up something to watch, with enough replicas that the arithmetic is visible:
 ```bash
 kubectl create deployment web --image=hashicorp/http-echo:0.2.3 --replicas=4 \
   -- /http-echo -text=v1 -listen=:5678
-kubectl rollout status deployment/web
+kubectl rollout status deployment/web        # blocks until the Deployment says it is done
 kubectl get deployment web -o jsonpath='{.spec.strategy}{"\n"}'
 ```
 

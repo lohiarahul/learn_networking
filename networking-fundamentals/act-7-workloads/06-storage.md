@@ -1,6 +1,6 @@
 # Three different promises called "survives"
 
-Act I ended a lesson with a question and pointed at the wrong act for the answer. Here it is again, because it has been waiting a long time:
+Act I ended a lesson with a question and left it deliberately unanswered. Here it is again, because it has been waiting six acts:
 
 > *"The writable layer dies with the container. A filesystem mounted in at a path outlives it. So: what should happen to a program's data when the program is expected to be restarted, replaced, or moved to a different machine entirely — and **who gets to decide where 'the path that survives' actually points?**"*
 
@@ -38,7 +38,7 @@ An **`emptyDir`** is a directory the kubelet creates when the Pod is placed. Now
 
 ```bash
 NODE=$(kubectl get pod scratch -o jsonpath='{.spec.nodeName}')
-CID=$(docker exec $NODE sh -c "crictl ps --name app -q | head -1")
+CID=$(docker exec $NODE sh -c "crictl ps --label io.kubernetes.pod.name=scratch -q | head -1")
 docker exec $NODE crictl stop $CID
 sleep 10
 kubectl get pod scratch
@@ -167,7 +167,7 @@ Which finally answers Act I's question directly. **Who decides where the survivi
 Now find out where that volume actually is:
 
 ```bash
-kubectl get pv -o jsonpath='{range .items[*]}{.metadata.name}{"  node="}{.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]}{"  path="}{.spec.local.path}{"\n"}{end}'
+kubectl get pv -o jsonpath='{range .items[*]}{.metadata.name}{"  node="}{.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]}{"  path="}{.spec.hostPath.path}{"\n"}{end}'
 ```
 
 A **path on one named node**, pinned by node affinity. Which means:
@@ -197,7 +197,25 @@ kubectl get pod keeper
 kubectl describe pod keeper | tail -4
 ```
 
-**`Pending`**, with the scheduler saying so in the events — the volume's node affinity requires a node that is now unschedulable, and there is nowhere else the data exists.
+**`Pending`** — and now read the event carefully, because it is a lesson in its own right:
+
+```
+0/2 nodes are available: 1 node(s) had untolerated taint(s), 1 node(s) were
+unschedulable. preemption: 0/2 nodes are available: 2 Preemption is not helpful.
+```
+
+It says *unschedulable*. It does not mention the volume at all. And before you accept the explanation you were about to reach for, run the control:
+
+```bash
+kubectl run novol --image=busybox:1.36 --command -- sleep 3600
+sleep 10
+kubectl describe pod novol | tail -4
+kubectl delete pod novol --now
+```
+
+**Byte-identical message, from a Pod with no volume whatsoever.** On a cluster with one worker, "the volume is pinned to that node" and "there is only one node and you cordoned it" predict exactly the same outcome, so this experiment cannot tell them apart — and neither can the event text. Add a second worker and the message changes to a real `volume node affinity conflict`; here it never appears.
+
+Keep that, because it generalises past storage: **a `Pending` reason names the first constraint the scheduler tripped over, not the one you care about.** The volume pinning is real — the `nodeAffinity` is right there on the PV, which is evidence you read off the object rather than out of an event — but this cluster cannot demonstrate it, and pretending otherwise would be believing a message that says something else.
 
 This is `local-path` storage being honest about what it is. **Your data survives the Pod, and it is welded to one machine.** Lose that machine and the volume is gone with it; make that machine unavailable and your Pod cannot run anywhere.
 
@@ -224,7 +242,21 @@ Which is what `accessModes` is really declaring:
 One more experiment, because it teaches the seam between the abstraction and reality better than any explanation.
 
 ```bash
-kubectl get storageclass standard -o jsonpath='{.allowVolumeExpansion}{"\n"}'
+kubectl get sc standard -o custom-columns=NAME:.metadata.name,EXPANSION:.allowVolumeExpansion
+kubectl patch pvc data -p '{"spec":{"resources":{"requests":{"storage":"200Mi"}}}}'
+```
+
+`EXPANSION` prints `<none>` — the field is *absent* from the object, not set to false, which is why a bare `jsonpath` on it returns an empty line rather than `false`. And the resize is refused outright, by the API server, with the reason spelled out:
+
+```
+Error from server (Forbidden): persistentvolumeclaims "data" is forbidden: only
+dynamically provisioned pvc can be resized and the storageclass that provisions
+the pvc must support resize
+```
+
+So grant the permission the class was missing:
+
+```bash
 kubectl patch storageclass standard -p '{"allowVolumeExpansion": true}'
 ```
 
@@ -237,7 +269,16 @@ kubectl get pvc data
 kubectl describe pvc data | tail -6
 ```
 
-The **request** is 200Mi and the **capacity** is still 100Mi, indefinitely. The API server accepted your edit because the StorageClass said expansion was allowed; nothing expanded, because `local-path` is not a CSI driver and implements no expansion at all.
+The **request** is 200Mi and the **capacity** is still 100Mi, indefinitely. The API server accepted your edit because the StorageClass said expansion was allowed; nothing expanded, because nothing that could expand it exists.
+
+The event says who it is waiting for:
+
+```
+Normal  ExternalExpanding  20s  volume_expand  waiting for an external controller
+                                               to expand this PVC
+```
+
+An **external controller** — which is the first time this course has needed the name for that role. Kubernetes does not know how to grow a disk, and could not: growing an EBS volume, an NFS export and a directory on a node have nothing in common. So the work is delegated over a defined interface, the **Container Storage Interface**, and a vendor ships a driver that implements it. Every dynamic provisioner you meet in a real cluster is a CSI driver. `local-path` is not — it is a small provisioner predating that interface, it implements creation and deletion and nothing else, and there is no external controller listening for that event. So the PVC waits for a component that was never installed, forever, and says so quietly.
 
 **A StorageClass field is a promise the provisioner has to keep.** Setting `allowVolumeExpansion: true` does not grant a capability — it declares one, and a declaration made on behalf of a provisioner that cannot deliver produces a PVC whose spec and status disagree forever. Which is a shape you have seen twice now: an object stating intent, and nothing able to satisfy it. `Pending` on a Pod, and a stuck `resources.requests` here.
 
@@ -295,6 +336,7 @@ Two things follow. **First, the check is `kubectl get storageclass` and knowing 
 ```bash
 kubectl delete pod keeper
 kubectl delete pvc data
+kubectl patch storageclass standard -p '{"allowVolumeExpansion": null}'   # you changed a CLUSTER-scoped object
 kubectl get pv                     # the PV goes too: reclaimPolicy Delete
 kubectl get pvc -A                 # empty
 ```

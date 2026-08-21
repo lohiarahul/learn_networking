@@ -160,7 +160,7 @@ The running container shows no `secret.pem` — it's hidden by the whiteout in l
 
 You now hold both halves of a puzzle and neither answer. The writable layer dies with the container. A filesystem mounted in at a path outlives it. So: **what should happen to a program's data when the program is expected to be restarted, replaced, or moved to a different machine entirely — and who gets to decide where "the path that survives" actually points?**
 
-Notice that the question has more than one right answer, because "survives a restart" and "survives the machine" are different promises, and something has to be able to make each of them separately. Carry the split — overlay for the image, a mount for the data — and see how many flavours of "survives" Act V turns out to need.
+Notice that the question has more than one right answer, because "survives a restart" and "survives the machine" are different promises, and something has to be able to make each of them separately. Carry the split — overlay for the image, a mount for the data — and see how many flavours of "survives" Act VII turns out to need.
 
 ## Where you are now
 

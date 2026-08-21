@@ -11,26 +11,28 @@ So the answer is *the scheduler*, and the interesting half of the question is th
 ### What is a request, if it is not a reservation?
 
 ```bash
-kubectl describe node netlab-worker | grep -A9 'Allocated resources'
+kubectl describe node netlab-worker | grep -A7 'Allocated resources'
 ```
 
-Read that table carefully, because it is the entire scheduling model and it is not what people assume:
+Read that table carefully, because it is the entire scheduling model:
 
 ```
-Resource           Requests     Limits
-cpu                750m (37%)   100m (5%)
-memory             290Mi (7%)   390Mi (9%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests   Limits
+  cpu                100m (1%)  100m (1%)
+  memory             50Mi (0%)  50Mi (0%)
 ```
 
-Two columns, and note the absurdity in the first row — limits *lower* than requests, across the node. Nothing is wrong. These are sums of unrelated promises: some Pods set requests and no limits, others the reverse.
+Two columns, and they are **two independent sums** — not one number shown two ways. On a fresh worker they happen to match, because the only thing running is a DaemonSet that sets both to the same value. That will not last; you will make them disagree yourself in a few minutes, and the parenthesis at the top of the table is a warning about exactly that.
 
 Now the crucial question, and it is the one that separates understanding this from memorising it:
 
 > **Predict first —** a node has 4 CPUs. You schedule four Pods each requesting `1` CPU, and the node is now "full" by the scheduler's arithmetic. Each Pod is actually idle, using about 1% of a core. **Can a fifth Pod requesting `1` CPU be scheduled onto that node?** And separately: is the *real* CPU on that node busy?
 
 ```bash
-kubectl describe node netlab-worker | grep -A5 'Allocatable'
-kubectl top node netlab-worker 2>/dev/null || echo "(metrics-server not installed — that is the point)"
+kubectl describe node netlab-worker | grep -A8 'Allocatable'
+kubectl top node netlab-worker 2>/dev/null || echo "(no source of actual usage on this cluster — that is the point)"
 ```
 
 The answer is **no, and no.** The fifth Pod cannot be scheduled, and the node is nearly idle.
@@ -63,11 +65,32 @@ burstable     Burstable
 besteffort    BestEffort
 ```
 
+(One thing about those two commands, since you will reuse the trick: `--overrides` is a *merge patch* on the object `kubectl run` would have generated, and a merge patch on a **list** replaces the whole list. That is why `name` and `image` have to be repeated inside the override — leave them out and you get a container with no image. It is also why `besteffort`'s container is called `besteffort` while the other two contain a container called `c`.)
+
 **Nobody wrote `qosClass`.** It is derived: requests equal to limits on every container is `Guaranteed`; some requests set is `Burstable`; nothing set at all is `BestEffort`.
 
 And it decides the order in which your Pods are killed. When a node runs genuinely short of memory, the kubelet evicts to save itself, and it goes for `BestEffort` first, then `Burstable` that is exceeding its requests, and `Guaranteed` last. So the two numbers you write are not only a scheduling claim and a kernel ceiling — **together they are a position in a queue you did not know you were in.**
 
 Which reframes "just leave the resources out." A Pod with no requests is not unconstrained; it is first in line to die, and it is invisible to the scheduler's arithmetic, so it will be packed onto nodes that are already promised away.
+
+Before deleting them, go back and read the node's ledger again — the three Pods you just made have changed it:
+
+```bash
+kubectl describe node $(kubectl get pod burstable -o jsonpath='{.spec.nodeName}') \
+  | grep -A7 'Allocated resources'
+```
+
+```
+  Resource   Requests    Limits
+  cpu        200m (2%)   150m (1%)
+  memory     178Mi (2%)  242Mi (3%)
+```
+
+**The cpu column now has limits *lower* than requests**, which reads like an error and is not. Work out where it came from before reading on: it is entirely your doing, and one of the three Pods is responsible.
+
+`burstable` sets a cpu *request* of `50m` and no cpu *limit* at all. So it contributes to the left column and not the right, and the sums drift apart. Memory drifts the other way, because that same Pod has a limit of `128Mi` against a request of `64Mi`.
+
+That is the real content of those two columns: **a node's requests total and its limits total are answers to different questions**, asked of different Pods, enforced by different components at different times. Comparing them to each other is meaningless. The only comparison that decides anything is requests against `Allocatable`.
 
 ```bash
 kubectl delete pod guaranteed burstable besteffort --wait=false
@@ -100,14 +123,17 @@ kubectl describe pod impossible | tail -5
 
 ```
 Warning  FailedScheduling  ... 0/2 nodes are available: 1 node(s) didn't match
-Pod's node affinity/selector, 2 Preemption is not helpful for scheduling.
+Pod's node affinity/selector, 1 node(s) had untolerated taint(s). no new claims
+to deallocate, preemption: 0/2 nodes are available: 2 Preemption is not helpful
+for scheduling.
 ```
 
-That message is worth reading as a sentence rather than an error. It is the scheduler telling you it *looked*, how many nodes it considered, and why each was rejected — a per-reason tally. Act VI taught you that `Events: <none>` means nothing looked; this is the other case, and the distinction is the whole diagnostic.
+That message is worth reading as a sentence rather than an error. It is the scheduler telling you it *looked*, how many nodes it considered, and why each was rejected — a **per-reason tally**, which is why the numbers add up to the node count. Act VI taught you that `Events: <none>` means nothing looked; this is the other case, and the distinction is the whole diagnostic.
 
-Note the count too: `0/2 nodes are available` and only *one* reason given for one node. The control-plane node was excluded for a different reason you already know — its taint — and the message often reports the two separately.
+So read the arithmetic: `0/2 nodes are available`, then `1 node(s)` failed your selector — the worker — and `1 node(s) had untolerated taint(s)`, which is the control-plane node, excluded for a reason you already know and that has nothing to do with what you asked for. Both halves are in the same sentence. The clause about preemption is the scheduler noting that evicting something would not have helped either; it appears on almost every `FailedScheduling` and is usually noise. (`no new claims to deallocate` refers to dynamic resource allocation and is recent — on an older cluster the same message is shorter.)
 
 ```bash
+kubectl label node netlab-worker disk-
 kubectl delete pod picky impossible --wait=false
 ```
 
@@ -168,7 +194,7 @@ affinity:
       - weight: 100
         preference:
           matchExpressions:
-            - { key: topology.kubernetes.io/zone, operator: In, values: [eu-west-1a] }
+            - { key: kubernetes.io/os, operator: In, values: [linux] }
 ```
 
 Two halves of every one of those names carry information. **`DuringScheduling`** is when it is evaluated. **`IgnoredDuringExecution`** is the admission that scheduling is a one-time decision: once the Pod is placed, changing the node's labels does *not* move it. That is not a limitation to work around, it is the same fact as everything else in this act — `spec.nodeName` is written once.
@@ -179,7 +205,7 @@ There is a **pod**Affinity too, which selects on other *Pods* rather than nodes 
 
 ### Spreading, and the reason it is not affinity
 
-The most frequent placement wish is the plainest: *do not put all my replicas on one node.* Anti-affinity can express it, awkwardly. `topologySpreadConstraints` expresses it directly:
+The most frequent placement wish is the plainest: *do not put all my replicas on one node.* There is a way to say it with affinity rules pointed at other Pods rather than at nodes, and it is awkward enough that it is not worth your time here. `topologySpreadConstraints` expresses it directly:
 
 ```yaml
 topologySpreadConstraints:
@@ -192,9 +218,25 @@ topologySpreadConstraints:
 
 Read it as a sentence: *across nodes, the count of Pods labelled `app=web` must never differ by more than 1.*
 
-`maxSkew` is the allowed imbalance. `topologyKey` is the label that defines a "region" to spread across — `kubernetes.io/hostname` for nodes, `topology.kubernetes.io/zone` for availability zones, and that substitution is the whole of multi-zone high availability. And `whenUnsatisfiable` is the interesting field: `DoNotSchedule` makes spreading a **requirement** (a Pod that cannot be placed without breaking the skew stays `Pending`), while `ScheduleAnyway` makes it a preference.
+`maxSkew` is the allowed imbalance. `topologyKey` is the label that defines a "region" to spread across — `kubernetes.io/hostname` for nodes. Cloud providers label nodes with their physical location too, and swapping `kubernetes.io/hostname` for such a label is the whole of spreading across failure domains larger than a machine — the same field, a coarser definition of "somewhere else". And `whenUnsatisfiable` is the interesting field: `DoNotSchedule` makes spreading a **requirement** (a Pod that cannot be placed without breaking the skew stays `Pending`), while `ScheduleAnyway` makes it a preference.
 
-Which is the choice worth thinking about rather than copying. `DoNotSchedule` guarantees your spread and will refuse to run your third replica on a two-node cluster. `ScheduleAnyway` always runs your Pods and silently gives up on the spread exactly when you need it — during the node failure that made you want it.
+Which is the choice worth thinking about rather than copying, and this lab shows why more sharply than a big cluster would. Apply that constraint to a 3-replica Deployment here and count what runs:
+
+```bash
+kubectl get pods -l app=web -o wide
+kubectl describe pod -l app=web | grep -A3 'FailedScheduling' | head -6
+```
+
+**One Running, two `Pending`** — and the second replica is already refused, not the third:
+
+```
+0/2 nodes are available: 1 node(s) didn't match pod topology spread constraints,
+1 node(s) had untolerated taint(s).
+```
+
+Derive that, because it is a trap rather than a quirk. There are two nodes, so two domains — and the control-plane node is one of them. It is tainted, so nothing you own can land there, but `nodeTaintsPolicy` defaults to `Ignore`, meaning the spread calculation **counts that node as a domain holding zero Pods anyway**. One Pod on the worker against zero on the control plane is already a skew of 1. A second would make it 2, which breaks `maxSkew: 1`, so `DoNotSchedule` refuses — and keeps refusing forever, because the domain it wants you to use is one no Pod of yours can enter.
+
+So `DoNotSchedule` guarantees your spread and will refuse to run Pods to keep that guarantee, including for a domain that is unusable. `ScheduleAnyway` always runs your Pods and silently gives up on the spread exactly when you need it — during the node failure that made you want it. Neither is the safe default, which is why there is no default.
 
 > **Check yourself —** A Pod has been `Pending` for ten minutes. `kubectl describe pod` shows `0/6 nodes are available: 3 Insufficient cpu, 3 node(s) had untolerated taint`. The cluster monitoring shows every node at under 15% CPU. Explain how both facts are true, and give two different fixes.
 
@@ -207,7 +249,7 @@ The other three were never candidates at all — they are tainted, and this Pod 
 
 Two fixes, and they are genuinely different decisions rather than alternatives.
 
-**Lower the requests** — either on this Pod, if its request is inflated, or on the over-requesting Pods that are hoarding the ledger. This is the correct fix when requests were set by guesswork, which is usually. The way to find out is to compare each Pod's `requests` against what it actually uses, and the tooling for that is `kubectl top` and a VerticalPodAutoscaler in recommendation-only mode.
+**Lower the requests** — either on this Pod, if its request is inflated, or on the over-requesting Pods that are hoarding the ledger. This is the correct fix when requests were set by guesswork, which is usually. The way to find out is to compare each Pod's `requests` against what it actually uses — which needs a source of actual usage, and you saw earlier in this lesson that this cluster has none. That gap is real and it has an ecosystem of answers; it is not one this act closes.
 
 **Add capacity, or open up the tainted nodes** — a toleration if those nodes are genuinely suitable, more nodes if they are not. This is the correct fix when the requests are honest and the cluster is simply too small.
 
@@ -261,8 +303,8 @@ What will *not* work is anything that assumes the scheduler is looking at real l
 **Cleanup:**
 
 ```bash
-kubectl label node netlab-worker disk-
-kubectl get pods                                   # nothing left running
+kubectl label node netlab-worker disk- 2>/dev/null
+kubectl get pods                                   # empty, or Terminating on its way out
 kubectl describe node netlab-worker | grep -A2 Taints    # no maintenance taint
 ```
 
