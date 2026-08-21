@@ -5,9 +5,8 @@ lightweight identifiers). One line per lesson: `file — gist — introduces`. I
 `grep` or spawn an Explore subagent; then add it here.
 
 **Build status (2026-08-21):** Acts 1–6 are **complete and teaching** — Stages 0–3, 6, 7.3 (Act 5
-networking) and 7.1 (Act 6 control plane). Act 6's lessons 5–8 and its drills are written from
-cluster measurements but have not been re-run end to end; lessons 1–4 are verified command by
-command. The genuinely *unbuilt* stages are **4 (crypto), 5 (identity), 7.2/7.4 (workloads,
+networking) and 7.1 (Act 6 control plane). Every Act 6 lesson has been run against a real cluster and corrected against
+what happened; its `diagnose.md` drills reuse those commands but have not been walked as drills. The genuinely *unbuilt* stages are **4 (crypto), 5 (identity), 7.2/7.4 (workloads,
 scheduling, storage, config), 7.5/7.9 (cluster security), 8 (AWS networking), 9 (AWS security)** —
 see the roadmap banner in `JOURNEY-MAP.md`. Fill those next; don't rewrite Acts 3–6, which are done.
 
@@ -70,7 +69,7 @@ Acts 5–6 = the same 2-node `kind` cluster (`kubectl`, plus `docker exec` onto 
 - supporting: `README` · `test-yourself` · `diagnose`(drills) · `in-the-wild`; capstone `../the-whole-stack.md`
 - `cilium`/eBPF referenced. Deferred (roadmap): bpftrace capstone (the Act-1 promise lands here), Hubble.
 
-## Act 6 — the control plane  ⟨complete: 8 lessons + all supporting files; 01–04 cluster-verified, 05–08 + drills not re-run⟩
+## Act 6 — the control plane  ⟨complete: 8 lessons + all supporting files; all 8 cluster-verified, drills not walked as drills⟩
 - `01-the-api-server-is-a-filesystem.md` — a Pod is not on the node's disk — Act-I creed's next form; `kubectl get --raw`, `/registry/<kind>/<ns>/<name>` in etcd, protobuf-vs-YAML rendering, `etcdctl` mTLS via `/etc/kubernetes/pki/etcd/`, **`etcdctl watch` while you label** (writes you didn't make)
 - `02-static-pods.md` — the boot-order paradox — kubelet as the one non-Pod; `staticPodPath`, `/etc/kubernetes/manifests/`, **`kubectl delete` on a static Pod is a no-op**, stop a component by moving its file, etcd's `hostPath` as the only durable bytes
 - `03-the-reconciliation-loop.md` — stop a watcher, watch intent go inert — controller-manager down → two Pods but **`READY 3/3` forever, because `status` is a stored note the same controller writes** (so `kubectl wait` believes it); scheduler down → `Pending`, empty `spec.nodeName`, `Events: <none>`; leader election as the restore delay; three loops, zero calls; "current state is the entire input"

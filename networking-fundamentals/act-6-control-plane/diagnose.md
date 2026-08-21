@@ -350,7 +350,7 @@ rm -f /tmp/crb-backup.yaml
 
 ## Drill 6 — "the drain has been running for half an hour"
 
-> **Ticket:** *"Patching a node. The drain has been sitting there for thirty minutes with no output. No error. Do we Ctrl-C it? Is it nearly done? Is it stuck? We cannot tell and we have a maintenance window."*
+> **Ticket:** *"Patching a node. The drain has been going for thirty minutes and has not finished. It keeps printing something every few seconds so we assume it is making progress. Do we let it run? We have a maintenance window closing."*
 
 **Reproduce it** (run; don't read):
 
@@ -361,29 +361,36 @@ kubectl create poddisruptionbudget checkout-pdb --selector=app=checkout --min-av
 kubectl drain netlab-worker --ignore-daemonsets --delete-emptydir-data --timeout=45s
 ```
 
-**Your symptom:** a drain that waits, then times out, having achieved nothing obvious.
+**Your symptom:** a drain that scrolls, waits, then times out having achieved nothing.
 
 <details>
 <summary>Reveal</summary>
 
-Start from the right place: **the drain is a loop in your terminal, not in the cluster.** There is no drain object, no controller and no status field, so there is nothing to inspect *about the drain*. The evidence is about the node.
+**The answer was on the screen the whole time, and the reporter scrolled past it.** That is the drill.
 
-```bash
-kubectl get pods -A -o wide --field-selector spec.nodeName=netlab-worker
+```
+error when evicting pods/"checkout-..." -n "default" (will retry after 5s):
+Cannot evict pod as it would violate the pod's disruption budget.
 ```
 
-Whatever is still listed, minus the DaemonSet Pods, is what your drain is waiting on — usually exactly one thing. That name is the whole investigation.
+Every five seconds, naming the mechanism. Which is the single most useful thing to know about a stuck drain: **there are two kinds, and the output tells you which.** A drain refused by policy is *loud* — it says why, repeatedly, forever. A drain waiting on a Pod that will not terminate is *silent*. "It keeps printing something" was the diagnosis, mistaken for a sign of progress.
 
-Now the one question that matters: **blocked, or slow?** Ask for the eviction yourself and read the refusal:
+Confirm it against the object:
 
 ```bash
 kubectl get pdb
 kubectl describe pdb checkout-pdb | tail -8
 ```
 
-`ALLOWED DISRUPTIONS: 0`. A budget insisting both replicas stay available, so no eviction can ever be permitted. The rejection text is explicit — `Cannot evict pod as it would violate the pod's disruption budget` — and `kubectl` treats that as *not yet* rather than *no*, retrying until your timeout. Which is correct in the normal case, where a rolling update clears in seconds, and useless here.
+`ALLOWED DISRUPTIONS: 0`. A budget insisting both replicas stay available, so no eviction can ever be permitted. `kubectl` treats a rejection as *not yet* rather than *no* and retries — correct in the normal case, where a rolling update clears in seconds, and hopeless here.
 
-If nothing had been refusing, this would be a completely different problem: the Pod is terminating and taking its time — a long `terminationGracePeriod`, or a container ignoring the signal to stop.
+And note where the drain is running, because it changes where you look: **it is a loop in your terminal, not in the cluster.** There is no drain object, no controller and no status field, so there is nothing to inspect *about the drain* — only about the node:
+
+```bash
+kubectl get pods -A -o wide --field-selector spec.nodeName=netlab-worker
+```
+
+Whatever is still listed, minus the DaemonSet Pods, is what it is waiting on. Had the terminal been genuinely silent, that list would be the start of a different investigation: a Pod stuck `Terminating` means the eviction was *accepted* and the container is not stopping — a long `terminationGracePeriodSeconds` by design, or a process ignoring `SIGTERM`.
 
 The fix is a conversation, not a command. Either the application genuinely cannot lose a replica right now — in which case scale it up first and the budget satisfies itself — or the budget is wrong:
 
@@ -393,7 +400,7 @@ kubectl wait --for=condition=Available deployment/checkout --timeout=90s
 kubectl drain netlab-worker --ignore-daemonsets --delete-emptydir-data --timeout=60s
 ```
 
-**The reasoning worth keeping:** always pass `--timeout` to an interactive drain. Without it the default is to wait indefinitely, and a drain that will never finish is visually identical to one that is nearly done. And check `ALLOWED DISRUPTIONS: 0` *before* you start a maintenance window rather than thirty minutes into it.
+**The reasoning worth keeping:** read the output of a long-running command before deciding it is progress. Then pass `--timeout` to every interactive drain, for the *silent* case — because that one genuinely is indistinguishable from being nearly done. And check `ALLOWED DISRUPTIONS: 0` before you open a maintenance window rather than thirty minutes into it.
 
 </details>
 

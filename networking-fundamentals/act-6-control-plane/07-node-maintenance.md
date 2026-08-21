@@ -23,17 +23,44 @@ kubectl get node netlab-worker -o jsonpath='{.spec.unschedulable}{"\n"}'
 kubectl describe node netlab-worker | grep -A2 Taints
 ```
 
-**One boolean field, and a taint.** That is the entire mechanism. Lesson 03 showed you the scheduler as a loop that watches for Pods with an empty `spec.nodeName` and picks a node; cordon writes a field that makes this node ineligible for that choice. There is no cordon *process*, no cordon controller, nothing watching. You edited an object, and a loop that was already running reads it differently now.
+**One boolean field — and a taint.** `spec.unschedulable: true`, and `node.kubernetes.io/unschedulable:NoSchedule`. (Read that taint's name carefully against the one you will meet in a moment on the control plane, `node-role.kubernetes.io/control-plane`. They differ by a hyphen and a word, and they are completely different things.)
 
-So `kubectl uncordon` is the same write in reverse, and you can prove the whole thing is just a field by doing it yourself:
+So `kubectl uncordon` is the same write in reverse, and you can prove the whole thing is a field by doing it yourself:
 
 ```bash
 kubectl patch node netlab-worker -p '{"spec":{"unschedulable":true}}'
 kubectl get nodes                      # still SchedulingDisabled -- same result, no new verb
+```
+
+`cordon` is a convenience spelling for a one-field patch, and knowing that means you can never be stuck for want of the subcommand.
+
+But "one field and a taint" is two things, and you have only accounted for one of them. Who wrote the taint?
+
+> **Predict first —** you already know how to remove a controller from this cluster. If you stop the controller manager and *then* cordon a node, what appears — the field, the taint, both, or neither? And what will `kubectl get nodes` say?
+
+```bash
+kubectl uncordon netlab-worker
+docker exec netlab-control-plane sh -c 'mv /etc/kubernetes/manifests/kube-controller-manager.yaml /tmp/'
+sleep 20
+kubectl cordon netlab-worker
+kubectl get node netlab-worker -o jsonpath='{.spec.unschedulable}{"  taints="}{.spec.taints}{"\n"}'
+kubectl get nodes
+```
+
+**The field is `true`. The taints are empty. And `kubectl get nodes` still says `SchedulingDisabled`.**
+
+So `cordon` never wrote that taint. It wrote one field, and a controller inside the controller manager was watching for that field and reconciling it into a taint — which is why with the controller gone, the taint never appears. Put it back and watch it arrive on its own:
+
+```bash
+docker exec netlab-control-plane sh -c 'mv /tmp/kube-controller-manager.yaml /etc/kubernetes/manifests/'
+sleep 40
+kubectl get node netlab-worker -o jsonpath='{.spec.taints}{"\n"}'      # the taint, unprompted
 kubectl uncordon netlab-worker
 ```
 
-That is worth having done once. `cordon` is a convenience spelling for a one-field patch, and knowing that means you can never be stuck for want of the subcommand.
+Which makes this lesson's opening claim true **twice over**, and it is worth saying precisely. There is no cordon process — but there *is* a controller doing part of the work you would naturally credit to `kubectl`. You wrote one field; the scheduler reads that field, and a separate loop translates it into a taint for everything else that reasons about taints. Two independent watchers, one write, and lesson 03's shape underneath both.
+
+Notice the third detail as well: `kubectl get nodes` printed `SchedulingDisabled` even with no controller running, because that column is rendered from the **field**, not the taint. The display was honest the whole time about the only thing you actually did.
 
 ### Draining is not a field
 
@@ -59,35 +86,50 @@ So this cluster has exactly one node that will accept ordinary work. Hold on to 
 
 > **Predict first —** `kubectl drain` is one command. Is it one write to the API server, or many? And what do you expect to happen if you press Ctrl-C halfway through?
 
-You can answer that without touching anything, because drain will tell you what it intends to do:
+Ask drain what it intends to do, without doing any of it:
 
 ```bash
 kubectl drain netlab-worker --dry-run=client
 ```
 
-**One line per Pod.** `node/netlab-worker cordoned`, and then `evicting pod default/web-...` repeated — a list, not an instruction. That is your answer to the first half: whatever drain is, it operates per Pod.
+It refuses, and it never gets as far as telling you — which is a better first result than the one you asked for. It has one objection and it names the Pods:
 
-Now try it for real and read the refusal, because the refusal is the lesson:
-
-```bash
-kubectl drain netlab-worker
+```
+node/netlab-worker cordoned (dry run)
+error: unable to drain node "netlab-worker" due to error: cannot delete DaemonSet-managed Pods
+(use --ignore-daemonsets to ignore): kube-system/kindnet-..., kube-system/kube-proxy-...
 ```
 
-It stops and names its objections. It will not touch Pods managed by a **DaemonSet**, and depending on what is running it may also refuse over Pods with local scratch storage.
+A **DaemonSet** is a workload kind that means *one Pod on every node, by construction*, and you have been relying on two of them since Act V without meeting the name. `kube-proxy` is one: it runs on every node, watching Services and rewriting that node's iptables. (Act V introduced it as a daemon on each node and left how it got there alone. This is how.) The other is your CNI. Draining cannot evict either, because the entire point of such a Pod is that it runs *here* — there is nowhere for it to go, and nothing gained by removing it.
 
-A DaemonSet is a workload kind that means *one Pod on every node, by construction*, and you have been relying on one since Act V without meeting the name: kube-proxy runs on every node, watching Services and rewriting that node's iptables. (Act V introduced kube-proxy as a daemon on each node and left how it got there alone; this is how.) Which is why draining cannot evict them — the entire point of such a Pod is that it runs *here*, so there is nowhere for it to go and nothing to be gained by removing it.
+Note that a *dry run* told you this. Nothing was touched: the field is unset, there are no taints, and all three Pods are where they were. Worth knowing, because the same refusal from a real `kubectl drain` **cordons the node before it fails** — so anyone who runs the bare command "just to see the error" has quietly disabled scheduling on it.
 
-So you tell drain that you understand:
+Now say you understand, still without doing it:
+
+```bash
+kubectl drain netlab-worker --dry-run=client --ignore-daemonsets
+```
+
+```
+node/netlab-worker cordoned (dry run)
+Warning: ignoring DaemonSet-managed Pods: kube-system/kindnet-..., kube-system/kube-proxy-...
+evicting pod default/web-... (dry run)
+evicting pod default/web-... (dry run)
+evicting pod default/web-... (dry run)
+node/netlab-worker drained (dry run)
+```
+
+**One line per Pod.** A list, not an instruction — which is your answer to the first half of the prediction: whatever drain is, it operates per Pod.
+
+Now do it:
 
 ```bash
 kubectl drain netlab-worker --ignore-daemonsets --delete-emptydir-data --timeout=120s
 ```
 
-`--delete-emptydir-data` is you accepting that a Pod using a scratch directory whose lifetime is the Pod's own will lose that data. Both flags are acknowledgements rather than behaviour changes: drain refuses to make an irreversible decision on your behalf, and the flags are you making it.
+`--delete-emptydir-data` is you accepting that a Pod using a scratch directory whose lifetime is the Pod's own will lose that data. On this cluster nothing uses one, so the flag changes nothing — keep it anyway, because the habit is the point: both flags are **acknowledgements** rather than behaviour changes. Drain refuses to make an irreversible decision on your behalf, and a flag is you making it.
 
-Watch the output as it goes. It cordons, then evicts, then waits — and it prints as it works, which is itself a clue about where the work is happening.
-
-Now see the requests:
+It finishes in about a second, which is too fast to watch. So watch the requests instead:
 
 ```bash
 kubectl uncordon netlab-worker
@@ -96,7 +138,14 @@ kubectl drain netlab-worker --ignore-daemonsets --delete-emptydir-data --timeout
   | grep -i eviction
 ```
 
-There it is: **one `POST` to `.../pods/<name>/eviction` per Pod**, from your machine. Not one write. Not a controller. A sequence of individual HTTP requests, made by the binary in your terminal.
+```
+pod/web-... eviction started
+I... "Response" verb="POST" url="https://127.0.0.1:PORT/api/v1/namespaces/default/pods/web-.../eviction" status="201 Created"
+I... "Response" verb="POST" url="https://127.0.0.1:PORT/api/v1/namespaces/default/pods/web-.../eviction" status="201 Created"
+I... "Response" verb="POST" url="https://127.0.0.1:PORT/api/v1/namespaces/default/pods/web-.../eviction" status="201 Created"
+```
+
+There it is: **one `POST` to `.../pods/<name>/eviction` per Pod**. Not one write, and not a controller — a sequence of individual HTTP requests. And look at the URL: `127.0.0.1`, on the port `kind` published for your cluster. Those requests are leaving *your machine*.
 
 ### So what *is* drain?
 
@@ -146,9 +195,18 @@ Three replicas, and a budget insisting all three stay available. There is no way
 kubectl drain netlab-worker --ignore-daemonsets --delete-emptydir-data --timeout=60s
 ```
 
-It **blocks, retrying, and then times out.** Not an immediate error — the eviction request is rejected with `Cannot evict pod as it would violate the pod's disruption budget`, and `kubectl` treats that as *not yet* rather than *no*, because in the normal case it genuinely is: a rolling update in progress would clear in seconds. Your budget will never clear, so it retries until the timeout you supplied.
+It **blocks, retrying loudly, and then times out.** Not an immediate error — the eviction request is rejected, and `kubectl` treats that as *not yet* rather than *no*, because in the normal case it genuinely is: a rolling update in progress would clear in seconds. Your budget will never clear, so it retries every five seconds until the timeout you supplied, printing this each round:
 
-Which is why `--timeout` belongs on every drain you run interactively. Without it, the default behaviour is to wait indefinitely, and a drain that has been sitting there for forty minutes looks identical to a drain that is nearly finished.
+```
+error when evicting pods/"web-..." -n "default" (will retry after 5s):
+Cannot evict pod as it would violate the pod's disruption budget.
+```
+
+That is worth reading rather than scrolling past, because it is a diagnosis handed to you unprompted — a dozen times a minute, naming the mechanism. **A drain blocked by a disruption budget is the loud kind of stuck.**
+
+Which matters because there is a quiet kind, and telling them apart is the actual skill. A Pod that is simply slow to terminate — a long grace period, or a container ignoring the signal to stop — produces no such message. Drain sits there saying nothing. So: scrolling retries naming a budget means *blocked, and here is by what*; silence means *waiting on a Pod that will not die*, and the investigation is that Pod rather than any policy.
+
+`--timeout` belongs on every drain you run interactively for the sake of the second case. Without it the default is to wait indefinitely, and a silent drain that will never finish is indistinguishable from one that is nearly done.
 
 And note the word *voluntarily* in what a PDB governs. It constrains eviction, which is a request. It does not constrain a node catching fire, a `kubectl delete pod`, or a kubelet dying — none of those ask permission. A PDB is a contract about **planned** disruption only, and reading it as a general availability guarantee is the most common way to be disappointed by one.
 
@@ -163,15 +221,19 @@ kubectl uncordon netlab-worker
 <details>
 <summary>Answer</summary>
 
-First, remember whose loop is stuck: the drain is running in your terminal, not in the cluster, so there is no controller to inspect and no status field to read. The evidence is on the node.
+Start with what "no output" already told you, because it is a real deduction and not a shrug: **it is not a disruption budget.** A PDB block prints a retry naming the budget every five seconds — twenty minutes of it would be several hundred lines. Silence rules that out before you run anything.
 
-**Which Pods are left?** `kubectl get pods -A -o wide --field-selector spec.nodeName=<node>`. Whatever is still listed, minus the DaemonSet Pods, is the set your drain is waiting on — usually exactly one. That single name is the whole investigation, and everything after this step is about it.
+Then remember whose loop is stuck. The drain is running in your terminal, not in the cluster, so there is no controller to inspect and no status field to read. The evidence is on the node.
 
-**Is it blocked or is it slow?** Try the eviction yourself and read the answer, or look at the Pod's events. A disruption budget refusing you says so explicitly, and the fix is a conversation about the budget — either the application genuinely cannot lose a replica right now, or the budget is wrong. If nothing is refusing, the Pod is being deleted and is taking its time, which is a different problem: a long `terminationGracePeriod`, or a container ignoring the signal to stop.
+**Which Pod is left?** `kubectl get pods -A -o wide --field-selector spec.nodeName=<node>`. Whatever is still listed, minus the DaemonSet Pods, is what your drain is waiting on — usually exactly one, and often `Terminating`. That single name is the whole investigation.
+
+**Why will it not die?** Silence plus `Terminating` means the eviction was *accepted* and the Pod is refusing to finish, which is a completely different problem from being refused. Look at its `terminationGracePeriodSeconds`, which may be minutes by design, and at whether the container actually stops on the signal it is being sent — a process that ignores `SIGTERM` waits out the full grace period and then gets killed, every time. A `preStop` hook that hangs does the same.
+
+Had there been output, the diagnosis would already be in it, and the fix would be a conversation rather than a command: either the application genuinely cannot lose a replica right now, or the budget is wrong.
 
 **Is a replacement even possible?** `kubectl get pods -A | grep Pending`. If the evicted Pods have nowhere to go, the drain may well "succeed" and leave you worse off than before. On a cluster at capacity, checking this *before* draining is the difference between maintenance and an incident.
 
-The general shape: a drain is a client-side loop over evictions, so a stuck drain is always one specific eviction, and an eviction is the one request in Kubernetes that something is allowed to refuse. Find the Pod, then find out whether you were refused or merely kept waiting.
+The general shape: a drain is a client-side loop over evictions, so a stuck drain is always one specific eviction, and an eviction is the one request in Kubernetes that something is allowed to refuse. Find the Pod, then find out whether you were **refused** — which is loud — or merely **kept waiting**, which is not.
 
 </details>
 
@@ -180,14 +242,24 @@ The general shape: a drain is a client-side loop over evictions, so a stuck drai
 ```
    CORDON                                    DRAIN
 
-   one field:  spec.unschedulable: true      a LOOP IN YOUR TERMINAL
-   + a NoSchedule taint, added by cordon       for each Pod on the node:
-     (NOT the permanent control-plane one)         POST pods/<name>/eviction
-        |                                          wait for it to go
-        v                                     no drain object. no controller.
-   the scheduler skips this node              no record it is happening.
-   for FUTURE placement only                  Ctrl-C = stops, half-done, forever
-   running Pods: untouched                      -- nothing knew there was a job
+   cordon writes ONE FIELD, and nothing else:   a LOOP IN YOUR TERMINAL
+     spec.unschedulable: true                     for each Pod on the node:
+        |                                             POST pods/<name>/eviction
+        +--> the SCHEDULER reads the field            wait for it to go
+        |      (kubectl get nodes renders
+        |       SchedulingDisabled from it too)  no drain object. no controller.
+        |                                        no record it is happening.
+        +--> a CONTROLLER reconciles it into     Ctrl-C = stops, half-done, forever
+               node.kubernetes.io/unschedulable    -- nothing knew there was a job
+               :NoSchedule
+               (stop kube-controller-manager and
+                the taint never appears -- so it
+                was never kubectl that wrote it)
+
+   NOT the same as node-role.kubernetes.io/control-plane:NoSchedule,
+   which is permanent and set at install time. one hyphen apart.
+
+   running Pods: untouched. cordon is about the FUTURE only.
 
    nothing "does" a cordon.                  refuses by default on:
    you edited an object and a loop              DaemonSet Pods  (nowhere to go)
@@ -198,9 +270,14 @@ The general shape: a drain is a client-side loop over evictions, so a stuck drai
    EVICTION is not DELETION
      it is the one write the API server may REFUSE on policy:
          PodDisruptionBudget: "how much may be missing AT ONCE, VOLUNTARILY"
-         refusal looks like SLOWNESS -- kubectl retries. always pass --timeout.
      a PDB does not constrain: node failure, kubectl delete pod, a dead kubelet.
      nothing asks its permission.
+
+   TWO KINDS OF STUCK DRAIN, and the output tells you which
+     LOUD   retry naming the budget every 5s  -> refused. a PDB. read it.
+     SILENT nothing at all                    -> accepted, but the Pod won't die:
+                                                 grace period, or SIGTERM ignored.
+     always pass --timeout, for the silent one.
 
    drain DELETES Pods. the loops recreate them SOMEWHERE ELSE -- if anywhere exists.
    no spare capacity => you have performed an outage on purpose.
@@ -216,7 +293,7 @@ kubectl get nodes                                                  # both Ready,
 docker exec netlab-control-plane ls /etc/kubernetes/manifests/     # all four, as ever
 ```
 
-> **You understand this when you can** say what `cordon` writes and why no process is needed to enforce it, having produced the same effect with a bare `patch`; explain why `drain` is neither a field nor a controller but a loop in your terminal — citing the per-Pod `eviction` requests you watched it make — and what that implies for a drain you interrupt and for a drain that hangs; name the two things drain refuses to do without being told and why each refusal is the safe default; and say what a PodDisruptionBudget constrains, what it does *not*, and why being blocked by one looks like slowness rather than an error.
+> **You understand this when you can** say what `cordon` actually writes — one field — and name the two independent things that then read it, having proved one of them wrote the taint by stopping it; explain why `drain` is neither a field nor a controller but a loop in your terminal, citing the per-Pod `eviction` requests you watched leave your own machine, and what that implies for a drain you interrupt; say why drain refuses to touch DaemonSet Pods, and why the refusal from a real drain is more expensive than from a dry run; and tell a drain blocked by a PodDisruptionBudget from a drain waiting on a Pod that will not die, using only what each prints — then say what a PDB does *not* constrain.
 
 **Which raises:** you now have the whole planned-maintenance sequence, and every step of it assumed you could ask the cluster questions. But this act has broken the API server twice, and both times `kubectl` went silent along with it. A node that will not come `Ready`, a control-plane component that crash-loops, a cluster that answers nothing at all — what is left to look at, and in what order?
 

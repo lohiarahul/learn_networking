@@ -192,13 +192,15 @@ So the control-plane half is four string edits on one node, each reversible in s
 <details>
 <summary>Answer</summary>
 
-`cordon` writes one field — `spec.unschedulable: true` — and adds a taint. Nothing enforces it, because nothing needs to: the scheduler was already a loop reading node objects, and it now reads this one differently. You can reproduce the whole thing with a bare `kubectl patch`, which is worth having done once, because it means you can never be stuck for want of the subcommand.
+`cordon` writes **one field and nothing else**: `spec.unschedulable: true`. You can reproduce it exactly with a bare `kubectl patch`, which is worth having done once, because it means you can never be stuck for want of the subcommand.
+
+Two independent things then read that field, and one of them is easy to mis-credit. The **scheduler** consults it when placing Pods — and `kubectl get nodes` renders `SchedulingDisabled` from it directly. Separately, a **controller inside the controller manager** reconciles it into a `node.kubernetes.io/unschedulable:NoSchedule` taint, so that everything reasoning in terms of taints sees it too. Stop the controller manager and cordon a node: the field is set, `SchedulingDisabled` displays, and the taint never appears. So `kubectl` did not write that taint — a loop did, and it is lesson 03 again.
 
 `drain` is not a field and not a controller. It is a **loop running inside `kubectl` on your machine**: it lists the Pods on the node and `POST`s to each one's `eviction` subresource in turn, waiting for each to go. There is no drain object, no drain controller, and no record anywhere that a drain is happening. Press Ctrl-C and it stops where it was — some Pods evicted, some not — and nothing in the cluster will finish the job, because nothing ever knew there was a job.
 
 </details>
 
-> **Question 17 —** A PodDisruptionBudget can block a drain. Name what it constrains, three things it does not, and why being blocked by one looks like slowness rather than an error.
+> **Question 17 —** A PodDisruptionBudget can block a drain. Name what it constrains, three things it does not, and how you would tell a drain blocked by one from a drain that is merely waiting.
 
 <details>
 <summary>Answer</summary>
@@ -207,7 +209,9 @@ It constrains **eviction** — how much of an application may be voluntarily mis
 
 It does not constrain a node failing, a `kubectl delete pod`, or a kubelet dying. None of those ask permission. A PDB is a contract about *planned* disruption only, and reading it as a general availability guarantee is the usual way to be disappointed by one.
 
-It looks like slowness because `kubectl` treats a rejected eviction as *not yet* rather than *no*, and retries — which is right in the normal case, where a rolling update clears in seconds. An unsatisfiable budget never clears, so it retries until timeout. Which is why `--timeout` belongs on every drain you run interactively: without it a drain that will never finish is indistinguishable from one that is nearly done.
+You tell them apart by whether the terminal is talking. `kubectl` treats a rejected eviction as *not yet* rather than *no* and retries every five seconds, printing `Cannot evict pod as it would violate the pod's disruption budget` each time — so **a PDB block is loud and names itself**, a dozen times a minute. The other kind of stuck is silent: the eviction was accepted and the Pod will not finish terminating, because of a long grace period or a container that ignores the signal to stop.
+
+Which is also why `--timeout` matters — not for the loud case, which diagnoses itself, but for the silent one, where a drain that will never finish is genuinely indistinguishable from one that is nearly done.
 
 </details>
 

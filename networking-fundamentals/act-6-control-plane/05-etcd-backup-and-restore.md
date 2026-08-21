@@ -62,7 +62,7 @@ docker run --rm -v "$PWD:/w" registry.k8s.io/etcd:3.6.8-0 \
 +----------+----------+------------+------------+---------+
 ```
 
-A hash, a revision — etcd's running count of every write it has ever accepted — and a **total key count**. That last column is the whole cluster as one integer, so compare it against a number you already know how to get:
+Your numbers will not be these — the revision and key count depend on everything that has ever happened to your cluster. What matters is the shape: a hash, a revision (etcd's running count of every write it has ever accepted), and a **total key count**. That last column is the whole cluster as one integer, so compare it against a number you already know how to get:
 
 ```bash
 kubectl -n kube-system exec etcd-$CP -- etcdctl \
@@ -85,7 +85,8 @@ The etcd project used to put both under `etcdctl`; those subcommands were deprec
 Now the more interesting fact. Go looking for either binary on the node:
 
 ```bash
-docker exec $CP sh -c 'ls /usr/local/bin/ | grep etcd; echo "exit: $?"'
+docker exec $CP ls /usr/local/bin/
+docker exec $CP etcdctl version
 ```
 
 **Nothing.** `crictl` and `ctr` are there; no `etcdctl`, no `etcdutl`. The tools for the cluster's only stateful component are not installed on the node that runs it — they ship *inside the etcd image*, which is why the commands above reach them two different ways: `kubectl exec` into the running etcd Pod while etcd is up, and `docker run` on your own machine, against a copied file, when it is not.
@@ -97,11 +98,12 @@ That second route is the one that matters, and it is worth seeing why it has to 
 Before going further, do something with that copied file that ought to be uncomfortable.
 
 ```bash
-LC_ALL=C grep -a -o -E '.{0,20}hunter2.{0,20}' etcd-backup.db
+LC_ALL=C grep -a -o -E 'key.{0,2}hunter2.{0,2}Opaque' etcd-backup.db \
+  | LC_ALL=C tr -c '[:print:]\n' '.' | head -1
 ```
 
 ```
-keyhunter2Opaque
+key..hunter2..Opaque
 ```
 
 The field name, the value, and the Secret's type, sitting together in a file on your laptop. No cluster, no certificates, no etcd, no permissions.
@@ -124,7 +126,7 @@ One more object, created *after* the snapshot, so that you can tell what a resto
 kubectl create deployment after-snap --image=hashicorp/http-echo -n precious \
   -- /http-echo -text=after-snap -listen=:5678
 kubectl wait --for=condition=Available deployment/after-snap -n precious --timeout=90s
-kubectl get pods -n precious -o wide          # note which node, and the Pod IP
+kubectl get pods -n precious -o wide          # note the after-snap Pod's node and IP
 ```
 
 That one exists in the world but not in your backup. Remember its IP.
@@ -133,13 +135,13 @@ Now destroy the store. Stop the control plane first — all four manifests, beca
 
 ```bash
 docker exec $CP sh -c 'mkdir -p /tmp/held && mv /etc/kubernetes/manifests/*.yaml /tmp/held/'
-sleep 35
+until [ "$(docker exec $CP sh -c "crictl ps --state Running 2>/dev/null | grep -cE 'etcd|apiserver'")" = 0 ]; do sleep 2; done
 docker exec $CP sh -c 'mv /var/lib/etcd /var/lib/etcd-gone'
 docker exec $CP sh -c 'mv /tmp/held/*.yaml /etc/kubernetes/manifests/'
 sleep 20
 ```
 
-The `sleep 35` is not padding. etcd's container goes within about ten seconds; the API server's takes closer to thirty, and it is the one you must not race.
+That `until` loop is not decoration. etcd's container goes within about ten seconds, but the API server's takes closer to thirty — and the API server is the one you must not race, because it is the thing still writing. A fixed `sleep` here would work on this machine and betray you on a busier one, which is exactly the failure the rest of this lesson exists to recover from.
 
 Then the control plane starts again — and it starts *fine*. The manifest's `hostPath` is declared `DirectoryOrCreate`, so `/var/lib/etcd` is recreated empty, and etcd's own flags tell it to bootstrap a brand-new single-member store. Within about ten seconds you have a completely healthy, completely empty cluster.
 
@@ -187,12 +189,16 @@ Take those three in order, because together they are the answer to the whole pre
 
 **`get pods -A` returns `No resources found` too.** Four namespaces were recreated by the API server itself — `default`, `kube-system`, `kube-public`, `kube-node-lease` — and they are empty. Your `precious` namespace is gone, and so is `local-path-storage`, which came with `kind`.
 
-**And `crictl ps` lists nine running containers.** Including `payments`, including `after-snap`, including all four control-plane components.
+**And `crictl ps` lists nine running containers** on the control-plane node alone — all four control-plane components, both CoreDNS Pods, the storage provisioner, the CNI and kube-proxy. Not one of which the cluster now believes exists.
+
+And your own workloads are on the other node, so look there too:
 
 ```bash
 docker exec netlab-worker crictl ps
-curl -s http://<the after-snap Pod IP>:5678       # from the worker: still answers
+docker exec netlab-worker curl -s http://<the after-snap Pod IP>:5678; echo
 ```
+
+Five more, `payments` and `after-snap` among them — and that `curl` still returns `after-snap`. (It works from inside either node, because the CNI put a route to the other node's Pod subnet in each node's own routing table, exactly as Act V's CNI lesson had you read. It will not work from your Mac.)
 
 Nothing died. Every container the cluster was running before you deleted the store is still running, still serving traffic, and the kubelets have not killed any of them. Which answers your third prediction in the way you should find most unsettling: **the cluster's beliefs and the world have come completely apart, and the world is the half that is still working.**
 
@@ -219,7 +225,7 @@ So stop it, swap the directory, start it:
 
 ```bash
 docker exec $CP sh -c 'mv /etc/kubernetes/manifests/*.yaml /tmp/held/'
-sleep 35
+until [ "$(docker exec $CP sh -c "crictl ps --state Running 2>/dev/null | grep -cE 'etcd|apiserver'")" = 0 ]; do sleep 2; done
 docker exec $CP sh -c 'mv /var/lib/etcd /var/lib/etcd-empty && mv /var/lib/etcd-restored /var/lib/etcd'
 docker exec $CP sh -c 'mv /tmp/held/*.yaml /etc/kubernetes/manifests/'
 until kubectl get ns 2>/dev/null; do sleep 2; done
@@ -248,7 +254,7 @@ kubectl get deployment after-snap -n precious
 Here is the part that is not:
 
 ```bash
-docker exec netlab-worker crictl ps --name after-snap
+docker exec netlab-worker sh -c 'crictl ps | grep after-snap'
 curl -s http://<the after-snap Pod IP>:5678
 ```
 
@@ -261,7 +267,7 @@ Force it to look again, and the reckoning is immediate:
 ```bash
 docker exec netlab-worker systemctl restart kubelet
 sleep 15
-docker exec netlab-worker crictl ps --name after-snap     # gone
+docker exec netlab-worker sh -c 'crictl ps | grep after-snap'   # gone
 kubectl get pods -n precious                              # payments, untouched
 ```
 

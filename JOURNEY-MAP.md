@@ -20,7 +20,7 @@ reconcile** in the cloud.
 > | **0–3** — process → sockets → two machines → the internet | orientation + Acts I–III | ✅ **built & teaching** |
 > | **6** — one machine pretends to be many (containers) | Act IV | ✅ **built & teaching** |
 > | **7.3** — Kubernetes *networking* (incl. Gateway API, Service shapes) | Act V | ✅ **built & teaching** |
-> | **7.1** — the control plane: API server as a filesystem, static pods, the reconciliation loop, cluster PKI, etcd backup/restore, upgrades & version skew, node maintenance, control-plane troubleshooting | Act VI | ✅ **built & teaching** — 8 lessons + all supporting pages; lessons 1–4 cluster-verified, 5–8 and the drills built from measurements but not re-run end to end |
+> | **7.1** — the control plane: API server as a filesystem, static pods, the reconciliation loop, cluster PKI, etcd backup/restore, upgrades & version skew, node maintenance, control-plane troubleshooting | Act VI | ✅ **built & teaching** — 8 lessons + all supporting pages, every lesson run against a real cluster |
 > | **7.2, 7.4, 7.6–7.9** — workloads, scheduling, storage, config, Helm/Kustomize/CRDs, autoscaling, observability | *(none yet)* | 🔜 **roadmap** |
 > | **4** — cryptography & trust | *(planned as Act VIII)* | 🔜 **roadmap** |
 > | **5** — identity & access | *(planned as Act IX)* | 🔜 **roadmap** |
