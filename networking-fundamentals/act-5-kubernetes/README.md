@@ -28,9 +28,10 @@ Work through these in order. Each one runs experiments against the cluster and e
 4. **[CoreDNS — /etc/hosts for the cluster](04-coredns.md)** — Act II naming, scaled to a cluster.
 5. **[CNI — the veth-pair installer](05-cni.md)** — the Act IV wiring, run by a binary instead of by hand.
 6. **[Ingress — the front door](06-ingress.md)** — the Act III TLS handshake terminated at the cluster edge. The one lesson that installs something.
-7. **[Network Policy — iptables with a YAML interface](07-network-policy.md)** — kernel-level allow/deny on Pod identity.
-8. **[The debugging method — five questions in order](08-debugging.md)** — which file to read first when it breaks.
-9. **[The method in action — a worked failure](09-debugging-walkthrough.md)** — the debugging walk end to end.
+7. **[Gateway API — when routing outgrows annotations](06b-gateway-api.md)** — Ingress's successor: the same job split along the seams that actually exist, and a status you have to read.
+8. **[Network Policy — iptables with a YAML interface](07-network-policy.md)** — kernel-level allow/deny on Pod identity.
+9. **[The debugging method — five questions in order](08-debugging.md)** — which file to read first when it breaks.
+10. **[The method in action — a worked failure](09-debugging-walkthrough.md)** — the debugging walk end to end.
 
 When you've finished them all, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills, which break a real cluster four ways and tell you nothing but the symptom.
 

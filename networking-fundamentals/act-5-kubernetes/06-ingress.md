@@ -268,4 +268,4 @@ kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/mai
 
 ---
 
-← Prev: **[CNI — the veth-pair installer](05-cni.md)** · ↑ **[Act V overview](README.md)** · Next: **[Network Policy](07-network-policy.md)** →
+← Prev: **[CNI — the veth-pair installer](05-cni.md)** · ↑ **[Act V overview](README.md)** · Next: **[Gateway API](06b-gateway-api.md)** →

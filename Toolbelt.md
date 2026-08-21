@@ -160,7 +160,9 @@ and when you're building, you wield the modern one without ceremony.
 
 **Networking & mesh**
 - `Cilium` + `Hubble` (eBPF CNI, observability — the future of cluster networking) ·
-  `Calico` · `MetalLB` · `ingress-nginx` · Gateway API · `Istio`/`Linkerd` (service mesh).
+  `Calico` · `MetalLB` · `ingress-nginx` · **Gateway API** (taught — Act V
+  [`06b-gateway-api.md`](networking-fundamentals/act-5-kubernetes/06b-gateway-api.md), with
+  `nginx-gateway-fabric` as the controller) · `Istio`/`Linkerd` (service mesh).
 
 **Packaging, delivery, platform**
 - `Helm` + `helmfile` · `Kustomize` · `cdk8s` · `ArgoCD`/`Flux` (GitOps) · `Crossplane` (cloud from a claim).

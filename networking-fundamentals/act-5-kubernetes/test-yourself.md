@@ -110,6 +110,15 @@ Either the Service's **selector matches no Pod's labels** — nothing was ever e
 
 </details>
 
+> **Question 13 —** You apply an `HTTPRoute` and `kubectl apply` returns exit code 0. No traffic reaches your backend. Name the two structurally different reasons that can happen, say which `.status` condition distinguishes them, and explain why `kubectl get httproute` cannot.
+
+<details>
+<summary>Answer</summary>
+
+Either **nothing is reconciling the Gateway at all** — the CRDs are installed but no controller is running, so the objects are stored and inert — or **a controller is running and refused the attachment**, because the route asked for a hostname no listener serves (`NoMatchingListenerHostname`) or came from a namespace the listener's `allowedRoutes` doesn't permit (`NotAllowedByListeners`). Read the **Gateway's `Programmed`** condition first: it separates the two, and if it isn't `True` then nothing about the route matters yet. Only then do the route's own `Accepted` and `ResolvedRefs` become the question. `kubectl get` cannot tell you any of this because it prints the object you submitted, and the object you submitted was structurally valid — which is all the API server ever checked. Storage is not enforcement, and an unreconciled object is indistinguishable from a working one until somebody reads a status.
+
+</details>
+
 ---
 
 ← Back to **[Act V overview](README.md)** · Next: **[Diagnose it →](diagnose.md)** (apply it under fire), then **[The whole stack →](../the-whole-stack.md)**

@@ -189,6 +189,7 @@ const LABEL_OVERRIDES = {
   [`${COURSE_DIR}/code/README.md`]: 'Running the lab',
   [`${COURSE_DIR}/act-1-one-machine/05b-tcp-states-and-the-syn-scan.md`]: 'TCP states & the SYN scan',
   [`${COURSE_DIR}/act-1-one-machine/06b-the-container-filesystem.md`]: "The container's filesystem",
+  [`${COURSE_DIR}/act-5-kubernetes/06b-gateway-api.md`]: 'Gateway API',
 };
 
 // -- Helpers -------------------------------------------------------------------

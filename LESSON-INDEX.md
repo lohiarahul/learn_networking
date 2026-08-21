@@ -56,6 +56,7 @@ Lab images: Act 1 = `netlab` (compiler) on bridge. Acts 2–5 = `nicolaka/netsho
 - `04-coredns.md` — Act-2 DNS scaled to the cluster — `/etc/resolv.conf`, search domains, `dig` in-Pod
 - `05-cni.md` — the veth-pair installer (Act-4 wiring, run by a binary) — CNI contract, IPAM, Pod routes
 - `06-ingress.md` — Act-3 TLS terminated at the edge — Host-header routing, one IP many hosts
+- `06b-gateway-api.md` — the annotation wall → a real `weight` field — `GatewayClass`/`Gateway`/`HTTPRoute`, `parentRefs` + `allowedRoutes` (mutual consent), `kubectl explain` as the schema authority, `.status` conditions `Programmed`/`Accepted`/`ResolvedRefs`, `NoMatchingListenerHostname`, weighted canary (weights ≠ percentages), CRDs, **`reconciliation` named here** (from kube-proxy + the ingress controller); **the unreconciled-object trap planted here, cashed in `07`**
 - `07-network-policy.md` — iptables allow/deny on Pod identity — default-deny, timeout-not-403
 - `08-debugging.md` — the five-question method — which file to read first when it breaks
 - `09-debugging-walkthrough.md` — the method applied to a real failure end to end

@@ -105,7 +105,9 @@ kubectl config current-context                 # kind-netcni, not kind-netlab
 kubectl get pods -n kube-system | grep -i -e calico -e cilium
 ```
 
-If that second command prints nothing, stop and go build the other cluster; nothing below will be real. (Note that "the policy silently did nothing" is not only a lab problem — it is a production incident that ships as a false sense of security. Applying a policy to a cluster whose CNI ignores it produces no error and no effect, which is the worst possible combination.)
+If that second command prints nothing, stop and go build the other cluster; nothing below will be real.
+
+This is the trap [the Gateway API lesson](06b-gateway-api.md) left you holding, and it is the same one exactly: the cluster stored your intent and nobody reconciled it. There it was a Gateway with no controller, and the tell was a `Programmed` condition that never went `True`. Here it is a NetworkPolicy with no enforcing CNI — and it is *worse*, because a Gateway that routes nothing fails loudly the moment someone curls it, while a policy that filters nothing looks exactly like a policy that is working. "The policy silently did nothing" is not only a lab problem; it is a production incident that ships as a false sense of security, and there is no status field to catch it.
 
 With that confirmed, probe the target from a second Pod before and after applying the policy:
 
@@ -123,4 +125,4 @@ The word `nmap` reports is the tell. Before the policy, reachable ports read `op
 
 ---
 
-← Prev: **[Ingress — the front door](06-ingress.md)** · ↑ **[Act V overview](README.md)** · Next: **[The debugging method](08-debugging.md)** →
+← Prev: **[Gateway API](06b-gateway-api.md)** · ↑ **[Act V overview](README.md)** · Next: **[The debugging method](08-debugging.md)** →
