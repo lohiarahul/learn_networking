@@ -38,6 +38,13 @@ Hard invariants (exit non-zero on any failure):
 4. **ladder-ends** — every lesson has a milestone marker ("you can now" / "you understand this when"
    / …) **and** a forward pointer (`Next:`).
 
+Invariants 3 and 4 are scoped by `is_lesson()`: a lesson is a numbered file **inside
+`networking-fundamentals/`**. That scoping is deliberate — `exam-prep/` holds rehearsal for a timed
+certification exam, which is *banking* by design (memorised flags, speed, recall under a clock) and
+is exactly what the Spirit rule forbids in a lesson. Holding it to Predict-first would be
+incoherent. Link integrity (invariant 1) still covers `exam-prep/`, because its domain maps link
+into real lessons and a dead link there is a genuine defect.
+
 Warnings (surface drift, never fail the build): **index-freshness** (lesson referenced in
 `LESSON-INDEX.md`), **map-vs-build** (the roadmap banner exists so unbuilt stages read honestly).
 
@@ -94,5 +101,6 @@ The judgement-heavy checks are sub-agents, invoked on demand or in CI, not on ev
   correctness + learner-sim agents run here too (needs Docker/`kind` in the runner).
 - **On new-lesson** — `new-lesson.py` scaffolds the invariants in from the start.
 
-> This repo is not yet a git repository, so the CI workflow lies dormant until `git init`. The
-> save-time hook and the scripts work today.
+> The save-time hook, the scripts, and the CI workflow all work today. (An earlier version of this
+> note said the repo was not yet under git — that has been true for a while now and the workflow
+> is live.)

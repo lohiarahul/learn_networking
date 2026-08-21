@@ -52,6 +52,18 @@ FORWARD_MARKERS = ["next:", "→"]
 # ── Helpers ─────────────────────────────────────────────────────────────────
 LINK_RE = re.compile(r"\]\(([^)]+)\)")
 LESSON_RE = re.compile(r"\d\d[a-z]?-")
+
+def is_lesson(path):
+    """A lesson is a numbered teaching file *inside the course*.
+
+    The distinction matters because the repo also carries numbered Markdown that is
+    deliberately not a lesson — `exam-prep/` is rehearsal for a timed test, which is
+    banking by design and must never be held to the Predict-first / ladder invariants.
+    Link integrity still applies to those files; only the lesson-shape rules don't.
+    """
+    if not LESSON_RE.match(os.path.basename(path)):
+        return False
+    return not os.path.relpath(os.path.abspath(path), COURSE).startswith(os.pardir)
 FENCED_RE = re.compile(r"```.*?```", re.DOTALL)
 INLINE_CODE_RE = re.compile(r"`[^`]*`")
 
@@ -111,7 +123,7 @@ def check_prediction(files):
     issues = []
     for f in files:
         r = os.path.relpath(f, COURSE)
-        if not LESSON_RE.match(os.path.basename(f)):
+        if not is_lesson(f):
             continue
         if r in PREDICTION_EXEMPT:
             continue
@@ -123,7 +135,7 @@ def check_prediction(files):
 def check_ladder(files):
     issues = []
     for f in files:
-        if not LESSON_RE.match(os.path.basename(f)):
+        if not is_lesson(f):
             continue
         t = read(f)
         if not has(t, MILESTONE_MARKERS):
