@@ -92,9 +92,11 @@ openssl verify -CAfile root.crt -untrusted int.crt future.crt
 ```
 
 ```
+Certificate request self-signature ok
+subject=CN=api.example.com
 CN=api.example.com
-error 9 at 0 depth lookup: certificate is not yet valid or the system clock
-is incorrect
+error 9 at 0 depth lookup: certificate is not yet valid or the system clock is incorrect
+error future.crt: verification failed
 ```
 
 **Two questions.** First: the error message offers two explanations — which one is more likely in production, and why does the message hedge? Second: name the single component whose failure produces this across an entire fleet at once.
@@ -128,6 +130,7 @@ openssl verify -CAfile root.crt -untrusted int.crt \
 leaf.crt: OK
 CN=api.example.com
 error 62 at 0 depth lookup: hostname mismatch
+error leaf.crt: verification failed
 ```
 
 The certificate is trusted, unexpired, correctly signed by a CA you accept, and refused.
@@ -150,12 +153,18 @@ openssl verify -CAfile root.crt -untrusted int.crt \
 ```
 
 ```
+Certificate request self-signature ok
+subject=CN=api.example.com
 leaf2.crt: OK
 ```
 
-**Act VII in these terms.** metrics-server failed with `x509: cannot validate certificate for 172.19.0.2 because it doesn't contain any IP SANs`. That is this drill: the kubelet's certificate was signed by the cluster CA and metrics-server trusted that CA, so the *trust* check passed. The connection was made to an IP address and the certificate listed hostnames, so the *name* check failed.
+**Act VII in these terms.** metrics-server failed with `x509: cannot validate certificate for 172.19.0.2 because it doesn't contain any IP SANs`. The *reported* failure is this drill exactly: the connection was made to an IP address, the certificate listed hostnames, and the name check failed.
 
-Which is why the fix everybody pastes is what it is. `--kubelet-insecure-tls` does not add the missing name — **it stops asking the question**, and it disables the trust check along with it. The correct fix is the one above: reissue with the IP in the SAN list. Knowing the difference is knowing whether you have fixed something or hidden it.
+But that message is not the whole story, and this is the more useful half. Act VII also told you *why* the kubelet had that certificate: unless a cluster enables `serverTLSBootstrap`, each kubelet **self-signs** its serving certificate rather than getting one from the cluster CA. So the trust check was never going to pass either. **Two independent checks were both broken and you were told about one**, because a verifier stops at the first failure.
+
+Which explains a detail that otherwise looks like sloppiness. `--kubelet-insecure-tls` waives *both* checks — and it has to, because waiving only the one in the error message would leave the connection failing. The correct fix is the one above: reissue with the IP in the SAN list, from a CA the client trusts. Knowing the difference is knowing whether you have fixed something or hidden it.
+
+And keep the general form, because it outlives certificates entirely: **an error names a check that failed, never the set of checks that would have.**
 
 </details>
 
@@ -167,7 +176,7 @@ Which is why the fix everybody pastes is what it is. `--kubelet-insecure-tls` do
 cd "${TMPDIR:-/tmp}/drills"
 openssl genpkey -algorithm ED25519 -out client.key
 openssl req -new -key client.key -out client.csr -subj "/CN=svc-a/O=readers"
-openssl x509 -req -in client.csr -CA int.crt -CAkey int.key -out client.crt -days 1
+openssl x509 -req -in client.csr -CA root.crt -CAkey root.key -out client.crt -days 1
 
 openssl s_server -cert leaf.crt -key leaf.key -cert_chain int.crt \
   -CAfile root.crt -Verify 1 -accept 4433 -www > server.log 2>&1 &
@@ -183,9 +192,11 @@ Verify return code: 0 (ok)
 a certificate:ssl/statem/statem_srvr.c:3916:
 ```
 
-(`-cert_chain int.crt` is drill 1 applied: without it the server sends only its leaf, the client cannot reach the root, and you get `Verify return code: 21` before anything about client certificates is even considered.)
+(`-cert_chain int.crt` is drill 1 applied, from the *server's* side: without it the server sends only its leaf, the client cannot reach the root, and you get `Verify return code: 21` before anything about client certificates is even considered. Note also which CA signed `client.crt` above, and ask what would happen if it had been `int.crt` instead — the server's verify store is `root.crt` alone, and a client sends no intermediate unless told to. That is drill 1 again, in the other direction, and it is a genuinely common way to break mTLS.)
 
 **Two verdicts, one connection, and they disagree.** Explain why both are correct, then say what the *application-level* symptom of this is — because that is what you will actually be handed as a bug report.
+
+When you are done with this drill, stop the server: `pkill -f 's_server -cert'`.
 
 <details>
 <summary>Answer</summary>
@@ -202,13 +213,15 @@ Clean it up and prove the working case:
 echo | openssl s_client -connect localhost:4433 -CAfile root.crt \
   -cert client.crt -key client.key 2>/dev/null | grep 'Verify return'
 grep 'depth=0' server.log
-pkill -f 's_server -cert'
 ```
 
 ```
 Verify return code: 0 (ok)
 depth=0 CN=svc-a, O=readers
 ```
+
+(`server.log` accumulates across connections, so on a re-run `grep` will show this line more than
+once. That is the log growing, not three handshakes.)
 
 Identical client output — and the server now names who it is talking to. So the rule, which belongs alongside Act V's five questions: **when mTLS fails, read the other end's log.** The end that is failing is not the end that reports it.
 
@@ -218,28 +231,67 @@ Identical client output — and the server now names who it is talking to. So th
 
 ## Drill 5 — a tag that verifies for the wrong reason
 
-No files for this one. You are handed a service that AEAD-encrypts each user's session data and stores the result in a database row, keyed by user id. The code is correct: AES-GCM, a fresh random nonce per write, tags checked on read, keys from a KDF. No nonce is ever reused.
+This one is a service rather than a certificate, and its code is *correct*: AES-GCM, a fresh random nonce every write, tags checked on read, a proper key. No nonce is ever reused and nothing is forged.
 
-An attacker who is a legitimate user of the service, and who can update their own row, escalates to another user's session.
+```bash
+cd "${TMPDIR:-/tmp}/drills"
+cat > store.py <<'PY'
+import os
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-**Diagnose it.** Which of the four promises was kept, and what was assumed that was never true?
+key = AESGCM.generate_key(bit_length=256)
+aead = AESGCM(key)
+db = {}                                  # user -> (nonce, ciphertext)
+
+def write(user, data):
+    nonce = os.urandom(12)               # fresh every time. never reused.
+    db[user] = (nonce, aead.encrypt(nonce, data.encode(), None))
+
+def read(user):
+    nonce, ct = db[user]
+    return aead.decrypt(nonce, ct, None).decode()
+
+write("alice", '{"user":"alice","role":"admin"}')
+write("eve",   '{"user":"eve","role":"guest"}')
+print("eve reads her row :", read("eve"))
+
+db["eve"] = db["alice"]                  # eve may update her OWN row. that is all she does.
+print("eve reads her row :", read("eve"))
+PY
+python3 store.py
+```
+
+```
+eve reads her row : {"user":"eve","role":"guest"}
+eve reads her row : {"user":"alice","role":"admin"}
+```
+
+**Eve is now an admin, and she never touched the cryptography.** No forged tag, no reused nonce, no key. She wrote to a row she is allowed to write to.
+
+**Diagnose it.** Which of the four promises failed — and before you answer, check each one honestly, because the interesting thing about this drill is the answer to that question. Then say what the code assumed that was never true.
 
 <details>
 <summary>Answer</summary>
 
-Every promise was kept. Confidentiality, integrity and authenticity are all intact — nothing was forged and no tag was broken. The attacker **copied their own valid ciphertext into another user's row**, or another user's into their own, depending on which direction gains them something.
+**None of them failed.** That is the drill. Confidentiality, integrity and authenticity are all intact; every tag on every byte is genuine; the library did exactly what it promises. Go looking for the broken promise and you will not find one.
 
-What was assumed is that a valid tag means *this data belongs here.* It never did. An AEAD authenticates exactly the bytes you gave it, and the row id was not one of those bytes.
+What was assumed is that a valid tag means *this data belongs here.* It never did. **An AEAD authenticates exactly the bytes you gave it**, and the row id was not one of those bytes — so the ciphertext is equally authentic in every row in the table.
 
-This is lesson 03's associated-data reveal, in the form it actually appears in production: not header tampering, but a legitimate, correctly-tagged, genuinely-authentic ciphertext **relocated** to a context it was never written for. The tag verifies because it is a real tag on real ciphertext.
+This is lesson 03's associated-data reveal in the form it actually appears in production. Not header tampering: a legitimate, correctly-tagged, genuinely-authentic ciphertext **relocated** to a context it was never written for. The tag verifies because it is a real tag on real ciphertext.
 
-The fix is to bind the context in as associated data — the user id, the row id, the column name, the tenant — so that the ciphertext is valid *only in the place it was created*:
+The fix is to bind the context in as associated data, so the ciphertext is valid *only in the place it was created*. Two lines change — `None` becomes the row's identity, in both functions:
 
-```python
-ct = aead.encrypt(nonce, plaintext, associated_data=f"session:{user_id}".encode())
+```bash
+cd "${TMPDIR:-/tmp}/drills"
+sed 's/data.encode(), None/data.encode(), f"row:{user}".encode()/; s/nonce, ct, None/nonce, ct, f"row:{user}".encode()/' store.py > store_fixed.py
+python3 store_fixed.py 2>&1 | tail -1
 ```
 
-Now moving the row makes decryption raise. And notice this is the same idea as TLS 1.3's `CertificateVerify` signing the transcript rather than the identity: **bind the proof to the context, or a valid thing can be replayed somewhere it does not belong.** Third appearance in this act, and the general rule is worth stating as a rule — *an authenticated value proves something about the bytes, and nothing about where you found them.*
+```
+cryptography.exceptions.InvalidTag
+```
+
+**`InvalidTag` — the same exception lesson 03 produced by flipping a bit.** Nothing about the ciphertext changed; only where it was found. That is the whole point: the tag now covers the location as well as the bytes. And notice this is the same idea as TLS 1.3's `CertificateVerify` signing the transcript rather than the identity: **bind the proof to the context, or a valid thing can be replayed somewhere it does not belong.** Third appearance in this act, and the general rule is worth stating as a rule — *an authenticated value proves something about the bytes, and nothing about where you found them.*
 
 </details>
 

@@ -6,15 +6,15 @@ Every previous in-the-wild page had the same job: tell you which experiments sur
 
 So the honest question is why the act exists, and the answer is in the shape of every one of its lessons. Not one of them ended with "and now you can build it." They ended with **which promise this keeps, which it does not, and what that costs you.** That is the transferable part, because in production you will be choosing between mechanisms, reading a verdict, or explaining to somebody why their scheme does not work — and all three are judgement, not implementation.
 
-## The one correction this act needs
+## The thought lesson 01 told you to hold
 
-Lesson 01 said that "we hash your passwords" is a claim about destruction rather than concealment. True, and incomplete in a way that matters, because it is the one place where a plain hash is the *wrong tool* and everybody reaches for it anyway.
+Lesson 01 raised something and then deliberately walked away from it: `hunter2` is destroyed, not concealed, and **`hunter2` will still be guessed** — "a different problem with a different fix, and it is the one place in this lesson where a plain hash is the wrong tool; hold the thought." Nothing in lessons 02 through 06 came back for it, because nothing in them was about it. Here is the fix.
 
 The problem is speed. SHA-256 is designed to be fast — it has to be, since it hashes multi-gigabyte files — and fast is exactly wrong for passwords. An attacker with your database and commodity hardware tries **billions of SHA-256 guesses per second**, and human passwords come from a space small enough that this wins.
 
 So password storage uses a deliberately *slow* function with a tunable cost, plus a per-user random **salt** so that identical passwords do not produce identical hashes and one precomputed table cannot attack every user at once. The current names are **argon2id**, **scrypt** and **bcrypt**, and the choice between them is mostly about which your language already has.
 
-None of this contradicts lesson 01 — irreversibility still comes from the sizes. It adds a second requirement that lesson 01 had no reason to raise: *irreversible* is necessary and not sufficient, because the attacker does not need to reverse anything if they can afford to guess.
+None of this contradicts lesson 01 — irreversibility still comes from the sizes, exactly as argued. It adds the second requirement lesson 01 pointed at and postponed: *irreversible* is necessary and not sufficient, because **an attacker who can afford to guess never needs to reverse anything.** The strength of the function was never the binding constraint; the size of the input space was.
 
 **The rule: if the input has low entropy, a general-purpose hash is the wrong primitive.** Passwords, PINs, and short recovery codes are all in this class. File contents, API bodies and public keys are not.
 
@@ -25,17 +25,17 @@ None of this contradicts lesson 01 — irreversibility still comes from the size
 | SHA-256 | Every container image digest. `sha256:abc…` is why an image tag is a name and a digest is an identity. |
 | Collision resistance | Git. A commit id is a hash of its content *and its parents*, which is what makes history tamper-evident — and is why Git's move off SHA-1 was slow and painful. |
 | HMAC | Webhook signatures. GitHub, Stripe and every payment provider sign their callbacks this way, and lesson 02 is why the header is `X-Hub-Signature-256` and not a bare hash. |
-| HMAC | JWT, when signed with `HS256`. Which means the shared-secret problem from lesson 02 is *the* JWT question, and Act IX opens on it. |
-| AES-GCM | Every TLS connection you have made since Act III, and etcd encryption at rest, which Act X turns on. |
+| HMAC | JWT, when signed with `HS256`. Which means lesson 02's shared-secret problem — every holder can forge every other holder's messages — is *the* JWT question. |
+| AES-GCM | Every TLS connection you have made since Act III, and etcd encryption at rest, which is what turns a Kubernetes Secret from base64 into ciphertext. |
 | Ephemeral key exchange | The `Negotiated group` line in every handshake. You never configure it and it protects a year of recorded traffic. |
 | Signatures | Package managers, image signing, and every certificate in the world. |
 | Certificates | Your kubeconfig, the API server, every kubelet, and the Ingress Secret you read in Act V. |
 
 Two of those deserve more than a row.
 
-**A container image digest is lesson 01 being load-bearing.** When you pin `nginx@sha256:…` rather than `nginx:1.25`, you are relying on second-preimage resistance to guarantee that the bytes you get are the bytes you tested. Every supply-chain guarantee in Act X is built on that one property, which is why the fact that MD5 lost only *collision* resistance and not second-preimage resistance is a distinction with money attached.
+**A container image digest is lesson 01 being load-bearing.** When you pin `nginx@sha256:…` rather than `nginx:1.25`, you are relying on second-preimage resistance to guarantee that the bytes you get are the bytes you tested. Every supply-chain guarantee anyone sells you is built on that one property — which is why the fact that MD5 lost only *collision* resistance and not second-preimage resistance is a distinction with money attached.
 
-**A Secret is base64, and now you know exactly what that means.** Act V made the point and Act VII made you read one off a node's tmpfs. This act gives you the vocabulary for why it is not a criticism of Kubernetes: base64 is an *encoding*, and encodings keep none of the four promises. There is no key, so there is nothing to not-have. Act X's `EncryptionConfiguration` is what puts a cipher in that path, and it is lesson 03's AEAD with a key from a file.
+**A Secret is base64, and now you know exactly what that means.** Act V made the point and Act VII made you read one out of a node's memory. This act gives you the vocabulary for why it is not a criticism of Kubernetes: base64 is an *encoding*, and encodings keep none of the four promises. There is no key, so there is nothing to not-have — it is not weak encryption, it is not encryption. What puts a cipher in that path is a cluster-level `EncryptionConfiguration`, and when you meet it you will find it is lesson 03's AEAD with a key read from a file.
 
 ## The one operational fact that causes most of the incidents
 
@@ -90,7 +90,7 @@ For the fourth, the question that resolves it is the one this act was organised 
 
 **Never write a construction.** Not `hash(secret + data)`, not encrypt-then-MAC by hand, not a nonce counter. Lesson 03 listed four ways to get encrypt-then-MAC wrong, in a scheme whose idea is one sentence, and there are more than four. Use an AEAD. The one place this act asks you to build something — lesson 02's forgery, lesson 03's hand-rolled AEAD — was to show you why not to.
 
-**When something says "encrypted," ask where it stops.** Act V terminated TLS at an Ingress and spoke plain HTTP onward. Act VII had a plaintext Secret on a node's disk. Both were correctly described as encrypted. "Is it TLS?" is not a question; "where does the TLS stop, and what is on the other side of that point?" is.
+**When something says "encrypted," ask where it stops.** Act V terminated TLS at an Ingress and spoke plain HTTP onward. Act VII had you read a Secret's plaintext out of a node's memory. Both were correctly described as encrypted. "Is it TLS?" is not a question; "where does the TLS stop, and what is on the other side of that point?" is.
 
 ---
 

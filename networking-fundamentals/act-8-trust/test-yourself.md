@@ -1,8 +1,8 @@
 # Test yourself — Act VIII
 
-Twenty questions. The rule is the same as every other act: answer out loud or on paper *before* opening the answer, because recognising a correct answer is not the same as being able to produce one — and this act is the one where that gap is widest, since all the vocabulary is familiar from years of using it.
+Twenty-three questions. The rule is the same as every other act: answer out loud or on paper *before* opening the answer, because recognising a correct answer is not the same as being able to produce one — and this act is the one where that gap is widest, since all the vocabulary is familiar from years of using it.
 
-Questions 1–4 are lesson 01, 5–8 are lesson 02, 9–12 are lesson 03, 13–15 are lesson 04, 16–18 are lesson 05, 19–20 are lesson 06.
+Questions 1–4 are lesson 01, 5–8 are lesson 02, 9–12 are lesson 03, 13–15 are lesson 04, 16–19 are lesson 05, 20–23 are lesson 06.
 
 ---
 
@@ -32,7 +32,7 @@ All 256 flipping every time would be just as bad, because it is a *pattern*. If 
 
 - **Preimage**: given a hash, find any input producing it. Defends against an attacker holding your password database.
 - **Second preimage**: given *this* file, find a different one with the same hash. Defends against an attacker substituting a download you published.
-- **Collision**: find *any* two colliding inputs, both chosen by the attacker. Defends against an attacker who *authors both documents*.
+- **Collision**: find *any* two colliding inputs, with no constraint on what either one is. Defends against an attacker who gets to choose freely on both sides.
 
 Collision resistance is always the weakest, at exactly **half the output bits**, because the attacker gets to choose both sides and the number of pairs grows as the square — so they need only the square root of the space. SHA-256's 256 bits give 128 bits of collision resistance. That is the birthday bound, and it is why MD5 (64) and SHA-1 (80) fell.
 
@@ -200,7 +200,7 @@ The general statement: **a signature can never introduce a stranger.** It can on
 
 Verification is **not a property of a certificate.** It is a relationship between a certificate and a list you chose. The only difference between those two commands is which list was consulted — a file you named, versus your system's default store of roughly 195 self-signed certificates you did not pick individually.
 
-Every certificate error you have ever seen is one of those two commands, and the useful question is always which list was consulted and what is in it. Note the consequence: since any one of those 195 anchors can issue a valid certificate for any name, the system's security is the *minimum* over 195 organisations rather than the maximum.
+Every certificate error you have ever seen is one of those two commands, and the useful question is always which list was consulted and what is in it. Note the consequence: since any one of those anchors can issue a valid certificate for any name, the system's security is the *minimum* over a couple of hundred organisations rather than the maximum.
 
 </details>
 
@@ -211,14 +211,28 @@ Every certificate error you have ever seen is one of those two commands, and the
 - **20** — *unable to get local issuer certificate.* No path from this certificate to anything in the trust store. Says nothing bad about the certificate; says the verifier does not know the issuer.
 - **7** — *certificate signature failure.* The signed bytes were altered. The certificate's *claims* may read perfectly — reading a field tells you what a certificate asserts, not what was vouched for.
 - **79** — *invalid CA certificate.* Something in the chain signed a certificate without carrying `CA:TRUE`. Signing is arithmetic and cannot be prevented; what is checked is the field, which is why it must be checked by every verifier.
-- **62** — *hostname mismatch.* The chain is trusted and the signature is good; the name does not match what you asked for. Trust and naming are independent checks. This is Act VII's `no IP SANs` failure — the trust check passed.
+- **62** — *hostname mismatch.* The chain is trusted and the signature is good; the name does not match what you asked for. Trust and naming are independent checks, and a verifier stops at the first failure — so this code tells you the name check failed and says nothing at all about whether the trust check *would* have.
 - **10** — *certificate has expired.* Note which side notices: the **verifier** checks the clock. The server serves an expired certificate happily forever, with no warning of any kind.
 
 </details>
 
 ---
 
-**19.** TLS 1.3 completes a key exchange and starts encrypting *before* either party has authenticated. Explain why that is safe, and name the specific message that makes it safe.
+**19.** A certificate proves a server's hostname to a client. Explain how the *identical* mechanism, unchanged, becomes a client proving an identity to a server — and then say why that makes a control-plane `ca.key` a more dangerous file than a private key normally is.
+
+<details><summary>Answer</summary>
+
+Nothing in a certificate specifies a direction. It is a name, a public key, and a signature over both; the only question is who verifies it and what they do with the name afterwards. Reverse the roles and the client presents the certificate, the server verifies the chain against a CA *it* trusts, and then **reads the Subject to learn who it is talking to**. When both ends do it, that is mTLS.
+
+Which means the Subject is not decoration — it is the identity. Kubernetes reads `CN` as the username and `O` as the groups, and there is no `User` object anywhere in the cluster, because the certificate *is* the record. There is nothing else to consult.
+
+So `ca.key` is not "a private key for the cluster's certificates." It is **the power to mint any identity in the cluster, at will** — pick a `CN`, pick an `O`, sign it, and the API server believes you, because believing signatures from that key is precisely its job. Act VI showed two groups that matter: `kubeadm:cluster-admins`, which is granted power by a `ClusterRoleBinding` object, and `system:masters`, which is wired into the API server and skips the permission check entirely. Both are text fields in a Subject.
+
+And by lesson 05's other finding, none of it can be revoked. A certificate you minted is good until `notAfter`, and the only true remedy is replacing the CA — which invalidates every other certificate in the cluster at the same time.
+
+</details>
+
+**20.** TLS 1.3 completes a key exchange and starts encrypting *before* either party has authenticated. Explain why that is safe, and name the specific message that makes it safe.
 
 <details><summary>Answer</summary>
 
@@ -232,7 +246,7 @@ Free consequence: because the transcript includes `ClientHello`, which lists eve
 
 </details>
 
-**20.** Read `TLS_AES_256_GCM_SHA384` field by field. Then say what it does *not* name, and why each omission is an improvement.
+**21.** Read `TLS_AES_256_GCM_SHA384` field by field. Then say what it does *not* name, and why each omission is an improvement.
 
 <details><summary>Answer</summary>
 
@@ -241,6 +255,32 @@ Free consequence: because the transcript includes `ClientHello`, which lists eve
 **No key exchange is named**, because TLS 1.3 deleted every non-ephemeral option. Forward secrecy stopped being negotiable, so there is nothing to put in the string. (What *is* negotiated appears on its own line, and on a current OpenSSL is likely a post-quantum hybrid such as `X25519MLKEM768`.)
 
 **No signature algorithm is named**, because the signature is a property of the certificate the server holds, which was issued long before this connection existed. The cipher suite describes the *session*; the certificate describes the *identity*. Conflating them is why TLS 1.2's suite names were four times longer and much less informative.
+
+</details>
+
+**22.** Your handshake reports `Negotiated TLS1.3 group: X25519MLKEM768` rather than the `X25519` lesson 04 would predict. Say what the second half is, why it is combined with the first rather than replacing it, and why lesson 04's forward secrecy is no help against the threat it addresses.
+
+<details><summary>Answer</summary>
+
+`MLKEM768` is a **key-encapsulation mechanism** — it reaches the same destination as Diffie–Hellman by a different route (one side publishes a public key, the other generates a secret, encapsulates it under that key and sends the result) and rests on entirely different mathematics. Specifically, not the discrete logarithm, which is the assumption a quantum computer is expected to demolish.
+
+It is **hybrid rather than a replacement** because the shared secret is derived from both halves, so an attacker must break *both*. X25519 is old and heavily attacked but has the vulnerable assumption; ML-KEM has a safe assumption but is new, and new cryptography is where mistakes live. Combining them means neither weakness is load-bearing alone.
+
+Forward secrecy does not help here, and seeing why is the point. Forward secrecy protects a recording against **a key stolen later** — delete the ephemeral key and there is nothing left to steal. This threat is the same attacker with the same recording waiting for **the mathematics** instead, and there is no key whose deletion helps. Which is why the exchange had to be replaced *before* the machine exists: anything recorded today is already committed.
+
+That is the act's opening claim arriving on your own screen. Nothing is impossible, everything is infeasible, and **infeasible is a number that moves.**
+
+</details>
+
+**23.** A colleague says a service is "encrypted with TLS, so the traffic is safe." Give the question that actually resolves this, and two examples from earlier acts where the answer was uncomfortable.
+
+<details><summary>Answer</summary>
+
+The question is **"where does the TLS stop, and what is on the other side of that point?"** — because TLS protects bytes between two things that *terminate* it, which is not the same as between two applications.
+
+Act V: you terminated TLS at an Ingress and the hop onward to the Pod was plain HTTP across the cluster network. Act VII: you read a Secret's plaintext straight out of a node's memory. Both times the padlock was green, and both times it was telling the truth about exactly what it covers — which was less than anyone assumed.
+
+The general form is the act's organising question: **which of the four promises is this making, and which one is everybody assuming it makes?** "Encrypted in transit" is a claim about one leg of a path, and every mesh, sidecar and compliance checkbox is an answer to where that leg ends.
 
 </details>
 

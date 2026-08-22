@@ -1,16 +1,16 @@
 # The lock, opened
 
-This lesson introduces nothing.
+This lesson introduces no new mechanism.
 
-That is not modesty, it is the point, and it is worth checking before you go on. Every mechanism TLS uses is now in your hands: a hash, a keyed hash, an AEAD, an ephemeral key agreement, a signature, and a certificate chained to an anchor you chose. There is no seventh thing.
+That is not modesty, it is the point, and it is worth checking before you go on. Every mechanism TLS uses is now in your hands: a hash, a keyed hash, an AEAD, an ephemeral key agreement, a signature, and a certificate chained to an anchor you chose. There is no seventh thing. (One line of output near the end will name something you have not met, and it is there precisely because it is *not* a seventh thing — it is one of these five being replaced while you watch.)
 
-So the only question left is the one Act III could not even pose: **in what order do they run?** And that turns out to be the hard part, for a reason worth feeling before you see the answer.
+So the only question left is the one Act III could not even pose: **in what order do they run?** And that turns out to be the hard part.
 
-> **Predict first —** you want the whole conversation encrypted and authenticated. But to encrypt you need a shared key, and lesson 04's exchange requires each side to send a public value. To be sure you are exchanging with the right party you need their certificate, and a certificate is several hundred bytes that also have to be sent. And you would rather not send a certificate in the clear, because it names who is talking to whom. **Write down the order.** Every ordering you try will have something arriving before the thing that protects it, and finding which compromise is the least bad is the actual design problem TLS 1.3 solves.
+> **Predict first —** you want the whole conversation encrypted and authenticated. But to encrypt you need a shared key, and lesson 04's exchange requires each side to send a public value in the clear. To be sure you are exchanging with the *right* party you need their certificate, and that is several hundred bytes which also have to be sent — and which you would rather not send in the clear, because it names who is talking to whom to anyone watching the wire. **Write down the order those messages go in.** Then, for each one, write down what is protecting it when it arrives.
 
 ### Watch one happen
 
-You do not need the internet for this, and it is better without: use the certificate authority you built last lesson, so that you are the server, the client, and the trust anchor, and nothing is hidden behind somebody else's infrastructure.
+You do not need the internet for this, and it is better without. Rebuild last lesson's certificate authority — the same four commands, since you deleted it on the way out — so that you are the server, the client, *and* the trust anchor, and nothing in what follows is hidden behind somebody else's infrastructure.
 
 ```bash
 mkdir -p "${TMPDIR:-/tmp}/tls" && cd "${TMPDIR:-/tmp}/tls"
@@ -23,13 +23,14 @@ openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -out server.crt \
   -days 365 -extfile san.ext
 ```
 
-Start a TLS server in the background, then connect to it:
+Now start a TLS server. `openssl s_server` is the counterpart to the `s_client` you have used since Act III — a minimal TLS listener, where `-www` makes it answer an HTTP request so the connection completes rather than hanging. Start it in the background and connect to it:
 
 ```bash
-openssl s_server -cert server.crt -key server.key -accept 4433 -www >/dev/null 2>&1 &
+openssl s_server -cert server.crt -key server.key -accept 4433 -www > s.log 2>&1 &
 sleep 2
+grep -q 'in use' s.log && echo 'PORT BUSY -- run: pkill -f s_server' && cat s.log
 echo | openssl s_client -connect localhost:4433 -CAfile ca.crt 2>/dev/null \
-  | grep -E 'depth=|^ [0-9] s:|^   i:|Peer signature|Negotiated|Cipher is|Protocol|Verify return'
+  | grep -E '^ [0-9] s:|^   i:|Peer signature|Negotiated|Cipher is|Protocol|Verify return'
 ```
 
 ```
@@ -51,17 +52,25 @@ Read it as a sentence, because that is what it is:
 | `TLS` | the protocol | this lesson |
 | `AES_256` | the cipher, 256-bit key | lesson 03 |
 | `GCM` | the AEAD mode — encryption *and* a tag | lesson 03 |
-| `SHA384` | the hash used for key derivation and the transcript | lessons 01 and 02 |
+| `SHA384` | the hash — used for deriving keys, and for one more job you will meet below | lessons 01 and 02 |
 
 And now the two things the string does **not** say, which are more informative than the four it does.
 
-**It does not name a key exchange.** Lesson 04 explained why: TLS 1.3 deleted every non-ephemeral option, so there is nothing left to negotiate in the suite name. Forward secrecy stopped being a choice. What *did* get negotiated is on its own line — `Negotiated TLS1.3 group` — and on a current OpenSSL it will probably surprise you.
+**It does not name a key exchange.** Lesson 04 explained why: TLS 1.3 deleted every non-ephemeral option, so there is nothing left to negotiate in the suite name. Forward secrecy stopped being a choice. What *did* get negotiated is on its own line — `Negotiated TLS1.3 group` — and on **OpenSSL 3.5 or newer** it will probably surprise you. (On 3.0 to 3.4 it says `X25519`, which is what lesson 04 would predict; if that is what you see, the section below is describing your near future rather than your present.)
 
 **It does not name a signature algorithm.** That is on its own line too: `Peer signature type: ed25519`. Which is exactly right, because the signature is a property of the *certificate* the server happens to hold, and the certificate was issued long before this connection existed. The cipher suite describes the session; the signature describes the identity. Conflating those is why TLS 1.2's suite names were four times longer and much less useful.
 
-### The order, and why it is the only one that works
+### Every order is broken, so pick which way
 
-Now answer the prediction. Ask `s_client` to name each handshake message as it goes past:
+Before looking at what TLS does, take the two orders you probably wrote down and find the flaw in each. There are only two sensible ones, because there are only two things that have to happen.
+
+**Order A: authenticate first, then exchange keys.** It is the intuitive one — establish who you are talking to *before* agreeing a secret with them, which is exactly the lesson 04 → lesson 05 sequence this act just taught. And it means the certificate must be sent before any key exists to encrypt it with. So the certificate travels in the clear. Anyone watching the wire learns which site you are visiting and which client you are, and there is no way around it, because encryption is the thing that has not happened yet. Act III showed you this diagram — that is TLS 1.2, and it is why the certificate was visible in it.
+
+**Order B: exchange keys first, then authenticate.** Now the certificate is encrypted, because there is a key by the time it is sent. But look at what you did the exchange with: an unauthenticated stranger. Lesson 04 spent a whole section on that exact situation and Mallory won it. The key you are encrypting the certificate with may be a key you share with the attacker.
+
+So the honest statement is the one the prediction was pushing you towards: **there is no ordering in which the first message is protected, because the first message is what protection is built out of.** Something has to go first and be naked. The only design question available is *which*, and therefore what an eavesdropper gets for free.
+
+TLS 1.3 chose B. Watch it happen — ask `s_client` to name each handshake message as it goes past:
 
 ```bash
 echo | openssl s_client -connect localhost:4433 -CAfile ca.crt -msg 2>&1 \
@@ -79,20 +88,31 @@ echo | openssl s_client -connect localhost:4433 -CAfile ca.crt -msg 2>&1 \
 <<< TLS 1.3, Handshake [length 0048], CertificateVerify
 <<< TLS 1.3, InnerContent [length 0001]
 <<< TLS 1.3, Handshake [length 0034], Finished
+>>> TLS 1.2, InnerContent [length 0001]
+>>> TLS 1.3, Handshake [length 0034], Finished
+>>> TLS 1.2, InnerContent [length 0001]
+>>> TLS 1.2, InnerContent [length 0001]
 ```
 
-Look at where `InnerContent` starts, because that word is the whole answer. Everything from `EncryptedExtensions` onward is wrapped — **the certificate is sent encrypted.** So is the signature over it. So is the message that says the handshake is complete.
+(`<<<` is received, `>>>` is sent, and the lengths are your own connection's — they shift with the
+key exchange in use. The last four lines are the client's half, wrapped the same way.)
+
+Two of those names are new and both are doing the same job. `EncryptedExtensions` is where the server puts the negotiated details that TLS 1.2 had to send in the clear — it is named for the fact that it is encrypted, which tells you that being encrypted was the novelty. And `InnerContent` is `s_client` reporting that what it just decrypted had a *record type hidden inside the ciphertext*: from here on, even the question "what kind of message is this?" is not answerable from the wire.
+
+So look at where `InnerContent` starts, because that is the whole answer. Everything from `EncryptedExtensions` onward is wrapped — **the certificate is sent encrypted.** So is the signature over it. So is the message that says the handshake is complete.
 
 Which means the order is:
 
 1. **`ClientHello`** — in the clear, and it already contains the client's ephemeral public value. Lesson 04's `A`, sent before anything else and before anyone has been authenticated.
 2. **`ServerHello`** — in the clear, containing the server's ephemeral public value. `B`.
-3. **At this instant both sides can compute the shared secret**, run it through HKDF, and start encrypting. Two messages. Nobody has proved anything about who they are yet.
+3. **At this instant both sides can compute the shared secret**, run it through lesson 04's HKDF to turn one group element into a set of flat, labelled, per-direction keys, and start encrypting. Two messages. Nobody has proved anything about who they are yet.
 4. **Everything else happens inside that encryption** — the server's certificate, its signature, and the finish.
 
-That is the compromise, and now the reason it is the right one is visible. **Authentication is moved inside the confidentiality, rather than confidentiality waiting on authentication.** The exchange in steps 1–2 is unauthenticated, so Mallory can absolutely interpose herself there exactly as she did in lesson 04 — and it does not help her, because the very first thing sent through the resulting channel is the server proving, with a signature checkable against your trust anchor, that it is the party you asked for. If Mallory is in the middle she cannot produce that signature, and the connection dies before a single byte of application data moves.
+That is Order B, and the naked message is the key exchange rather than the certificate. Say what that costs and what it buys. **Authentication is moved inside the confidentiality, rather than confidentiality waiting on authentication.**
 
-One round trip. Compare TLS 1.2, which authenticated first and therefore needed two, and note what that bought at scale: a whole network round trip removed from the front of every HTTPS connection on Earth.
+The cost is real: steps 1–2 are unauthenticated, so Mallory can interpose herself there exactly as she did in lesson 04, and nothing at that moment stops her. What makes it survivable is what comes next — the very first thing sent through the resulting channel is the server proving, with a signature checkable against your trust anchor, that it is the party you asked for. If Mallory is in the middle she cannot produce that signature, and the connection dies before a single byte of application data moves. **The unauthenticated exchange is not a hole because it is repaired retroactively, before the channel is used for anything.**
+
+And Order B is cheaper as well as more private. One round trip; TLS 1.2 authenticated first and therefore needed two. That is a whole network round trip removed from the front of every HTTPS connection on Earth — the same latency Act II made you count in milliseconds — obtained by sending the messages in the less intuitive order.
 
 > **Check yourself —** step 3 looks like a hole. Both sides derive keys from an exchange in which neither has authenticated the other, and only *then* does the server prove who it is. So what exactly stops Mallory from sitting in the middle, completing the exchange with each side, and then — since she is now decrypting and re-encrypting everything — simply forwarding the server's real certificate on to the client?
 
@@ -121,11 +141,15 @@ Go back to that one line and read it properly:
 Negotiated TLS1.3 group: X25519MLKEM768
 ```
 
-Lesson 04 taught X25519 and you would expect to see it alone. What you actually got is X25519 **combined with ML-KEM-768** — a key-encapsulation mechanism designed to resist an attacker with a quantum computer — and the shared secret is derived from both halves at once, so it is no weaker than X25519 was and no weaker than ML-KEM is.
+Lesson 04 taught X25519 and you would expect to see it alone. What you actually got is X25519 **combined with ML-KEM-768**, and the shared secret is derived from both halves at once.
+
+ML-KEM is a *key-encapsulation mechanism*, which reaches lesson 04's destination by a different route. Diffie–Hellman was symmetric: both sides sent a public value, both sides did the same operation, and the secret was something neither chose. A KEM is one-directional — one side publishes a public key, the other **generates a random secret, encapsulates it under that key, and sends the result**, and only the holder of the private key can open it. Same outcome, both ends holding the same bytes with nothing useful on the wire; different shape, and built on entirely different mathematics, which is the entire reason it is here. Its hardness assumption is not the discrete logarithm.
 
 The reason it is a hybrid rather than a replacement is the act's own thesis applied honestly in both directions. ML-KEM is new, and new cryptography is where mistakes live; X25519 is old and well-attacked but its hardness assumption is exactly the one a quantum computer is expected to demolish. Combining them means an attacker has to break *both*.
 
-This is the plainest possible illustration of the claim the act opened with. **Nothing here is impossible, everything is infeasible, and infeasible is a number** — and the number for the discrete logarithm is expected to change, in a foreseeable way, at some point nobody can date. The response is already shipping, by default, in the binary on your machine, in a connection you just made to yourself. Note the driver, too: an attacker recording ciphertext *today* can decrypt it whenever the capability arrives, so key exchange had to be fixed before the machine exists. Lesson 04's forward secrecy protects against a key stolen later; it does not protect against the *mathematics* being broken later. Different threat, same recording.
+This is the plainest possible illustration of the claim the act opened with. **Nothing here is impossible, everything is infeasible, and infeasible is a number** — and the number for the discrete logarithm is expected to change, in a foreseeable way, at some point nobody can date. The response is already shipping, by default, in the binary on your machine, in a connection you just made to yourself.
+
+Note the driver, because lesson 04 asked you to keep the shape of the argument. There it was: *someone records your traffic and waits for your key.* Ephemeral exchange answered it — delete the key and the recording is worthless. Here it is the same attacker with the same recording, waiting for something else entirely: **not for your key, but for the mathematics.** Forward secrecy has nothing to say about that, because there is no key to have deleted. Which is why the key exchange had to be replaced *before* the machine that breaks it exists — anything recorded today is already committed.
 
 ### Both directions
 
@@ -135,7 +159,7 @@ One command changes the shape of the whole thing. Restart the server demanding a
 cd "${TMPDIR:-/tmp}/tls"
 pkill -f 's_server -cert' ; sleep 1
 openssl genpkey -algorithm ED25519 -out client.key
-openssl req -new -key client.key -out client.csr -subj "/CN=rahul/O=system:masters"
+openssl req -new -key client.key -out client.csr -subj "/CN=rahul/O=kubeadm:cluster-admins"
 openssl x509 -req -in client.csr -CA ca.crt -CAkey ca.key -out client.crt -days 1
 
 openssl s_server -cert server.crt -key server.key -CAfile ca.crt -Verify 1 \
@@ -147,13 +171,15 @@ grep 'depth=' server.log
 ```
 
 ```
+Certificate request self-signature ok
+subject=CN=rahul, O=kubeadm:cluster-admins
 Acceptable client certificate CA names
 Verify return code: 0 (ok)
 depth=1 CN=My Toy Root CA
-depth=0 CN=rahul, O=system:masters
+depth=0 CN=rahul, O=kubeadm:cluster-admins
 ```
 
-**The server walked a chain and learned a name.** `Acceptable client certificate CA names` is the server saying *prove yourself, and here is whose signature I will accept* — and the two `depth=` lines in the server's own log are it verifying the client exactly as the client verified it.
+**The server walked a chain and learned a name** — and it is the name Act VI showed you in your own kubeconfig. `Acceptable client certificate CA names` is the server saying *prove yourself, and here is whose signature I will accept* — and the two `depth=` lines in the server's own log are it verifying the client exactly as the client verified it.
 
 That is mTLS, it is symmetric, and it is the same five mechanisms twice. It is also, precisely, how every `kubectl` command you have run since Act V authenticated: the API server presents a certificate signed by the cluster CA, your kubeconfig presents one signed by the same CA, and the API server reads `CN` as your username and `O` as your groups out of `depth=0`.
 
@@ -162,7 +188,7 @@ Now cause the failure, because it is the single most confusing thing about mTLS 
 ```bash
 echo | openssl s_client -connect localhost:4433 -CAfile ca.crt 2>/dev/null \
   | grep 'Verify return'
-tail -2 server.log
+tail -1 server.log
 ```
 
 ```
@@ -194,6 +220,18 @@ So the useful question about any encrypted system is never "is it TLS?" but **wh
      no signature alg -- that belongs to the CERT,
        issued long before this connection existed
                                   -> its own line
+
+   NO ORDER IS SAFE -- YOU PICK WHAT LEAKS
+     A  authenticate first, then exchange keys
+        -> the CERTIFICATE goes in the clear. anyone
+           watching learns who is talking to whom.
+           that is TLS 1.2.
+     B  exchange keys first, then authenticate
+        -> the exchange is with an UNAUTHENTICATED
+           stranger. lesson 04: Mallory wins that.
+     the first message cannot be protected, because it
+     is what protection is BUILT OUT OF.
+     TLS 1.3 picks B, and repairs it retroactively.
 
    THE ORDER, WHICH IS THE WHOLE DESIGN
      1  ClientHello  CLEAR  + client's ephemeral value
@@ -232,7 +270,8 @@ So the useful question about any encrypted system is never "is it TLS?" but **wh
      broken MATHEMATICS.
 
    mTLS -- the same five mechanisms, twice
-     server log: depth=0 CN=rahul, O=system:masters
+     server log: depth=0 CN=rahul,
+                 O=kubeadm:cluster-admins
      that IS kubectl. CN=username, O=groups.
      THE CONFUSING PART: client prints
        "Verify return code: 0 (ok)"
@@ -258,9 +297,11 @@ So the useful question about any encrypted system is never "is it TLS?" but **wh
 cd "${TMPDIR:-/tmp}" && pkill -f 's_server -cert' ; rm -rf tls
 ```
 
-> **You understand this when you can** explain why every ordering of a handshake has something arriving before the thing that protects it, and state TLS 1.3's compromise in one sentence; read `TLS_AES_256_GCM_SHA384` field by field and name the lesson each field came from; say what the suite name deliberately omits and why each omission is an improvement; describe what is sent in the clear and what is not, and identify the exact moment encryption begins; explain why an unauthenticated key exchange is safe to perform first, and why relaying the real certificate does not help an attacker; say what `CertificateVerify` signs and why signing the transcript rather than the identity is the load-bearing choice; derive downgrade protection from that same signature; explain what a hybrid key-exchange group is for and why the threat it answers is not the one forward secrecy answers; describe mTLS as a symmetric application of the same mechanisms and connect it to how `kubectl` authenticates; explain why a failing client certificate shows up as success on the client and a failure on the server; and say where TLS stops, with two examples from earlier acts.
+> **You understand this when you can** walk both candidate orderings of a handshake and name what each one exposes, say why no ordering protects its own first message, and state which one TLS 1.3 chose and what that buys; read `TLS_AES_256_GCM_SHA384` field by field and name the lesson each field came from; say what the suite name deliberately omits and why each omission is an improvement; describe what is sent in the clear and what is not, and identify the exact moment encryption begins; explain why an unauthenticated key exchange is safe to perform first, and why relaying the real certificate does not help an attacker; say what `CertificateVerify` signs and why signing the transcript rather than the identity is the load-bearing choice; derive downgrade protection from that same signature; explain what a hybrid key-exchange group is for and why the threat it answers is not the one forward secrecy answers; describe mTLS as a symmetric application of the same mechanisms and connect it to how `kubectl` authenticates; explain why a failing client certificate shows up as success on the client and a failure on the server; and say where TLS stops, with two examples from earlier acts.
 
-**Which raises:** the act is finished and the lock is open. Look at what you can now do, though, and notice how narrow it is. You can prove that a connection reaches the party named in a certificate, and you can read a name out of `depth=0` — `CN=rahul`, `O=system:masters`. **And then what?** A name is not a permission. Nothing in five lessons of cryptography has any opinion about what `rahul` is allowed to do, and `O=system:masters` was a superuser only because somebody, somewhere, wrote a rule saying that string means unlimited power. Cryptography answers *who is this*, exhaustively and beautifully, and then stops — and the question it hands over, **what may they do**, is a different subject with its own vocabulary, its own models, and its own catastrophic failure modes. That is the next act.
+**Which raises:** the act is finished and the lock is open. Look at what you can now do, though, and notice how narrow it is. You can prove that a connection reaches the party named in a certificate, and you can read a name out of `depth=0` — `CN=rahul`, `O=system:masters`. **And then what?** A name is not a permission. Nothing in five lessons of cryptography has any opinion about what `rahul` is allowed to do, and `O=system:masters` was a superuser only because somebody, somewhere, wrote a rule saying that string means unlimited power. Cryptography answers *who is this*, exhaustively and beautifully, and then stops — and the question it hands over, **what may they do**, is a different subject with its own vocabulary, its own models, and its own catastrophic failure modes.
+
+That is Act IX, on identity and access, which is next on the roadmap and not yet written. Until it lands you are in the same position Act III left you in with the padlock, and it is a good position: you know precisely where the boundary is. Every time you see a rule granting a permission from here on, the question to ask is the one this act has been drilling in a different costume — *what is being proved, and what is merely being assumed?*
 
 ---
 

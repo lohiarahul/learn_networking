@@ -45,6 +45,8 @@ That is the property, and it has a name worth knowing because it is the design g
 
 Now notice what that buys you, because it is the answer to the opening question. If a single flipped bit produced a single flipped output bit, a hash would be a *summary* — and summaries can be forged, because you could work backwards from the summary you wanted. Half means the output carries no usable trace of the input's structure. There is nothing to work backwards along.
 
+And it is worth seeing that the *other* extreme fails for exactly the same reason, because that is what makes "half" a target rather than just a large number. Suppose flipping one input bit always inverted all 256 output bits. That is not scrambling, it is a **rule** — and knowing one hash would hand you another for free. Anything an attacker can predict is a relationship they can exploit, whether the relationship is "barely changes" or "changes completely." What you want is *no* relationship, and no relationship looks like a coin flip per bit, which is half.
+
 ### Now try it backwards
 
 ```bash

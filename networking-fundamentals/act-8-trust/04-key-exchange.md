@@ -121,8 +121,9 @@ That is `A` — the value `g^a`, wrapped in a container that says which curve it
 Now derive, in both directions:
 
 ```bash
-openssl pkeyutl -derive -inkey alice.pem -peerkey bob.pub | xxd -p
-openssl pkeyutl -derive -inkey bob.pem   -peerkey alice.pub | xxd -p
+cd "${TMPDIR:-/tmp}"
+openssl pkeyutl -derive -inkey alice.pem -peerkey bob.pub  | xxd -p -c 32
+openssl pkeyutl -derive -inkey bob.pem   -peerkey alice.pub | xxd -p -c 32
 ```
 
 ```
@@ -183,13 +184,19 @@ Everything in the last four lessons has this shape. A hash detects change but no
 
 Notice also that the attack needed nothing clever. Mallory ran the same four `openssl` commands Alice and Bob ran. The entire attack is *being in the middle* — which, for anyone operating a router, a proxy, a Wi-Fi access point or a load balancer, is not an attack position but a job description.
 
-### One thing you did get, which matters more than it looks
+### A different attacker, and a property you already have
 
-Before the hole, take the win, because it explains a decision in Act III's cipher suite.
+Identity is the next lesson's problem. Before leaving this one, there is a second attacker worth taking seriously, and the reason to take it seriously is that it does not require being in the middle of anything.
 
-Those key pairs cost nothing. Generating one is microseconds, so you can make a **fresh pair for every conversation and throw it away afterwards** — which is called an *ephemeral* exchange, the `E` in cipher suite names like `ECDHE`.
+**Suppose someone simply records your traffic and waits.** They cannot read it today. But encrypted bytes keep perfectly, and one day they get your private key — a stolen backup, a subpoena, a decommissioned server sold with its disk in it, an employee leaving. What happens to the year of recordings?
 
-Work out what that buys. An attacker records a year of your encrypted traffic and, later, obtains your long-term private key — a stolen backup, a subpoena, a compromised host. With ephemeral exchange, the year of traffic is still unreadable, because the keys that encrypted it were derived from private values that existed for one connection and were never written down. **Compromising the key you have does not retroactively decrypt sessions that used keys you no longer have.** That property is called *forward secrecy*, and it is the reason TLS 1.3 removed every key-exchange method that lacked it. Act III's `TLS_AES_256_GCM_SHA384` does not name the exchange at all — because in TLS 1.3 there is nothing left to choose. It is always ephemeral.
+Answer it for the exchange you just ran, and notice that it depends entirely on a choice nobody made explicitly: **how long did `alice.pem` live?**
+
+If Alice uses one long-term key pair for every conversation, that year of traffic decrypts the moment the key leaks — every session, retroactively, in one event. But look at what those key pairs cost. Generating one took microseconds. So there is nothing stopping Alice making a **fresh pair for every conversation and deleting it afterwards** — which is called an *ephemeral* exchange, the `E` in cipher suite names like `ECDHE`.
+
+Now the recording is worthless forever. The keys that encrypted it were derived from private values that existed for one connection and were never written anywhere, so there is no key left to steal. **Compromising the key you have does not retroactively decrypt sessions that used keys you no longer have.** That property is called *forward secrecy*, and it is the reason TLS 1.3 removed every key-exchange method that lacked it. Act III's `TLS_AES_256_GCM_SHA384` does not name the exchange at all — because in TLS 1.3 there is nothing left to choose. It is always ephemeral.
+
+Keep the shape of that argument, because a later lesson runs it again against a threat forward secrecy *cannot* answer: the attacker who records today and waits, not for your key, but for the mathematics.
 
 <!-- figure -->
 ```

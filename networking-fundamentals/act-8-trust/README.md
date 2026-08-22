@@ -12,7 +12,9 @@ You have not been idle in the meantime, and it has not been wasted. You have dri
 
 Here is the move that makes the whole subject tractable, and almost nothing teaches it first.
 
-**Cryptography is not one thing. It is four separate promises, made by four different mechanisms, and every real protocol is a specific stack of them.** Confuse two and you build something that looks secure and is not — which is not a hypothetical, it is the single most common cryptographic failure in production software.
+**Cryptography is not one thing. It is four separate promises, and every real protocol is a specific stack of them.** Confuse two and you build something that looks secure and is not — which is not a hypothetical, it is the single most common cryptographic failure in production software.
+
+(Four promises, and you will build *five* mechanisms to keep them. Which one is the odd one out, and why it needs a mechanism of its own, is the hinge the second half of the act turns on.)
 
 ```
    PROMISE                      "did this change?"
@@ -67,7 +69,9 @@ If `openssl` is missing: `brew install openssl` on macOS, or it is already there
 
 - **OpenSSL 3.x prints `SHA2-256(file)=` where 1.x printed `SHA256(file)=`**, and likewise `HMAC-SHA2-256`. This act shows 3.x output. If yours says `SHA256`, nothing is wrong.
 - `sha256sum` and `md5sum` exist on Linux and are *not* installed on macOS by default. Where a lesson needs them it uses `openssl dgst` or `shasum`, which are everywhere.
-- **macOS's `/usr/bin/openssl` is LibreSSL, not OpenSSL**, even though it reports a version starting with 3. It is fine for everything here except one block in lesson 03, which says so at the point it matters. `brew install openssl` if you want the whole act to behave as printed.
+- **macOS's `/usr/bin/openssl` is LibreSSL, not OpenSSL**, even though it reports a version starting with 3 — and this one is not cosmetic. Lessons 01–03 work under it; **lessons 04, 05, 06 and the drills do not**, because LibreSSL has no `X25519` or `ED25519` in `genpkey`, no `-verify_hostname`, and no `-not_before`. So `brew install openssl` is a hard prerequisite for the second half. Check with `openssl version` — you want the words `OpenSSL 3.x`, not `LibreSSL`:
+  - **≥ 3.4** for the certificate-expiry experiment in lesson 05.
+  - **≥ 3.5** for one line of lesson 06 that is the most interesting output in the act. On an older 3.x that lesson still works and says so.
 - One block in lesson 03 needs the Python `cryptography` package — the only third-party dependency in the act. That lesson checks for it and gives you a throwaway virtual environment if you need one.
 
 This is a gentler act than the last two in one way and harsher in another. Nothing you do can break a cluster. But the experiments are **arithmetic you have to actually do**, and skipping the arithmetic leaves you with vocabulary instead of understanding — which is precisely the state you were in at the end of Act III.
@@ -81,7 +85,7 @@ This is a gentler act than the last two in one way and harsher in another. Nothi
 5. **[A claim someone else vouched for](05-certificates.md)** — be a certificate authority for ten minutes, then find out that the same file verifies or fails depending only on a list you chose.
 6. **[The lock, opened](06-tls-opened.md)** — the capstone. Nothing new is introduced; a real TLS 1.3 handshake is narrated against a CA you built, and `TLS_AES_256_GCM_SHA384` becomes a sentence.
 
-Then: **[test yourself](test-yourself.md)** (20 questions) · **[diagnose it](diagnose.md)** (6 drills) · **[in the wild](in-the-wild.md)**.
+Then: **[test yourself](test-yourself.md)** (23 questions) · **[diagnose it](diagnose.md)** (6 drills) · **[in the wild](in-the-wild.md)**.
 
 ## What breaks here
 

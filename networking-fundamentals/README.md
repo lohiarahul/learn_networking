@@ -22,7 +22,8 @@ Each act is a chain of lessons that ends by pointing at the next, so you never h
 | **[IV — One pretends to be many](act-4-one-pretends-many/README.md)** | One honest IP per machine — what happens when one machine hosts a crowd? | Build container networking by hand from kernel primitives. |
 | **[V — Kubernetes](act-5-kubernetes/README.md)** | One host is a ceiling — who wires up a fleet, declaratively? | Debug a cluster network call by reading the files in order. |
 | **[VI — The control plane](act-6-control-plane/README.md)** | Act V never said who was arranging any of it. Scheduled by whom, watched from where? | Operate a cluster below `kubectl` — break it, restore it, and find out why it will not start. |
-| **[VII — Describing the work](act-7-workloads/README.md)** *(in progress)* | Two acts of Kubernetes and you have never described a workload. What must you tell it, and what does it work out? | *(being written)* |
+| **[VII — Describing the work](act-7-workloads/README.md)** | Two acts of Kubernetes and you have never described a workload. What must you tell it, and what does it work out? | Say what a workload needs and what the cluster infers; read a controller's status as evidence. |
+| **[VIII — Trust on an untrusted wire](act-8-trust/README.md)** | Act III handed you a padlock and told you not to open it. What is actually inside it? | Say which of cryptography's four promises a mechanism keeps — and which one everybody assumes it keeps. |
 
 ## The capstone
 
@@ -32,8 +33,10 @@ Then **[`your-own-machine.md`](your-own-machine.md)** points the same reflexes a
 
 ## Where the road ends (for now)
 
-The built course is Acts I–VI. Act V is scoped to Kubernetes **networking** — Pods, CNI, Services (with headless, SRV and the traffic-policy shapes), CoreDNS, Ingress, Gateway API, NetworkPolicy and a debugging discipline. **[Act VI](act-6-control-plane/README.md)** is the control plane in eight lessons: the API server as a filesystem over etcd, static pods, the reconciliation loop, the cluster's own PKI, etcd backup and restore, upgrades and version skew, node maintenance, and the diagnostic walk for a control plane that will not answer. Every lesson in it has been run against a real cluster and corrected against what actually happened.
+The built course is Acts I–VIII. Act V is scoped to Kubernetes **networking** — Pods, CNI, Services (with headless, SRV and the traffic-policy shapes), CoreDNS, Ingress, Gateway API, NetworkPolicy and a debugging discipline. **[Act VI](act-6-control-plane/README.md)** is the control plane in eight lessons: the API server as a filesystem over etcd, static pods, the reconciliation loop, the cluster's own PKI, etcd backup and restore, upgrades and version skew, node maintenance, and the diagnostic walk for a control plane that will not answer. Every lesson in it has been run against a real cluster and corrected against what actually happened.
 
-Act VII has just begun on workloads and configuration. Still **mapped but not written**: most of that act — scheduling, storage, Helm/Kustomize/CRDs, autoscaling — plus observability, cryptography (opening the TLS lock), identity/access, Kubernetes security, and AWS networking & security — see the roadmap banner in [`../JOURNEY-MAP.md`](../JOURNEY-MAP.md).
+**[Act VII](act-7-workloads/README.md)** is workloads in ten lessons — the Deployment family, scheduling, probes, configuration, storage, Helm, CRDs and autoscaling — every one of them run against a real cluster. **[Act VIII](act-8-trust/README.md)** finally opens Act III's padlock: hashes, HMAC, AEAD, key exchange, certificates, and a TLS 1.3 handshake narrated against a CA you build yourself. It needs no cluster at all, only `openssl`.
+
+Still **mapped but not written**: observability, identity and access (Act IX), Kubernetes security (Act X), and AWS networking and security — see the roadmap banner in [`../JOURNEY-MAP.md`](../JOURNEY-MAP.md).
 
 If you are here for **CKA or CKS**, start at [`../exam-prep/`](../exam-prep/README.md): it maps every competency to the lesson that covers it and is honest about the ones nothing covers yet.
