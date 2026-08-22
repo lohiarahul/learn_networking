@@ -30,16 +30,14 @@ That is it. Every mechanism here — sessions, tokens, JWTs, OIDC, and the permi
      was taken. you cannot un-issue it.
         -> JWTs, and every "stateless" design
 
-   AND YOU HAVE MET THIS EXACT TRADE BEFORE
-     Act VIII, lesson 05: a signature cannot be
-     un-made, so revocation needs a SECOND lookup --
-     CRLs too big, OCSP a round trip that fails open.
-     the industry's answer was SHORT LIVES.
-     this act reaches the same answer, by the same
-     argument, about a completely different object.
+   AND THIS IS NOT THE FIRST TIME YOU HAVE SEEN IT
+     an earlier act ended on this exact line, about
+     an object that has nothing to do with identity,
+     and reached an answer the whole industry now
+     uses. it is deliberately not named here.
 ```
 
-If you notice yourself thinking *"this is the certificate revocation problem again"* somewhere around lesson 03, that is the act working. It is the same problem. It has the same non-solution and the same real solution, and seeing one structure underneath two unrelated-looking technologies is worth more than either.
+Somewhere in this act you should catch yourself thinking *"wait — I have had this argument before, about something else entirely."* When you do, go back and find it: naming it yourself is worth considerably more than being told, and the two technologies look nothing alike from the outside. That recognition is the act working, and it is not scheduled — it may arrive in lesson 02 or not until lesson 06.
 
 ## The three decisions that keep getting conflated
 
@@ -47,8 +45,8 @@ The other thing to carry through the act. Every access-control system makes thre
 
 | | The question | Answered by | The failure when it is confused |
 |---|---|---|---|
-| **Authentication** | who is making this request? | a credential, and something that unpacks it | granting permissions to fix a `401` |
-| **Authorization** | may *that* party do *this*? | rules, consulted against a name | re-issuing credentials to fix a `403` |
+| **Authentication** | who is making this request? | a credential, and something that unpacks it | diagnosed as the row below, and "fixed" by widening permissions |
+| **Authorization** | may *that* party do *this*? | rules, consulted against a name | diagnosed as the row above, and "fixed" by re-issuing the credential, repeatedly |
 | **Delegation** | may this *third party* act for me, and how much of me? | a token with a scope | handing over the password, because it is easier |
 
 Lesson 01 separates the first two hard enough that you will never confuse them again. Lesson 05 is the third one, which is the whole reason OAuth2 exists and is almost always explained as a protocol diagram rather than as the problem it solves.
@@ -75,7 +73,7 @@ Beyond that: `python3` for unpacking tokens, and the `cryptography` package from
 
 1. **[Who are you, and what may you do](01-authn-vs-authz.md)** — three requests, three different answers, and the one with no credential at all does not do what you expect.
 2. **[Not sending the password every time](02-tokens-and-sessions.md)** — why the first thing any login does is stop using the thing you logged in with, and the choice that decides everything afterwards.
-3. **[A claim you can read and cannot alter](03-jwt.md)** — take a real cluster credential apart with `base64` and read your own identity out of it. Then try to promote yourself.
+3. **[Taking the credential apart](03-jwt.md)** — nine hundred characters you have been treating as opaque, in two commands. Then try to promote yourself.
 4. **[Trusting a token you did not issue](04-verifying-a-token.md)** — check the signature on that credential by hand, against a key the cluster publishes to everyone it already trusts, and find the attacks that have nothing to do with breaking the mathematics.
 5. **[Delegation without handing over a password](05-oauth2-and-oidc.md)** — the problem OAuth2 actually solves, built by hand before you meet a real provider.
 6. **[Two ways to write down a permission](06-rbac-and-abac.md)** — the two models, kept deliberately vendor-neutral, so that Kubernetes RBAC and AWS IAM are both recognition rather than new material.
@@ -88,7 +86,7 @@ Three shapes, and the third is the one that ends careers.
 
 **A stale answer that looks like a current one.** Nothing in a token knows what happened after it was signed. A user disabled ten minutes ago holds a credential that verifies perfectly, and every check passes, and the check is not wrong — it is answering a question about the past. Act VIII's expired-certificate outage was this shape with the sign reversed.
 
-**A claim nobody checked, in a document that is trivial to read.** The parts of a token are not encrypted, and this act will have you read one in a single command. Which is fine — until somebody writes code that reads a field out of it and acts on the field, having verified nothing, because the field was right there and looked official.
+**A claim nobody checked.** Exactly how much of a signed credential a stranger can read is lesson 03's opening question, and you should answer it from Act VIII before you look. But whichever way it goes, the failure is the same: somebody writes code that pulls a field out of one and acts on the field, having verified nothing, because the field was right there and looked official.
 
 **Permission that accumulated.** Authorization systems only ever seem to be edited in one direction. Every model in lesson 06 makes granting easy and auditing hard, and the question "who can currently delete this?" is genuinely difficult to answer in every one of them. That is not a flaw in a particular product; it is a property of the shape.
 

@@ -291,7 +291,7 @@ python3 store_fixed.py 2>&1 | tail -1
 cryptography.exceptions.InvalidTag
 ```
 
-**`InvalidTag` — the same exception lesson 03 produced by flipping a bit.** Nothing about the ciphertext changed; only where it was found. That is the whole point: the tag now covers the location as well as the bytes. And notice this is the same idea as TLS 1.3's `CertificateVerify` signing the transcript rather than the identity: **bind the proof to the context, or a valid thing can be replayed somewhere it does not belong.** Third appearance in this act, and the general rule is worth stating as a rule — *an authenticated value proves something about the bytes, and nothing about where you found them.*
+**`InvalidTag` — the same exception lesson 03 produced by flipping a bit.** Nothing about the ciphertext changed; only where it was found. That is the whole point: the tag now covers the location as well as the bytes. And notice this is the same idea as TLS 1.3's `CertificateVerify` signing the transcript rather than the identity: **bind the proof to the context, or a valid thing can be replayed somewhere it does not belong.** Fourth appearance in this act — lesson 03's associated data, lesson 04's HKDF `info` string, `CertificateVerify`, and now this — and the general rule is worth stating as a rule — *an authenticated value proves something about the bytes, and nothing about where you found them.*
 
 </details>
 

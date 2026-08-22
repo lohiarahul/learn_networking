@@ -1,6 +1,6 @@
 # Two ways to write down a permission
 
-Five lessons have been spent getting a trustworthy name to the place a decision is made. That work is finished, and it delivered surprisingly little: a string, some groups, maybe a scope. Lesson 05's token said `sub`, `azp`, `scope=openid email profile`, `realm_access=[...]` — and every one of those is text that arrived unaltered from an issuer you chose to trust.
+Five lessons have been spent getting a trustworthy name to the place a decision is made. That work is finished, and it delivered surprisingly little: a string, some groups, maybe a scope. Lesson 05's token said `sub`, `azp` and `scope=openid email profile`; the cluster's said `system:serviceaccount:default:probe` — and every one of those is text that arrived unaltered from an issuer you chose to trust.
 
 **Nothing in it says what any of that permits.** Somewhere a system holds rules, and the rules take a name, a verb and an object and return one bit.
 
@@ -31,7 +31,7 @@ role.rbac.authorization.k8s.io/pod-reader created
 rolebinding.rbac.authorization.k8s.io/probe-reads created
 ```
 
-Three objects, and a fourth thing that is not an object at all: the **namespace**, which scopes both the role and the binding. Now ask forward — and notice lesson 01 already handed you the tool for this, because "may this name do this thing?" needs no credential:
+Three objects — and a fourth thing that is not one of them: the **namespace** the Role and the RoleBinding were created in. A Namespace is certainly an object in its own right; you have been making and deleting them since Act V. But it is not a *participant* in the grant the way the other three are. It is the scope the grant is written inside, and it is the reason every piece of this model has a cluster-wide twin: `Role` and `RoleBinding` are confined to one namespace, `ClusterRole` and `ClusterRoleBinding` are not. Now ask forward — and notice lesson 01 already handed you the tool for this, because "may this name do this thing?" needs no credential:
 
 ```bash
 S=system:serviceaccount:default:probe
@@ -172,7 +172,7 @@ And `Group kubeadm:cluster-admins` is the `O=` field you built into a client cer
 
 **Too short** for a much more interesting reason: **`system:masters` does not need this binding at all.** Act VI showed that the group is wired into the API server itself and bypasses authorization entirely — the `cluster-admin` binding you see here is belt-and-braces. Delete it and that row would vanish from the report while losing exactly none of its power.
 
-Which is the real lesson, and it survives leaving Kubernetes: **the rule store is not the whole truth.** Kubernetes also runs a Node authorizer, and can be configured with a webhook authorizer that answers from somewhere else entirely; aggregated ClusterRoles acquire rules by label match, so their contents change when an unrelated object is created. Any report you build by reading the rules is a lower bound on who can act.
+Which is the real lesson, and it survives leaving Kubernetes: **the rule store is not the whole truth.** An API server does not consult one authorizer, it consults a *chain*, and RBAC is one link in it — `system:masters` is short-circuited before the chain starts, and this cluster runs another link whose entire job is deciding what each kubelet may touch, answered from where the scheduler put the Pods rather than from any Role you could read. A cluster can also be configured to ask an external service over HTTP, in which case the rules are not in the cluster at all. Any report you build by reading Roles and bindings is therefore a lower bound on who can act.
 
 Hence the discipline: an enumeration of permissions is *evidence*, not proof, and the first question to ask of any access report is what authorizers it did not know about.
 
@@ -239,7 +239,11 @@ reverse -- WHO can delete pod 'web-1', owned by alice?
       carol  permitted in   0 of 96 states
 ```
 
-Start with what this model can say that the other one cannot, because it is not a small thing. **"An owner may delete their own pod" is inexpressible in RBAC**, and not by accident: a role is a property of the *subject*, while ownership is a *relation* between a subject and an object. There is no set of pods you can name in a role that means "the ones belonging to whoever is asking." Every attribute in that dataclass beyond `who` and `tags` — the owner, the hour, whether there is an incident on — is outside RBAC's vocabulary entirely.
+Start with what this model can say that the other one cannot, because it is not one thing but two, and they are impossible in RBAC for genuinely different reasons.
+
+**"An owner may delete their own pod" is inexpressible because ownership is a relation.** A role is a property of the *subject*, fixed at the moment somebody wrote the binding; ownership is a fact about a subject and an object *together*. There is no set of pods you can list in a role that means "the ones belonging to whoever is asking," because the rule needs to compare a field of the requester with a field of the thing requested — and RBAC's `resourceNames` takes a list of names, never a comparison.
+
+**"During an incident" is inexpressible for a blunter reason: RBAC is never told.** Look again at what the forward question actually took: a subject, a verb, a resource, a namespace. That is the complete input. The hour of the day, whether an incident is open, and where the request came from are not attributes RBAC handles badly — they are not *arguments to the function at all*, so no extension of the rule syntax could mention them. Every field in that dataclass past `who` and `tags` is one or the other: `owner` is a relation RBAC cannot express, and `hour`, `incident` and `from_office` are context RBAC cannot see.
 
 And the forward question is just as cheap as it was before: one call, one boolean. **If you predicted that the descriptive model would make the forward question harder, that is the prediction worth having got wrong** — both models answer "may X do Y?" instantly, because that is the question both were built to answer.
 
@@ -315,7 +319,7 @@ One thing decides most of the above, and it is the smallest part of either syste
 
 Kubernetes RBAC has no denials, so the combining rule is union, and union is monotone. Add a binding and no existing permission changes. That is why a Kubernetes RBAC change is reviewable as a diff.
 
-AWS IAM takes the other option: **an explicit deny wins**, evaluated across identity policies, resource policies, permission boundaries and organisation-level policies together. The gain is real — you can carve exceptions out of broad grants, which is the only tractable way to manage thousands of accounts. The cost is that the function is no longer monotone: adding a statement can *revoke* something, removing one can *grant* something, and no policy can be understood without the other four. Every IAM debugging session you will ever have is a search for a deny you did not know was there.
+AWS IAM takes the other option: **an explicit deny wins.** And a deny can be written in more than one place — attached to the identity, attached to the resource, or imposed from a level above the account entirely — with all of them evaluated together for a single request. The gain is real: you can carve exceptions out of broad grants, which is the only tractable way to manage thousands of accounts. The cost is that the function is no longer monotone — adding a statement can *revoke* something, and removing one can *grant* something — and no policy can be understood by reading it alone. Every IAM debugging session you will ever have is a hunt for a deny you did not know was there, in a document you did not know applied.
 
 **Neither is a mistake. They chose different things to make reviewable.** And that is the sentence to carry into any authorization system, including ones this course never mentions: find the combining rule first, because it tells you what kind of reasoning the system will support.
 
@@ -323,9 +327,19 @@ Then notice what is underneath both of them, because you have met it twice alrea
 
 > **RBAC stores the answer. ABAC computes it.**
 
-A stored answer is instantly auditable and necessarily coarse — it cannot depend on anything that was not known when it was written down. A computed answer is exact and contextual and cannot be audited, because there is nothing to read. **That is the act's trade for the third time**: a handle versus a signed claim in lesson 02, introspection versus local verification in lesson 05, and now enumeration versus evaluation. The same shape, three layers apart, each time with the same two costs on the same two sides.
+A stored answer is instantly auditable and necessarily coarse — it cannot depend on anything that was not known when it was written down. A computed answer is exact and contextual and cannot be audited, because there is nothing to read.
 
-Which is also why no real system picks one. Kubernetes is RBAC for authorization and then runs **admission control** — predicates over the object being created — immediately afterwards, so the attribute half did not vanish, it moved to a later stage where its unauditability matters less. AWS attaches `Condition` keys to role policies, which is the same compromise from the other direction. When you meet either, you are looking at somebody who wanted the enumerable model's reviewability and the descriptive model's precision, and split them across two stages to get both.
+**That is the act's trade with one term substituted, and the substitution is worth being exact about rather than waving at a resemblance.** Lessons 02 and 05 were both literally about *time*: a handle is current and costs you a lookup, a signed claim is instant and is a photograph. That is emphatically **not** what separates these two models. An RBAC verdict is computed against the live rule store on every single request, so it is no staler than an ABAC one; delete a binding and the next request feels it.
+
+What carries over is the *structure*. One side commits to an answer in advance and gets back something you can read; the other works it out on demand and gets back something exact. In lessons 02 and 05, what committing early bought you was **speed**, and what it cost was **freshness**. Here what it buys is **auditability**, and what it costs is **precision**.
+
+So: same shape, different currency — and noticing that it is a different currency is the point, because it tells you the shape was the general thing all along. *Commit early or compute late* is the form. Freshness was only the first thing anyone ever traded for it.
+
+Which is also why you should not expect a real system to pick one — and there is evidence for that in front of you already, if you go looking.
+
+This cluster is one you would describe without hesitation as "using RBAC". Yet lesson 04's `aud` check was a predicate over a request, not a role. And Act V's Ingress lesson mentioned, entirely in passing, a *webhook* that rejected a manifest — something consulted after the caller had been authorized, which had an opinion about the object's **contents** rather than about who was asking. Neither of those is expressible in a Role, and both were happening the whole time.
+
+So hold the question rather than the answer. If the enumerating model provably cannot express a predicate, and the cluster is plainly evaluating some, **where did the predicates go?** Not into the Roles — you have read all seventy-three of the ClusterRoles' worth of vocabulary and there is nowhere to put one. Something else in the request path is doing that work, at a different stage, and the interesting part is not its name but *why later is better*: what does a system gain by refusing to mix predicates into its authorization rules, and instead running them afterwards, against the object rather than the caller? (AWS makes the opposite choice and hangs `Condition` keys directly off a policy statement. Which of those you prefer is a real argument, and having both models in your hands is what makes it arguable.)
 
 <!-- figure -->
 ```
@@ -345,22 +359,27 @@ Which is also why no real system picks one. Kubernetes is RBAC for authorization
 
    ASK IT BACKWARDS: an answer of the same kind
      "who can delete pods in default?"
-       159 objects read -> 15 named subjects. finite. complete.
+       160 objects read -> 15 named subjects. finite. complete.
      13 of the 15 are CONTROLLERS -- Act VI's reconcile
        loop, reappearing as its authority
      kubeadm:cluster-admins = the O= you put in a cert by
        hand in Act VIII, now a subject in a binding
      BUT the rule store is not the whole truth:
-       system:masters bypasses RBAC in the apiserver, so
-       the report is a LOWER BOUND. always ask which
+       an apiserver consults a CHAIN of authorizers.
+       system:masters short-circuits before it starts.
+       so the report is a LOWER BOUND. always ask which
        authorizers your report did not know about.
 
    DESCRIBE = ABAC
      a boolean expression over attributes of subject,
      action, object, and the WORLD.
-     says things RBAC cannot say AT ALL:
-       "their OWN pod"  -- a RELATION, not a property
-       time of day, incident state, source address
+     says things RBAC cannot say AT ALL, for TWO
+     DIFFERENT reasons -- do not conflate them:
+       "their OWN pod" = a RELATION. rbac rules list
+         names; they never COMPARE two fields.
+       time of day, incident, source address = CONTEXT.
+         not handled badly -- never PASSED IN. the
+         whole input is (subject, verb, resource, ns).
      forward question: still one call, still cheap.
      (if you predicted otherwise, that was the point.)
 
@@ -395,15 +414,29 @@ Which is also why no real system picks one. Kubernetes is RBAC for authorization
      NEITHER IS WRONG. they made different things
      reviewable. find the combining rule FIRST.
 
-   AND UNDERNEATH, THE ACT'S TRADE, A THIRD TIME
+   AND UNDERNEATH: THE ACT'S SHAPE, NEW CURRENCY
      RBAC STORES the answer  -> auditable, coarse
      ABAC COMPUTES it        -> exact, unauditable
-     = handle vs signed claim (L02)
-     = introspection vs local verification (L05)
-     so real systems use BOTH, at DIFFERENT STAGES:
-       k8s = RBAC, then ADMISSION (predicates on the
-             object) -- the attribute half moved, not gone
-       AWS = roles with Condition keys
+     the SHAPE is L02's and L05's: commit early, or
+     compute late. but NOT the same trade --
+       L02/L05 : early bought SPEED, cost FRESHNESS
+       here    : early buys AUDITABILITY, costs
+                 PRECISION
+     (an RBAC verdict is NOT stale. it is evaluated
+      per request against the live rule store.)
+     -> so freshness was never the point. "commit
+        early or compute late" is the general form.
+
+   AND NO REAL SYSTEM PICKS ONE
+     this cluster "uses RBAC" -- and yet L04's aud
+     check was a predicate, and Act V's ingress
+     webhook judged an OBJECT, not a caller.
+     so: WHERE DID THE PREDICATES GO? not into any
+     Role -- there is nowhere to put one. something
+     later in the request path does it.
+     the question worth holding: why is LATER better?
+     (AWS chose otherwise: Condition keys hang right
+      off a policy statement. that is a real argument.)
 ```
 
 **Cleanup:**
@@ -414,9 +447,9 @@ kubectl delete role pod-reader pod-deleter --ignore-not-found
 kubectl delete serviceaccount probe --ignore-not-found
 ```
 
-> **You understand this when you can** describe authorization as a function and name the only two families of representation for one; explain what a role is *for* in terms of arithmetic; name the four things a Kubernetes RBAC grant involves and say which of them is not an object; explain why having no deny makes the function monotone and why that makes a change reviewable; compute who can perform a verb by reading the rule store, and give one reason such a report is too long and one reason it is too short; explain why "their own" and "during an incident" are inexpressible in RBAC, and say precisely why — property versus relation; say why the *forward* question is cheap in both models; explain why the reverse question in the descriptive model has no answer of the form "these names", and what happens to it when an attribute has an unbounded domain; account for why cloud IAM offers a simulator instead of a report; describe how a single reasonable deny rule can silently remove a permission it never mentions; state each model's characteristic way of rotting; explain what a combining rule is and contrast RBAC's union with IAM's explicit deny, including what each makes reviewable; and connect stored-versus-computed permissions to two earlier appearances of the same trade in this act.
+> **You understand this when you can** describe authorization as a function and name the only two families of representation for one; explain what a role is *for* in terms of arithmetic; name the three objects a Kubernetes RBAC grant joins plus the scope that is not one of them, and say why that scope gives each of those objects a cluster-wide twin; explain why having no deny makes the function monotone and why that makes a change reviewable; compute who can perform a verb by reading the rule store, and give one reason such a report is too long and one reason it is too short; give the two *different* reasons "their own" and "during an incident" are both impossible in RBAC, and say why calling them the same reason is a mistake; say why the *forward* question is cheap in both models; explain why the reverse question in the descriptive model has no answer of the form "these names", and what happens to it when an attribute has an unbounded domain; account for why cloud IAM offers a simulator instead of a report; describe how a single reasonable deny rule can silently remove a permission it never mentions; state each model's characteristic way of rotting; explain what a combining rule is and contrast RBAC's union with IAM's explicit deny, including what each makes reviewable; and say what stored-versus-computed shares with lessons 02 and 05 — and, precisely, what it does *not*.
 
-**Which raises:** every mechanism in this act now exists as something you have built or measured — an identity, a token, a signature you checked by hand, a delegation, and rules in both shapes. And a Kubernetes cluster has been quietly using every one of them the whole time you were learning them separately: it authenticates with certificates and tokens, it publishes a JWKS, it authorizes with RBAC, and it runs predicates over objects at admission. What is left is the part where each of those becomes a setting that someone has to choose — **and every one of them has a default that is convenient, a hardening that is correct, and a gap between the two that is where clusters are actually broken into.** That is the subject of the act after this one, which is not yet written.
+**Which raises:** every mechanism in this act now exists as something you have built or measured — an identity, a token, a signature you checked by hand, a delegation, and rules in both shapes. And a Kubernetes cluster has been quietly using all of them the whole time you were learning them separately: it authenticated you with a certificate in Act VIII and a token in Act IX, it publishes a JWKS, and it authorized you with RBAC just now. Which leaves the loose thread from a page ago — the predicates that are evidently being evaluated somewhere you have not looked — and a larger one behind it. **Every mechanism in this act arrived with its behaviour already chosen for you by whoever built the cluster.** Who may fetch the public keys, how long a token lives, whether an unauthenticated request gets anything at all: each of those was a setting, each had a default, and you accepted all of them without being asked. Defaults are chosen to make a cluster start, not to make it safe, and the distance between those two aims is where clusters are actually broken into. That is the subject of the act after this one, which is not yet written.
 
 ---
 

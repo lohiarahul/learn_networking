@@ -179,4 +179,4 @@ kubectl delete sa victim --ignore-not-found
 
 ---
 
-↑ **[Act IX overview](README.md)** · Prev: **[Who are you, and what may you do](01-authn-vs-authz.md)** · Next: **[A claim you can read and cannot alter](03-jwt.md)** →
+↑ **[Act IX overview](README.md)** · Prev: **[Who are you, and what may you do](01-authn-vs-authz.md)** · Next: **[Taking the credential apart](03-jwt.md)** →

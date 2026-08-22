@@ -8,7 +8,7 @@ So this page is about recognising the act's ideas when they turn up wearing prod
 
 Lesson 02 framed it as handles versus signed claims. That was a convenient place to meet it, not where it lives. Once you can see the shape you will find it in systems that have nothing to do with identity:
 
-- **DNS TTLs.** A record you cached is a signed claim: instant, and possibly a photograph. Set the TTL to zero for freshness and you have bought a lookup on every request against something that must always be up. Act II's `ndots` fan-out was this bill arriving.
+- **DNS caching.** A record you cached is a signed claim: instant, and possibly a photograph. Every record carries a lifetime — a *time to live* — and the resolver may hold it that long, so a change you make now is invisible for exactly as long as you chose. Set that to zero for freshness and you have bought a lookup on every request against something that must always be up. Act V's `ndots` fan-out was that bill arriving in Kubernetes: five names tried for every one you meant, and every miss a real query.
 - **Cloud IAM propagation.** AWS says plainly that policy changes are *eventually consistent*. You revoked a permission and it is still being enforced somewhere, for a while, and no API tells you when it stops. That is drill 3's ten seconds with a longer window and worse visibility.
 - **Certificate revocation.** Act VIII's wall. Same argument, same non-solution, same real solution.
 - **Service discovery, feature flags, config caches, CDN invalidation.** All the same line, and the useful question at every one of them is the act's question: **when this says yes, what moment is it telling me about?**

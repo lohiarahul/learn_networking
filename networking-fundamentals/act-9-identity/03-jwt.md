@@ -1,4 +1,4 @@
-# A claim you can read and cannot alter
+# Taking the credential apart
 
 There are nine hundred characters in that shell variable and you have been treating them as opaque. They are not opaque at all. Almost nobody who uses these daily has ever looked inside one, and looking inside is two commands.
 
@@ -20,7 +20,11 @@ serviceaccount/probe created
 3: 342 chars
 ```
 
-Three fields. That is the whole format, and the name for it is a **JWT** — a JSON Web Token. Read the first one:
+Three fields. That is the whole format, and the name for it is a **JWT** — a JSON Web Token.
+
+Two of the three are JSON, and the third is not. The first two carry the header and the claims, and you are about to read both. The third is the signature — **not a document but a fixed-length block of raw bytes**, base64 of a number, which is why it has no structure to read and why nothing below decodes it. It is the only part of a JWT that is not text, and it is the only part that means anything. Lesson 04 is about what to do with it.
+
+Read the first one:
 
 ```bash
 echo "$TOK" | cut -d. -f1 | base64 -d
@@ -32,7 +36,9 @@ echo "$TOK" | cut -d. -f1 | base64 -d
 
 **That is JSON, in plain text, and you did not need a key.** So the answer to the prediction is no — nothing here is encrypted, and Act VIII gives you the reason without any need to guess: **a signature keeps integrity and authenticity, and confidentiality is a separate promise requiring a separate mechanism.** Signing something does not hide it. There was never a cipher in this picture.
 
-Note also what the header says, because you built both halves of it. `RS256` is RSA with SHA-256 — Act VIII lesson 05's "you sign the digest, not the message", named. And `kid` is a **key id**: the signer telling you *which* key it used, which is a strong hint that there is more than one and that they change. Lesson 04 is about following that hint.
+Note what else the header says, and note the one thing in it that is genuinely new. `RS256` is **RSA** with SHA-256. The *shape* is Act VIII lesson 05's exactly — you sign a digest rather than the message, and you verify with the published half of a pair — but Act VIII signed with Ed25519 from beginning to end and never once mentioned RSA. So this is a new algorithm in a slot you already understand, which is a much smaller thing to absorb than a new idea. Hold the obvious question rather than looking it up: **why would the cluster use a different one?** Lesson 04 puts a real RSA key in front of you and the answer falls out of its size.
+
+And `kid` is a **key id**: the signer telling you *which* key it used, which is a strong hint that there is more than one and that they change. Lesson 04 is about following that hint.
 
 Now the second field, and this one has a trap in it:
 

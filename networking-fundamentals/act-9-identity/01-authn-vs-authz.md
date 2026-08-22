@@ -28,7 +28,7 @@ https://127.0.0.1:62183
 
 That `ca.crt` is Act VIII lesson 05 in a file: the one trust anchor you are choosing to believe for these requests, and `--cacert` is the `-CAfile` argument under a different name.
 
-Now make an identity that is real and powerless, and get a credential for it:
+Now make an identity that is real and powerless, and get a credential for it. A **ServiceAccount** is the cluster's own account type — an identity meant for a program rather than a person, created as an object like any other, and one it will happily mint credentials for on demand.
 
 ```bash
 kubectl create serviceaccount probe
@@ -65,6 +65,8 @@ curl -s --cacert "${TMPDIR:-/tmp}/ca.crt" \
   "code": 403
 }
 ```
+
+Note the username in there before moving on, because you will be reading it for the rest of the act. A ServiceAccount's name in the eyes of the API server is not `probe` — it is **`system:serviceaccount:<namespace>:<name>`**, a single flat string with the namespace baked into it. Two ServiceAccounts called `probe` in two namespaces are two unrelated identities, and the `system:` prefix is reserved so that nothing a human is called can ever collide with one.
 
 **Request two — gibberish:**
 

@@ -211,17 +211,21 @@ To turn a multiplication into an addition. Ten subjects and twenty permissions i
 
 The authorization function is **monotone**: adding a binding can only add permissions, removing one can only remove them. So a one-line change can be reviewed *locally* — by reading the line — without holding the rest of the cluster's rules in your head.
 
-Contrast AWS IAM, where an explicit deny wins across identity policies, resource policies, permission boundaries and organisation policies together. That buys precision — carving exceptions out of broad grants — and gives up monotonicity: adding a statement can revoke, removing one can grant, and no single policy can be understood alone. **Find the combining rule first**, because it tells you what kind of reasoning the system will support.
+Contrast AWS IAM, where an explicit deny wins — and where a deny can live in more than one place (on the identity, on the resource, or imposed from above the account), all evaluated together for one request. That buys precision, since you can carve exceptions out of broad grants, and gives up monotonicity: adding a statement can revoke, removing one can grant, and no single policy can be understood by reading it alone. **Find the combining rule first**, because it tells you what kind of reasoning the system will support.
 
 </details>
 
-**21.** "An owner may delete their own pod" cannot be written as a Kubernetes Role. Say precisely why, in one sentence.
+**21.** Neither "an owner may delete their own pod" nor "only during an incident" can be written as a Kubernetes Role. They are impossible for two *different* reasons. Give both, and say why treating them as one reason is a mistake.
 
 <details><summary>Answer</summary>
 
-Because a role is a property of the **subject**, while ownership is a **relation** between a subject and an object — and there is no set of objects you can name in a role that means "the ones belonging to whoever is asking."
+**"Their own" is a relation.** A role is a property of the **subject**, fixed when somebody wrote the binding; ownership is a fact about a subject and an object together. The rule would have to *compare* a field of the requester against a field of the thing requested, and RBAC rules only ever list names — `resourceNames` takes a list, never a comparison.
 
-Everything contextual is outside the vocabulary for the same reason: time of day, source address, whether an incident is open. This is the real expressiveness gap, and it is why people widen roles instead — which is how the enumerating model rots.
+**"During an incident" is context that is never passed in.** The whole input to the decision is (subject, verb, resource, namespace). The hour, the incident state and the source address are not attributes RBAC evaluates badly — they are not arguments to the function at all, so no extension of the rule *syntax* could reach them.
+
+Why the distinction matters: the first gap could in principle be closed by a richer rule language, and systems exist that close it (that is what ReBAC does). The second cannot be closed by language at all — it needs the decision point to be *given* more information. Collapsing them into "RBAC isn't expressive enough" hides the fact that one is a syntax problem and the other is an interface problem.
+
+Either way, the practical consequence is the same and it is how the enumerating model rots: people widen a role until it covers the case.
 
 </details>
 
@@ -233,7 +237,7 @@ In the enumerating model the reverse question has an answer **of the same kind**
 
 In the describing model there is no such answer. The honest reply is a **predicate**: "alice, unless it is out of hours and she is not in the office; and bob, only during an incident." Producing even that required enumerating the whole state space, and the moment one attribute has an unbounded domain — a source IP, a free-text label — the space stops being finite and the question stops having a computable answer without a solver.
 
-Hence the simulator: one concrete request, one answer, which is the only question that stays cheap. It is not a missing feature, it is the shape of the model. Which is also why "who can read this bucket?" is a genuinely hard question at every organisation, and why real systems split the difference — Kubernetes uses RBAC for authorization and then runs attribute predicates at admission, so the descriptive half moved to a later stage rather than disappearing.
+Hence the simulator: one concrete request, one answer, which is the only question that stays cheap. It is not a missing feature, it is the shape of the model. Which is also why "who can read this bucket?" is a genuinely hard question at every organisation — and why no real system picks one model outright. A cluster that authorizes with RBAC is nonetheless evaluating predicates over objects somewhere in its request path; finding out where, and why that stage is a better place for them than the Roles, is the next act's business.
 
 </details>
 

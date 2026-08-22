@@ -58,7 +58,7 @@ kubectl get --raw /openid/v1/jwks | python3 -m json.tool
 
 A **JWKS** — a JSON Web Key Set. A *set*, plural, because an issuer must be able to rotate: publish the new key alongside the old, start signing with the new one, and only drop the old once every token it signed has expired. That is what `kid` is for, and it is the whole reason the header names a key rather than assuming one. **`kid` is what makes key rotation possible without a flag day**, and Act VIII's lesson on short lifetimes is what makes it terminate.
 
-And `n` and `e` are an RSA public key written as numbers: modulus and exponent, base64url of their raw bytes. Act VIII lesson 04 built asymmetric keys and lesson 05 signed with them; this is the same object, serialised for a JSON document instead of a PEM file.
+And `n` and `e` are the public key itself, written as two numbers — a **modulus** and an **exponent**, each the base64url of its raw bytes. That pair *is* an RSA public key, and it is worth noticing how unlike Act VIII's keys it looks: X25519 and Ed25519 public keys were a single opaque 32-byte string, and this one is two integers of very different sizes. Same job in the same slot — the publishable half of a pair, here serialised into a JSON document instead of a PEM file — but the structure differs because the arithmetic underneath differs. Which is precisely why the header has to name an algorithm at all: `n` and `e` mean nothing without being told they are RSA's.
 
 ### Who may read it
 
@@ -186,9 +186,9 @@ Three details in that code are the lesson rather than the plumbing.
 
 **The signature covers `header.payload` as base64, including the dot.** Not the decoded JSON. Which is why you must never re-serialise a JWT before checking it — `json.dumps` is entitled to reorder keys and change whitespace, and a single byte's difference is `InvalidSignature`. **Verify the bytes you received, then decode.** In that order, always.
 
-**`e = 65537` and a 2048-bit modulus.** Act VIII lesson 04 explained why RSA keys are thousands of bits where X25519 was 256, and here is a real one confirming it.
+**`e = 65537` and a 2048-bit modulus** — and there is the answer to lesson 03's held question. Act VIII lesson 04 said, in a parenthesis, that the classical constructions need thousands of bits where the elliptic-curve ones need 256, because the best known attacks against the classical ones are so much better. RSA is a classical construction; its hard problem is factoring that modulus. So 2048 bits here buys roughly the security budget X25519 bought with 256, and the key you just fetched is an order of magnitude bigger than anything in Act VIII for no gain whatsoever. That is the entire reason the industry keeps drifting toward the curves — and the reason a cluster still ships RSA is not cryptographic, it is that RS256 is the algorithm every JWT library on earth already implements.
 
-**One byte flipped and the whole thing collapses**, which is lesson 01's avalanche and needs no further comment except to note that the flip was in the *payload* — the part you could read and edit freely in lesson 03.
+**One byte flipped and the whole thing collapses**, which is Act VIII lesson 01's avalanche and needs no further comment except to note that the flip was in the *payload* — the part you could read and edit freely in lesson 03.
 
 ### The two attacks that break nothing
 
@@ -227,7 +227,7 @@ The API server is immune because it does not ask. It knows it signs with `RS256`
 
 The defence is a field you already read: `aud`. The token's audience is `https://kubernetes.default.svc.cluster.local`, and a verifier that checks the audience matches *itself* rejects a token minted for somebody else. Which is why `kubectl create token` takes `--audience`, and why a token meant for a third party should be minted for that party and nobody else.
 
-And note what that is. **Binding a credential to the context it is valid in** — the same move as Act VIII lesson 03's associated data, and TLS 1.3's `CertificateVerify` signing the transcript, and drill 5's relocated database row. Fourth appearance of one idea: *an authenticated value proves something about the bytes, and nothing about where you found them.*
+And note what that is. **Binding a credential to the context it is valid in** — which by now has a track record: Act VIII's associated data (lesson 03), its HKDF `info` string (lesson 04), TLS 1.3's `CertificateVerify` signing the transcript (lesson 06), and its drill 5, where a ciphertext moved to a different database row stopped verifying. Fifth appearance of one idea, and the first one outside cryptography: *an authenticated value proves something about the bytes, and nothing about where you found them.*
 
 > **Check yourself —** a colleague's service verifies the signature and the expiry, correctly, using the published JWKS. It does not check `iss` or `aud`. Describe the attack in one sentence, and say what the attacker needs — because it is much less than you would hope.
 
@@ -302,10 +302,11 @@ Miss any one and the other three are theatre. **A signature answers "was this ma
         token may only say which KEY.
      2  a REAL token, presented somewhere else.
         nothing forged. every crypto check passes.
-        FIX: check `aud`. = associated data (Act VIII
-        L03), = CertificateVerify signing the
-        transcript, = drill 5's relocated row.
-        FOURTH appearance of one idea.
+        FIX: check `aud`. = associated data (VIII L03),
+        = HKDF's `info` string (VIII L04),
+        = CertificateVerify signing the transcript,
+        = VIII drill 5's relocated row.
+        FIFTH appearance -- first one outside crypto.
 
    SO VERIFICATION IS FOUR CHECKS
      signature (vs a key from the issuer you EXPECTED)
@@ -321,10 +322,10 @@ Miss any one and the other three are theatre. **A signature answers "was this ma
 kubectl delete sa probe --ignore-not-found
 ```
 
-> **You understand this when you can** describe how a verifier gets from a token to the key that signed it, and name the field that links them; explain why a JWKS is a set and what `kid` makes possible; say who may fetch this cluster's keys, name the object that decides it, and argue against both making it public and making it control-plane-only; verify a signature by hand and explain why the signed data is the base64 text rather than the decoded JSON; explain the `alg: none` attack and state the fix as a rule about who chooses the algorithm; describe an attack that uses a completely genuine token and name the claim that prevents it; connect that claim to three earlier appearances of the same idea; and list the four checks that make up verification, and say what a signature alone does and does not tell you.
+> **You understand this when you can** describe how a verifier gets from a token to the key that signed it, and name the field that links them; explain why a JWKS is a set and what `kid` makes possible; say who may fetch this cluster's keys, name the object that decides it, and argue against both making it public and making it control-plane-only; verify a signature by hand and explain why the signed data is the base64 text rather than the decoded JSON; explain the `alg: none` attack and state the fix as a rule about who chooses the algorithm; describe an attack that uses a completely genuine token and name the claim that prevents it; connect that claim to Act VIII's four appearances of the same idea, and say what makes this one different from all of them; and list the four checks that make up verification, and say what a signature alone does and does not tell you.
 
 **Which raises:** every credential so far has arrived from the thing that will consume it — the cluster minted a token for use against the cluster. Now suppose the credential must be *accepted* by someone who did not issue it: you want a third-party tool to read your repositories, and its honest request is "give me your password." **That is intolerable, and it is not obvious what to do instead** — the tool needs to act as you, at some service that has never heard of it, without ever holding what makes you you, and with you able to change your mind later.
 
 ---
 
-↑ **[Act IX overview](README.md)** · Prev: **[A claim you can read and cannot alter](03-jwt.md)** · Next: **[Delegation without handing over a password](05-oauth2-and-oidc.md)** →
+↑ **[Act IX overview](README.md)** · Prev: **[Taking the credential apart](03-jwt.md)** · Next: **[Delegation without handing over a password](05-oauth2-and-oidc.md)** →

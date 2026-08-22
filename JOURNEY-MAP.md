@@ -29,11 +29,11 @@ reconcile** in the cloud.
 > | **9** — AWS security | *(none yet)* | 🔜 **roadmap** |
 >
 > The acts were deliberately sequenced to be self-contained across the gaps — Act III (the internet)
-> hands off directly to Act IV (containers), so nothing later leans on the unwritten crypto/identity
-> stages. The one loose thread this leaves is TLS: Act III bolts the lock on but never opens it, and
-> *opening* it is Stage 4 — noted in `05-tls.md` as a deliberate, still-unwritten cliffhanger. The
-> `Toolbelt.md` tool roster likewise lists tools for all nine stages; treat Stages 4/5/8/9 there as a
-> shopping list for road not yet paved.
+> hands off directly to Act IV (containers), so nothing in Acts IV–VII leaned on the then-unwritten
+> crypto and identity stages. That sequencing has now paid out: Act III's TLS cliffhanger is opened by
+> Act VIII five acts later, and Act VIII's closing line (a verified name with no permissions attached)
+> is picked up by Act IX immediately. Stages 4 and 5 are built; the `Toolbelt.md` roster still lists
+> tools for all nine stages, so treat **Stages 8/9** there as a shopping list for road not yet paved.
 >
 > **Read Stage 7 below as the destination, not the delivery.** Act V teaches Kubernetes *networking*
 > from first principles — Pods, CNI, Services (including headless, SRV and the traffic-policy shapes),
@@ -45,9 +45,10 @@ reconcile** in the cloud.
 > Between them that is a real slice of CKA — most of Cluster Architecture, all of Servicing and
 > Networking, and the harder half of Troubleshooting. Act VII closes the rest of it — **workloads,
 > scheduling, storage, config, Helm, Kustomize, CRDs and autoscaling** — which between them leave
-> **Acts I–VII covering essentially all of CKA.** Still missing: **RBAC and observability**, and nothing
-> here teaches CKS at all, **so this is not yet a CKS course.** Every "you can now" line in Stage 7 that reaches past
-> those topics is roadmap.
+> **Acts I–VII covering essentially all of CKA**, with **Act IX closing the RBAC gap** — it builds
+> Kubernetes RBAC from the four-object model up and computes the reverse question against a live
+> cluster. Still missing: **observability**, and nothing yet teaches CKS, **so this is not a CKS
+> course.** Every "you can now" line in Stage 7 that reaches past those topics is roadmap.
 >
 > If you came here *for* those exams, read [`exam-prep/`](exam-prep/README.md) first — it maps every
 > CKA and CKS competency to the lesson that covers it, and marks honestly the ones nothing covers yet.
@@ -213,15 +214,22 @@ what are they allowed to do?
 - From **passwords → MFA → tokens**; sessions versus stateless tokens.
 - A **JWT** is a signed claims blob (recall Stage 4 — the *signature* is the trust, not the contents).
 - **OAuth2** delegates access without sharing your password (the flows, scopes); **OIDC** adds an
-  identity layer on top; **SAML** is the enterprise-SSO incumbent; **SASL** is the pluggable auth
-  framework you meet in SMTP, LDAP, and Kafka.
-- **LDAP/directories** are where identity actually lives; **SCIM** provisions users and groups *before*
-  they ever log in.
+  identity layer on top.
 - Two authorization *models* — **RBAC** and **ABAC** — close the stage, because they are exactly what
   Kubernetes RBAC and AWS IAM implement.
 
-**You can now:** draw the OAuth2/OIDC flow, decode and verify a JWT, and explain provisioning (SCIM)
-and attribute-based access (ABAC).
+**Delivered as Act IX**, which built the above against a real cluster and a real identity provider,
+and organised the whole stage around one trade: *you can know an answer instantly, or you can know it
+is still true.* **Deliberately out of scope there**, and named as holes on its `in-the-wild` page:
+proof-of-possession credentials (DPoP, WebAuthn), the enterprise-SSO incumbents (**SAML**, **SASL**),
+directories (**LDAP**) and lifecycle provisioning (**SCIM**), and sessions as browser objects
+(cookie attributes, CSRF). Those are a genuine gap rather than a deferral — nothing later in the
+course leans on them.
+
+**You can now:** derive the OAuth2 authorization code flow hop by hop rather than recalling a diagram,
+decode and verify a JWT by hand against a published JWKS, name the two families of authorization model
+and the reverse question that separates them, and ask of any access decision what *moment in time* it
+is telling you about.
 **Which raises:** we can now build, address, secure, and identify a service. How does a system run
 *thousands* of them for us — declaratively — and heal itself when they fail?
 
