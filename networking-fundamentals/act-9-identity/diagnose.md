@@ -217,6 +217,8 @@ deleted without ever being used : 401 at request 1, t+0s
 deleted after one request       : 401 at request 628, t+10s
 ```
 
+(Your request count will differ — it is however many round trips your machine fits into the window. The two things that will not differ are the first line's `request 1, t+0s` and the second line's roughly ten seconds.)
+
 **Both deletions worked. Explain the difference, and then answer the question that matters: what do you tell the colleague to do the next time an account is actually compromised?**
 
 <details>
@@ -433,7 +435,7 @@ Groups      [system:serviceaccounts system:serviceaccounts:default system:authen
 
 `system:authenticated` — which contains every identity that authenticated by any means, which is every real user and every ServiceAccount in the cluster. One ClusterRoleBinding to that group granted `edit`, cluster-wide, to everybody at once, and it will grant it to every account anybody creates in future.
 
-Then ask the question backwards, which is the only method that finds this reliably. Lesson 06's script, pointed at the verb:
+Then ask the question backwards, which is the only method that finds this reliably. Lesson 06's script, pointed at the verb — and if `$TMPDIR` has been cleared since you ran it, or you are simply in a later shell session, re-create it from lesson 06 first:
 
 ```bash
 python3 "${TMPDIR:-/tmp}/whocan.py" | head -4

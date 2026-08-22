@@ -1,6 +1,6 @@
 # Two ways to write down a permission
 
-Five lessons have been spent getting a trustworthy name to the place a decision is made. That work is finished, and it delivered surprisingly little: a string, some groups, maybe a scope. Lesson 05's token said `sub`, `azp` and `scope=openid email profile`; the cluster's said `system:serviceaccount:default:probe` — and every one of those is text that arrived unaltered from an issuer you chose to trust.
+Five lessons have been spent getting a trustworthy name to the place a decision is made. That work is finished, and it delivered surprisingly little: a string, some groups, maybe a scope. Lesson 05's token said `sub`, `azp` and a `scope` naming `openid`, `email` and `profile`; the cluster's said `system:serviceaccount:default:probe` — and every one of those is text that arrived unaltered from an issuer you chose to trust.
 
 **Nothing in it says what any of that permits.** Somewhere a system holds rules, and the rules take a name, a verb and an object and return one bit.
 
@@ -79,6 +79,8 @@ pods                                            []                              
 rolebinding.rbac.authorization.k8s.io "probe-deletes" deleted from default namespace
 pods                                            []                                     []               [get list]
 ```
+
+(The verbs are listed in the order the authorizer found the rules, not alphabetically, so if you arrived here with other bindings already in place yours may be ordered differently. What matters is the set, and that it grew by exactly one and then shrank back.)
 
 **Permissions are unioned, and there is no way to write a denial.** Kubernetes RBAC has no `deny` — not an oversight, a decision, and it buys a property worth naming precisely: the function is **monotone**. Adding a binding can only add permissions; removing one can only remove them. So a one-line change to a binding can be reviewed *locally*, by reading the line, without holding the rest of the cluster's rules in your head.
 

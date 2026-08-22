@@ -56,7 +56,7 @@ docker run -d --name idp -p 8080:8080 \
   quay.io/keycloak/keycloak:26.4 start-dev
 ```
 
-Wait for it — mine took three seconds:
+Wait for it — a few seconds on a warm machine, longer on a cold one:
 
 ```bash
 until [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/realms/master)" = "200" ]
@@ -196,7 +196,7 @@ session_state        950457f2-ec16-a121-e0e8-dcd8fab7c467
 scope                openid email profile
 ```
 
-(You asked for `scope=openid` and were given `openid email profile` — a client carries default scopes it always gets. What you receive is the *intersection* of what you requested and what the client is permitted, never simply what you asked for.)
+(You asked for `scope=openid` and were given three: `openid`, `email` and `profile`. A client carries default scopes it always gets, so what you receive is the *intersection* of what you requested and what the client is permitted — never simply what you asked for. The order they come back in is not defined and yours may differ from the line above; scope is a set, and code that treats it as a sequence is code with a bug waiting in it.)
 
 Three tokens, and lesson 02's pair is right there as two numbers: **300 seconds and 1800 seconds.** A short-lived thing you present constantly and a longer-lived thing whose only job is asking for a fresh short one. You did not read that in a document; it fell out of a design decision you already reconstructed from scratch.
 
@@ -305,7 +305,7 @@ EOF
 ```
 
 ```
-published: [('RSA', 'enc', 'RSA-OAEP'), ('RSA', 'sig', 'RS256')]
+published: [('RSA', 'sig', 'RS256'), ('RSA', 'enc', 'RSA-OAEP')]
 matching this token: 1
 the real token  : signature VALID
 one byte changed: InvalidSignature
@@ -313,11 +313,51 @@ one byte changed: InvalidSignature
 
 Two things landed there. The obvious one: **twenty lines of verification code are portable across completely unrelated issuers**, because JWT and JWKS are the format and the format is all your code knew about. That portability is the entire commercial reason OIDC won.
 
-The subtler one: this JWKS has **two** keys, and one of them is `use: enc` — for encryption, not signing. Lesson 04 gave you `kid` as the reason a JWKS is a set. Here is a second, independent reason: keys differ by *purpose*, and a verifier that grabbed `keys[0]` because there was only one key last week would now be trying to check a signature with an encryption key.
+The subtler one: this JWKS has **two** keys, and one of them is `use: enc` — for encryption, not signing. Lesson 04 gave you `kid` as the reason a JWKS is a set. Here is a second, independent reason: **keys in one set differ by *purpose*, not only by age.** Act VIII lesson 05 already refused to let you sign with a key issued for key agreement; this is the same rule, published as a field, by an issuer that expects strangers to respect it.
+
+Which is why the code above selects on `kid` and not on position. A verifier that reached for `keys[0]` — reasonable enough when there was one key last week — is now taking whichever key the issuer happened to list first, and *nothing in the protocol promises an order*. Note that the two entries came back signing-key-first here, so that verifier would have worked. It would have worked right up until it didn't, on a Keycloak upgrade or a key rotation, with a signature failure and no explanation. **Selecting the right object by matching an identifier is not pedantry over a working shortcut; the shortcut has no defined behaviour and merely happens to be correct.**
+
+### First, live with the consequence
+
+What comes next asks the issuer live questions about a live session — and you destroyed yours several blocks ago, on purpose, by spending a code twice. The lesson told you it had happened. Now watch it, because it is worth feeling rather than reading:
+
+```bash
+AT=$(python3 -c 'import json;print(json.load(open("tok.json"))["access_token"])')
+curl -s -X POST $IDP/token/introspect -d client_id=report-tool \
+  -d client_secret=tool-secret -d token="$AT" \
+ | python3 -c 'import json,sys;d=json.load(sys.stdin)
+print("active:",d.get("active"),"| username:",d.get("username"),"| claims:",len(d))'
+```
+
+```
+active: False | username: None | claims: 1
+```
+
+**One field.** The whole body is `{"active":false}` — no username, no expiry, no scope, because a token the issuer has written off is not a token whose details you are owed. And note what has *not* changed: the bytes in `tok.json` are the same bytes you verified against Keycloak's own published key four blocks ago, and they would verify again right now. That gap is the thing this section is about to measure; you have just met it by accident, ahead of schedule.
+
+So run the flow again. Three hops, condensed — you have done each of them by hand once, which is the only time it is worth doing by hand:
+
+```bash
+curl -s -c jar -o page.html "$IDP/auth?response_type=code&client_id=report-tool\
+&redirect_uri=http://localhost:9000/callback&scope=openid&state=xyz999"
+ACT=$(grep -o 'action="[^"]*"' page.html | head -1 \
+      | sed 's/action="//; s/"$//; s/&amp;/\&/g')
+curl -s -b jar -o /dev/null -D hdr.txt \
+  -d username=rahul -d password=hunter2 "$ACT"
+CODE=$(grep -i '^location' hdr.txt | sed 's/.*[?&]code=//; s/[&[:space:]].*//' | tr -d '\r')
+curl -s -X POST $IDP/token -d grant_type=authorization_code -d code="$CODE" \
+  -d redirect_uri=http://localhost:9000/callback \
+  -d client_id=report-tool -d client_secret=tool-secret > tok.json
+python3 -c 'import json;print("fresh token set, expires_in =", json.load(open("tok.json"))["expires_in"])'
+```
+
+```
+fresh token set, expires_in = 300
+```
 
 ### The whole act, in one measurement
 
-You now hold a token you have verified with your own hands. Ask the issuer about it — that `introspection_endpoint` from the discovery document:
+Now you hold a live token, of exactly the kind you verified by hand a moment ago. Ask the issuer about it — that `introspection_endpoint` from the discovery document:
 
 ```bash
 AT=$(python3 -c 'import json;print(json.load(open("tok.json"))["access_token"])')
@@ -537,7 +577,7 @@ docker rm -f idp
 
 > **You understand this when you can** give four distinct reasons a password is the wrong thing to delegate with, one of which is about attribution; state the requirement that forces the credential to be issued rather than shared, and explain why that requirement puts you in direct contact with the issuer; derive all four hops of the authorization code flow, naming the specific leak each one prevents; explain why the returned code must be a handle rather than a token, and what `state` is for; say why a code used twice destroys the whole session, and contrast that fail-closed choice with OCSP's; predict which of the three tokens is HMAC'd from the audience alone, and explain why `aud` and `alg` agree; say why sending an id_token to an API is a vulnerability rather than a shortcut; describe an experiment in which local verification and introspection disagree about the same token at the same instant, and argue that both answers are correct; explain what PKCE proves and what it does not; and explain why the password grant cannot be detected by anything downstream of the issuer.
 
-**Which raises:** you have a token containing `sub`, `azp`, and a `scope` of `openid email profile`. Every one of those is a **string**. Verification proved a string arrived unaltered from an issuer you trust — and had, and could have, no opinion whatsoever about what the string permits. So somewhere a system holds rules that turn `rahul` and `openid email profile` into *yes* or *no*. **Before the next lesson, try to say how many fundamentally different shapes such a rule set can have** — not how many products exist, but how many ways there are to write a function down at all. The answer is smaller than you would guess, the two shapes fail in opposite directions, and almost every argument you have ever heard about IAM is an argument about which one somebody is using.
+**Which raises:** you have a token containing `sub`, `azp`, and a `scope` naming `openid`, `email` and `profile`. Every one of those is a **string**. Verification proved a string arrived unaltered from an issuer you trust — and had, and could have, no opinion whatsoever about what the string permits. So somewhere a system holds rules that turn `rahul` and `openid email profile` into *yes* or *no*. **Before the next lesson, try to say how many fundamentally different shapes such a rule set can have** — not how many products exist, but how many ways there are to write a function down at all. The answer is smaller than you would guess, the two shapes fail in opposite directions, and almost every argument you have ever heard about IAM is an argument about which one somebody is using.
 
 ---
 
