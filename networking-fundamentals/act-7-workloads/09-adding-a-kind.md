@@ -81,7 +81,12 @@ kubectl get ws hello -o yaml | head -12
 kubectl get pods,deploy,cm
 ```
 
-**Nothing. Not one thing.** You said `replicas: 2` and there are no replicas of anything. You declared content and nothing serves it.
+```
+NAME                         DATA   AGE
+configmap/kube-root-ca.crt   1      4m48s
+```
+
+**Nothing.** No Pods, no Deployment, and the one ConfigMap is stock furniture the control plane puts in every namespace — Act VI's cluster CA, published so that anything running here can verify the API server. Nothing in that listing is a consequence of what you created. You said `replicas: 2` and there are no replicas of anything. You declared content and nothing serves it.
 
 That is not a failure and it is worth being precise about why. Act VI's central claim was that the API server is a store you POST documents to, and that every *behaviour* is a separate loop watching those documents. A CRD extends the store. **It does not extend the set of loops** — there is no mechanism by which it could, because a loop is a running program and you have not written one.
 
@@ -109,8 +114,8 @@ EOF
 
 ```
 The Website "bad" is invalid:
-* spec.content: Required value
 * spec.replicas: Invalid value: 99: spec.replicas in body should be less than or equal to 5
+* spec.content: Required value
 ```
 
 Two errors, both from the schema you wrote, both refused by the API server before storage. Nothing client-side is involved — the same rejection happens to `curl`.
@@ -236,13 +241,13 @@ NAME    REPLICAS   READY
 hello   4          4/4
 ```
 
-**Four Pods serving content you declared in a kind you invented, with a `READY` column your controller filled in.** Check it works:
+**Four Pods serving content you declared in a kind you invented, with a `READY` column your controller filled in.** Check the content actually arrived:
 
 ```bash
-kubectl run curl --rm -it --image=curlimages/curl --restart=Never -- \
-  curl -s site-hello.default.svc.cluster.local 2>/dev/null || \
-  kubectl exec deploy/site-hello -- cat /usr/share/nginx/html/index.html
+kubectl exec deploy/site-hello -- cat /usr/share/nginx/html/index.html
 ```
+
+Note what you had to reach for, and what you could not. There is no `site-hello` Service, so nothing resolves by name — because your controller does not create one, because you did not write that. **A custom kind promises exactly as much as its controller implements and not one field more.** The CRD's schema will happily accept a `Website` forever whether or not anything reachable exists at the end of it, and that gap is the single most common thing wrong with a real operator.
 
 That shell script is an **operator**. Not a toy version of one — the shape is exactly right, and the two properties that make it one are worth naming while it is running in your terminal:
 
@@ -262,7 +267,20 @@ sleep 10
 kubectl exec deploy/site-hello -- cat /usr/share/nginx/html/index.html
 ```
 
-The ConfigMap was rewritten, and — from lesson 05 — the mounted file follows within about a minute without a restart. Your operator inherited that behaviour without implementing it, because it did not invent a mechanism: **it wrote the same objects you would have written by hand.** Every operator you will ever meet is doing this. `cert-manager` writes Secrets. The Gateway controller in Act V wrote a Deployment and a Service, which is why deleting the Gateway garbage-collected them.
+**Still the old content** — and that is not a bug in your controller. Check the object it actually writes:
+
+```bash
+kubectl get cm site-hello -o jsonpath='{.data.index\.html}{"\n"}'
+```
+
+The ConfigMap says `changed` already; your loop reconciled within five seconds. What has not caught up is the *mount*, and lesson 05 measured exactly this: the kubelet syncs a mounted ConfigMap roughly once a minute. Wait it out:
+
+```bash
+sleep 60
+kubectl exec deploy/site-hello -- cat /usr/share/nginx/html/index.html
+```
+
+There it is. Two independent loops, each correct, with the reader's expectation sitting in the gap between them — which is what almost every "the operator didn't do anything" report turns out to be. The mounted file follows within about a minute without a restart. Your operator inherited that behaviour without implementing it, because it did not invent a mechanism: **it wrote the same objects you would have written by hand.** Every operator you will ever meet is doing this. `cert-manager` writes Secrets. The Gateway controller in Act V wrote a Deployment and a Service, which is why deleting the Gateway garbage-collected them.
 
 ```bash
 kill %1
@@ -287,7 +305,6 @@ kubectl get pods -A | grep -i controller               # 5. WHOSE loop is this
 Step five is the one people skip and the one that matters. A custom object that does nothing has exactly two explanations, and they are the same two as a `Pending` Pod in Act VI: either the loop looked and declined — in which case `.status` says so — or **no loop is running at all**, in which case `.status` is absent and there is nothing to read.
 
 ```bash
-kubectl scale deploy/nonexistent --replicas=0 2>/dev/null
 kubectl delete crd websites.example.com
 kubectl get deploy,cm
 ```
@@ -357,7 +374,7 @@ kubectl delete crd websites.example.com --ignore-not-found
 kubectl delete deploy site-hello --ignore-not-found
 kubectl delete cm site-hello --ignore-not-found
 rm -f /tmp/website-controller.sh
-kubectl get crd 2>/dev/null | grep -c example.com || echo "gone"
+kubectl get crd 2>/dev/null | grep -q example.com && echo "still there" || echo "gone"
 ```
 
 > **You understand this when you can** explain how a cluster gains a kind, and why that does not contradict the last lesson's finding that Helm and Kustomize add none; say what a custom resource's etcd key has that a Deployment's does not, and why that asymmetry can never be tidied up; list what a CRD gives you without any code and say which of those things is enforced server-side; explain why an object of your own kind can be created and validated while absolutely nothing happens, and connect that to Act VI's split between the store and the loops; say why `status` is a separate subresource and what that makes possible; describe a controller in three words and explain why re-deriving state every pass is more robust than handling events; and diagnose a custom object with an empty status and no events without guessing.

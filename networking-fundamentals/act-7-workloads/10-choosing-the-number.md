@@ -36,8 +36,10 @@ kubectl -n kube-system logs deploy/metrics-server --tail=5
 ```
 
 ```
-scraping metrics: unable to fully scrape metrics: ... x509: cannot validate
-certificate for 172.18.0.3 because it doesn't contain any IP SANs
+E0822 03:00:06.163823  1 scraper.go:149] "Failed to scrape node"
+  err="Get \"https://<node-ip>:10250/metrics/resource\": tls: failed to verify
+  certificate: x509: cannot validate certificate for <node-ip> because it
+  doesn't contain any IP SANs" node="netlab-control-plane"
 ```
 
 A **certificate verification failure** — and read the reason precisely, because it is narrower than "the certificate is wrong." It says **no IP SANs**.
@@ -93,8 +95,8 @@ kubectl get hpa web
 > **Predict first —** you asked it to keep CPU utilisation at 50%. The Pod is idle, so utilisation is near zero, which is well under target. Say what the `TARGETS` column shows and what you expect `REPLICAS` to do. Then look, because it is neither of the two obvious answers.
 
 ```
-NAME   REFERENCE        TARGETS              MINPODS   MAXPODS   REPLICAS
-web    Deployment/web   cpu: <unknown>/50%   1         8         1
+NAME   REFERENCE        TARGETS              MINPODS   MAXPODS   REPLICAS   AGE
+web    Deployment/web   cpu: <unknown>/50%   1         8         1          60s
 ```
 
 **`<unknown>`.** Not zero, not low — *unknown*. And metrics-server is working; you read real numbers out of it thirty seconds ago. Ask why:
@@ -104,9 +106,11 @@ kubectl describe hpa web | grep -A4 Conditions
 ```
 
 ```
-Type            Status  Reason                   Message
-AbleToScale     True    SucceededGetScale        the HPA controller was able to get the target's current scale
-ScalingActive   False   FailedGetResourceMetric  failed to get cpu utilization: missing request for cpu
+Type           Status  Reason                   Message
+AbleToScale    True    SucceededGetScale        the HPA controller was able to get the target's current scale
+ScalingActive  False   FailedGetResourceMetric  the HPA was unable to compute the replica count: failed to
+                                                get cpu utilization: missing request for cpu in container
+                                                nginx of Pod web-7b8c57c6d6-xbmcf
 ```
 
 **`missing request for cpu`.** Stop and derive what that tells you about the algorithm, because it is the single most useful fact in this lesson and almost nobody knows it.
@@ -122,13 +126,13 @@ Fix the cause:
 ```bash
 kubectl set resources deployment web --requests=cpu=50m,memory=32Mi
 kubectl rollout status deployment/web --timeout=90s
-sleep 60
+sleep 120     # the HPA re-reads every 15s, but metrics-server needs ~70s for a new Pod
 kubectl get hpa web
 ```
 
 ```
-NAME   REFERENCE        TARGETS         MINPODS   MAXPODS   REPLICAS
-web    Deployment/web   cpu: 0%/50%     1         8         1
+NAME   REFERENCE        TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+web    Deployment/web   cpu: 0%/50%     1         8         1          3m
 ```
 
 A real ratio now. And notice the shape of what you did: you did not configure the autoscaler, you gave the workload a denominator.
@@ -258,9 +262,8 @@ The habit worth taking: before choosing a target number, ask what the workload a
 kubectl delete hpa web
 kubectl delete deployment web
 kubectl delete svc web
-kubectl delete pod load --ignore-not-found --now
 kubectl delete -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-kubectl get pods -A | grep -c metrics-server || echo "gone"
+kubectl get pods -A | grep -q metrics-server && echo "still there" || echo "gone"
 ```
 
 **Read that last line before you run it.** Leaving metrics-server installed is harmless, and [the sixth diagnostic drill](diagnose.md) needs it — so if you are going straight on to those, skip the `delete -f`. Come back and run it afterwards: lesson 04's `kubectl top` failure is load-bearing for anyone reading this act a second time, and a lab where that command quietly works has lost the beat.

@@ -23,7 +23,7 @@ kubectl api-resources | grep -i -E 'chart|release|kustom' ; echo "exit=$?"
 That is the single most useful thing to know about this whole topic, and it has consequences you will use all week:
 
 - Anything either tool can do, you could have done by editing files. They are labour-saving devices, not capabilities — which is a real distinction, because the next lesson's subject genuinely *is* a new capability.
-- A cluster cannot be "a Helm cluster." Objects from either tool sit next to hand-written ones and nothing can tell.
+- A cluster cannot be "a Helm cluster." Objects from either tool sit next to hand-written ones and the *API server* cannot tell them apart. (Helm does stamp a `app.kubernetes.io/managed-by: Helm` label on what it renders, and you will see it later in this lesson — but that is a label a human chose to write, exactly as you could have. Nothing in the machinery treats it specially.)
 - When something is wrong, `kubectl get -o yaml` shows you the truth, and the truth has no templates in it.
 - And since the API server has no idea what a release *is*, any tool that wants to remember "what did I install last time" has to store that somewhere itself — in the cluster, as one of the kinds that already exists. Hold onto that; you will find where in a few minutes.
 
@@ -93,7 +93,7 @@ kubectl kustomize base/
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: web-config-9c8f4tmb6h
+  name: web-config-hf678c7m2b
 ```
 
 A **hash suffix**, derived from the content. And then look at what happened to the Deployment that referenced `web-config`:
@@ -225,7 +225,20 @@ kubectl -n staging get secret -l owner=helm \
   -o jsonpath='{.items[0].data.release}' | base64 -d | base64 -d | gunzip | head -c 300
 ```
 
-The rendered manifest, gzipped and base64'd twice. That is the whole of Helm's memory: **a copy of the YAML it sent**, per revision, stored in the namespace it sent it to.
+```
+{"name":"mysite","info":{"first_deployed":"...","last_deployed":"...",
+"description":"Install complete","status":"deployed","notes":"1. Get the application URL...
+```
+
+**A JSON record, gzipped and base64'd twice.** Not bare YAML — a *release envelope*, about 20 kB of it, whose top-level keys are `name, info, chart, manifest, hooks, version, namespace`. Two of those are worth pausing on. `manifest` holds the rendered YAML Helm actually sent. `chart` holds **the entire chart** — every template, unrendered.
+
+```bash
+kubectl -n staging get secret -l owner=helm \
+  -o jsonpath='{.items[0].data.release}' | base64 -d | base64 -d | gunzip \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["manifest"][:300])'
+```
+
+*That* is the copy of the YAML it sent. So Helm's memory, per revision, stored in the namespace it sent to, is: what I rendered, and what I rendered it *from*.
 
 Which explains everything about `helm rollback` in one stroke. Upgrade, then look:
 
@@ -323,7 +336,7 @@ helm uninstall mysite --namespace staging
 kubectl delete -k ~/pkg/overlays/staging/ --ignore-not-found
 kubectl delete namespace staging
 rm -rf ~/pkg ~/demo
-kubectl get ns | grep -c staging || echo "gone"
+kubectl get ns | grep -q staging && echo "still there" || echo "gone"
 ```
 
 > **You understand this when you can** explain why no object in a cluster can be identified as Helm-managed or Kustomize-managed by the API server, and what that implies about where to look when something is wrong; say what `kubectl kustomize` and `helm template` have in common and why running them first is a habit worth having; explain what a `configMapGenerator`'s hash accomplishes that lesson 05 said you would otherwise have to remember to do by hand; say where a Helm release's state is stored and why it had to be stored in a kind that already existed; explain why `helm rollback` restores a manifest while `kubectl rollout undo` scales a ReplicaSet, and why neither is an undo log; and state the one thing Helm can express that Kustomize cannot, and the one guarantee Kustomize gives that Helm cannot.
