@@ -74,13 +74,14 @@ This is a gentler act than the last two in one way and harsher in another. Nothi
 
 ## The lessons — read in this order
 
-*(This act is being written. Lessons appear here as they land.)*
-
 1. **[A function that destroys information on purpose](01-hashing.md)** — why "did this change?" is answerable without comparing anything, and how to break MD5 by hand in two commands.
 2. **[A hash only certain people can compute](02-hmac.md)** — forge a signed API request without the key, then derive HMAC as the shape that stops you.
 3. **[Unreadable is not the same as unchangeable](03-ciphers.md)** — turn `role=user` into `role=root` inside AES-CBC without the key, then build the missing half out of lesson 02.
 4. **[Agreeing on a secret in public](04-key-exchange.md)** — why pre-shared keys were a dead end, why that was not a tautology, and the one thing a key exchange can never tell you.
 5. **[A claim someone else vouched for](05-certificates.md)** — be a certificate authority for ten minutes, then find out that the same file verifies or fails depending only on a list you chose.
+6. **[The lock, opened](06-tls-opened.md)** — the capstone. Nothing new is introduced; a real TLS 1.3 handshake is narrated against a CA you built, and `TLS_AES_256_GCM_SHA384` becomes a sentence.
+
+Then: **[test yourself](test-yourself.md)** (20 questions) · **[diagnose it](diagnose.md)** (6 drills) · **[in the wild](in-the-wild.md)**.
 
 ## What breaks here
 
