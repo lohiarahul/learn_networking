@@ -1,10 +1,18 @@
-# Act VII in the wild — the act that transfers completely
+# Act VII in the wild — the objects transfer, the methods do not
 
 Act VI's in-the-wild page had to open with an apology: on a managed cluster, most of what that act taught you to *look at* is hidden. No `/etc/kubernetes/manifests`, no `ca.key`, no etcd.
 
-This act has no such problem, and it is worth understanding why, because the reason is structural rather than lucky.
+This act is in a better position, though not the perfect one I would like to claim, and the difference is worth being exact about.
 
-Everything in Act VII is an **object in the API**. Not a file on a control-plane node, not a certificate, not a process you can only see with a shell — a document you POST and read back. And the API is the one part of a managed cluster that is identical everywhere, because it is the product. **So this act is the most portable thing you have learned since sockets.**
+Almost everything Act VII *taught* is an **object in the API**. Not a file on a control-plane node, not a certificate, not a process you can only see with a shell — a document you POST and read back. And the API is the one part of a managed cluster that is identical everywhere, because it is the product. **So the objects in this act are the most portable thing you have learned since sockets.**
+
+Be precise about the boundary, though, because several of this act's *experiments* do not travel at all:
+
+- Lessons 01 and 06 reach past `kubectl` with `docker exec <node> crictl stop` to kill a container underneath a Pod.
+- Lesson 05's second Secret location *is* a node shell into `/var/lib/kubelet/pods/…` — that is the entire finding.
+- Lesson 09 reads a custom resource out of etcd with `etcdctl`.
+
+None of those are available on EKS, GKE or AKS, for exactly the reasons [Act VI's in-the-wild page](../act-6-control-plane/in-the-wild.md) sets out. The conclusions still hold — a Secret volume really is plaintext tmpfs on the node, whether or not you can go and look — but you will be taking that on the strength of having done it once here. Which is the argument for having a lab at all.
 
 | What Act VII taught | On EKS / GKE / AKS |
 |---|---|
@@ -18,12 +26,14 @@ Everything in Act VII is an **object in the API**. Not a file on a control-plane
 | DaemonSets, Jobs, CronJobs | **Identical.** |
 | Helm, Kustomize | **Identical.** They were always client-side. |
 | CRDs and controllers | **Identical**, and you will meet dozens you did not install. |
-| HPA arithmetic, `actual ÷ requests` | **Identical**, but metrics-server is usually already there. |
-| **The default StorageClass** | **The one real difference**, and it changes an answer. |
+| HPA arithmetic, `actual ÷ requests` | **Identical.** |
+| **The default StorageClass** | **The most consequential difference**, and it changes an answer. |
+| The tainted control-plane node | **Invisible**, which changes two of this act's numbers. |
+| metrics-server | **Usually pre-installed**, so lesson 10's opening friction is gone. |
 
-## The one thing that changes, and it changes a promise
+## The change that alters a promise
 
-Lesson 06 was careful about this and it is worth restating as the single most important production consequence of the act. Your lab's `local-path` provisioner makes a directory on one named node. A cloud provider's default StorageClass makes a **network volume** — an EBS volume, a persistent disk — which is a different machine entirely.
+This is the one that matters most, and lesson 06 was careful about it. Your lab's `local-path` provisioner makes a directory on one named node. A cloud provider's default StorageClass makes a **network volume** — an EBS volume, a persistent disk — which is a different machine entirely.
 
 Both are used through an *identical* PVC manifest. What changes is which of the three promises you get:
 
@@ -39,6 +49,14 @@ Run that on any cluster you are handed, before you write a PVC. Three things to 
 - **`volumeBindingMode`** is usually still `WaitForFirstConsumer`, and for a sharper reason than in your lab: a network volume in one availability zone cannot be attached to a node in another. The scheduler and the provisioner have to agree, and the only way to guarantee that is to place the Pod first.
 
 That last point is where the act's cross-zone content stops being theoretical. `topologySpreadConstraints` across zones and a zonal PVC are in direct tension: spread your StatefulSet across three zones and each member's disk is welded to its zone, so a member can never move to a different one. That is usually correct and always worth knowing you chose.
+
+## Two numbers this act derived that come out differently
+
+Both are cases where the *lab* taught you something true by way of a detail the cloud hides, and it is worth knowing which is which.
+
+**The topology-spread trap.** Lesson 04 found that `DoNotSchedule` with `maxSkew: 1` refuses your *second* replica on the lab, because `nodeTaintsPolicy` defaults to `Ignore` and the tainted control-plane node counts as a domain holding zero Pods. On a managed cluster you have no visible control-plane node, so that particular arithmetic does not reproduce — the constraint behaves the way the documentation makes you expect. The mechanism you learned is right and still bites, just in a different shape: any domain your Pods cannot enter, for any reason, is still counted.
+
+**A DaemonSet's `DESIRED`.** Lesson 07 made the point that the count is derived rather than declared by showing a toleration-free DaemonSet reporting `DESIRED 1` on a two-node cluster. In the cloud your nodes are all schedulable, so it will report the full node count and the demonstration falls flat — while the claim it was demonstrating is unchanged, and easier to see when you add a node pool and watch the number move on its own.
 
 ## Where the money is
 
@@ -61,7 +79,7 @@ Anything old with no Pod referencing it is either a deliberate keep or money.
 Lesson 09 gave you the procedure and this is where you spend it. A real cluster has dozens of custom kinds, and nobody documents them:
 
 ```bash
-kubectl api-resources --api-group='' -o name | wc -l      # the built-ins
+kubectl api-resources --api-group='' -o name | wc -l   # the CORE group only (Pod, Service, ...)
 kubectl get crd -o custom-columns=NAME:.metadata.name,GROUP:.spec.group | head -30
 ```
 
@@ -85,7 +103,7 @@ The worst version of this is a CRD whose controller was removed. The objects rem
 
 Three things from this act are worth doing every time, in any cluster, and none of them takes a minute.
 
-**Read the StorageClass before writing a PVC.** One command, and it tells you which of three durability promises you are about to receive.
+**Read the StorageClass before writing a PVC.** One command, and it tells you which of three durability promises you are about to receive. It is the habit this page exists for: of everything in the act, this is the one place where identical YAML means genuinely different guarantees.
 
 **`kubectl get pvc -A` after anything involving a StatefulSet.** It is the only place the cluster remembers replicas you no longer run.
 
