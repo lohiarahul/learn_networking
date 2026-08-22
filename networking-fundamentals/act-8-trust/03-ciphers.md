@@ -324,4 +324,4 @@ cd "${TMPDIR:-/tmp}" && rm -f rep.bin
 
 ---
 
-↑ **[Act VIII overview](README.md)** · Prev: **[A hash only certain people can compute](02-hmac.md)** · Next: **[Act VIII overview](README.md)** — key exchange is being written →
+↑ **[Act VIII overview](README.md)** · Prev: **[A hash only certain people can compute](02-hmac.md)** · Next: **[Agreeing on a secret in public](04-key-exchange.md)** →
