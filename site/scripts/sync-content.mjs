@@ -93,6 +93,7 @@ const ACTS = [
   { srcDir: 'act-7-workloads', slug: 'act-7' },
   { srcDir: 'act-8-trust', slug: 'act-8' },
   { srcDir: 'act-9-identity', slug: 'act-9' },
+  { srcDir: 'act-10-cluster-security', slug: 'act-10' },
 ];
 
 /**
