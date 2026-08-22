@@ -27,8 +27,8 @@ Here is the move that makes the whole subject tractable, and almost nothing teac
 
    PROMISE                      "can anyone read this?"
    MECHANISM                    a CIPHER, and then AEAD           lesson 03
-   what it does NOT give you    integrity -- not by itself, and
-                                the gap is exploitable, not theoretical
+   what it does NOT give you    integrity. and the gap is not
+                                theoretical -- you will use it
 
    PROMISE                      "how do two strangers agree on a
                                 key, in public?"
@@ -49,7 +49,7 @@ Read the right-hand column downwards and you have the plot. Each lesson's mechan
 
 Nothing in this act is impossible to break. **Everything is merely infeasible, and "infeasible" is a number.**
 
-That is not a caveat, it is the subject. Every guarantee here reduces to "an attacker would have to perform roughly 2^n operations," and every interesting failure in the history of cryptography has been someone discovering that the real n was smaller than advertised. So the habit this act builds is arithmetic rather than faith: when something claims 256 bits of security, ask *of what*, because — as lesson 01 shows in one line of division — the answer is sometimes 128.
+That is not a caveat, it is the subject. Every guarantee here reduces to "an attacker would have to perform roughly 2^n operations," and every interesting failure in the history of cryptography has been someone discovering that the real n was smaller than advertised. So the habit this act builds is arithmetic rather than faith: when something claims 256 bits of security, the useful question is *256 bits against which attacker* — and lesson 01 finds, in one line of arithmetic, that the honest answer sometimes has to be renegotiated downwards.
 
 You will break one thing yourself, with two commands, on your own machine.
 
@@ -67,6 +67,8 @@ If `openssl` is missing: `brew install openssl` on macOS, or it is already there
 
 - **OpenSSL 3.x prints `SHA2-256(file)=` where 1.x printed `SHA256(file)=`**, and likewise `HMAC-SHA2-256`. This act shows 3.x output. If yours says `SHA256`, nothing is wrong.
 - `sha256sum` and `md5sum` exist on Linux and are *not* installed on macOS by default. Where a lesson needs them it uses `openssl dgst` or `shasum`, which are everywhere.
+- **macOS's `/usr/bin/openssl` is LibreSSL, not OpenSSL**, even though it reports a version starting with 3. It is fine for everything here except one block in lesson 03, which says so at the point it matters. `brew install openssl` if you want the whole act to behave as printed.
+- One block in lesson 03 needs the Python `cryptography` package — the only third-party dependency in the act. That lesson checks for it and gives you a throwaway virtual environment if you need one.
 
 This is a gentler act than the last two in one way and harsher in another. Nothing you do can break a cluster. But the experiments are **arithmetic you have to actually do**, and skipping the arithmetic leaves you with vocabulary instead of understanding — which is precisely the state you were in at the end of Act III.
 
@@ -83,7 +85,7 @@ This is a gentler act than the last two in one way and harsher in another. Nothi
 
 Three shapes, and unlike the previous two acts, none of them announce themselves.
 
-**A mechanism keeping the wrong promise.** Encryption is not integrity. A hash is not authentication. These sound like pedantry until you meet the attack: a ciphertext an attacker cannot *read* is very often one they can *edit*, in a controlled way, with predictable results. The whole point of the four-promise table above is that you can never patch a missing promise with a mechanism that keeps a different one.
+**A mechanism keeping the wrong promise.** Encryption is not integrity. A hash is not authentication. Both of those sound like pedantry, and they read completely differently once you have performed the attack that separates them — which is lesson 03's job, and is the reason the table above spends a line on what each mechanism does *not* do. The rule underneath: you can never patch a missing promise with a mechanism that keeps a different one.
 
 **A number that turned out to be smaller.** Every guarantee here is a work factor, and work factors erode — from cryptanalysis, from faster hardware, and from a birthday bound that quietly halves your bits the moment your problem changes from "find *this* collision" to "find *any* collision." MD5 and SHA-1 were not broken by anyone being wrong about the mathematics. They were broken by the numbers moving.
 

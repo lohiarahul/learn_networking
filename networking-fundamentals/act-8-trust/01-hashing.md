@@ -45,7 +45,7 @@ That is the property, and it has a name worth knowing because it is the design g
 
 Now notice what that buys you, because it is the answer to the opening question. If a single flipped bit produced a single flipped output bit, a hash would be a *summary* — and summaries can be forged, because you could work backwards from the summary you wanted. Half means the output carries no usable trace of the input's structure. There is nothing to work backwards along.
 
-### The direction is the whole point
+### Now try it backwards
 
 ```bash
 printf 'hunter2' | openssl dgst -sha256
@@ -107,6 +107,8 @@ cmp one.bin two.bin
 one.bin two.bin differ: char 20, line 1
 ```
 
+(`xxd -r -p` is what turned those hex strings into bytes — `-p` for a plain hex stream with no offsets or ASCII column, `-r` to run the dump in reverse. On Linux, GNU `cmp` words the result as `byte 20` rather than `char 20`.)
+
 Now hash them both, with the broken function and then a working one:
 
 ```bash
@@ -141,18 +143,20 @@ MD5(doc2)= a73aac8c3f27ffeb6fdf31e26a5214ef
 
 Still identical — a *new* shared hash, because the content changed, but shared. So an attacker does not need two useless 128-byte blobs; they need two *documents* that differ in a chosen prefix and agree everywhere after it. Which is how a collision becomes a forged certificate rather than a curiosity.
 
-> **Check yourself —** A colleague proposes signing API requests by appending a shared secret to the request body and hashing the result with SHA-256: `signature = SHA256(body + secret)`. They argue it is safe because SHA-256 is unbroken and an attacker cannot recover the secret from the hash. Both of those claims are true. Why is the scheme still wrong?
+> **Check yourself —** A colleague proposes signing API requests by prefixing a shared secret to the request body and hashing the result with SHA-256: `signature = SHA256(secret + body)`. They argue it is safe because SHA-256 is unbroken and an attacker cannot recover the secret from the hash. Both of those claims are true. Why is the scheme still wrong?
 
 <details>
 <summary>Answer</summary>
 
-Because it makes a promise with the wrong mechanism, and the mechanism has a structural feature the scheme did not account for.
+Because it makes a promise with the wrong mechanism — and because the mechanism has a structural feature your colleague did not account for, which you have already used once in this lesson without noticing what it implied.
 
-A hash like SHA-256 processes input as a chain of fixed-size blocks, carrying state forward — the same construction you just exploited to keep the MD5 collision alive across an append. That means someone who knows `SHA256(body + secret)` and the *length* of the secret can continue the computation and produce a valid `SHA256(body + secret + padding + anything_they_like)` **without ever learning the secret.** They append to the message and produce a signature that verifies. It is called a length-extension attack, and it needs neither a collision nor a preimage — the hash is doing exactly what it was designed to do.
+Start with the promise. Your colleague reached for a mechanism that keeps *"did this change?"* and asked it for *"who says so?"* Those are different promises. A hash has no notion of a sender; it takes bytes and returns bytes, and anyone holding the same bytes computes the same answer. The secret in the formula is doing something that *looks* like authentication and is not built for it.
 
-The deeper error, though, is the one this act is organised around. Your colleague reached for a mechanism that keeps the promise *"did this change?"* and used it to make the promise *"who says so?"* Those are different promises. A hash has no notion of a sender; it takes bytes and returns bytes, and anyone holding the same bytes computes the same answer. The secret in the formula is doing something that looks like authentication and is not built for it.
+The structural feature is the one to sit with. A hash like SHA-256 does not consume its input all at once — it processes a chain of fixed-size blocks, carrying a running state forward from each block to the next, and the state at the end is the digest. That is precisely the property you exploited two commands ago: appending the same bytes to both colliding files kept the collision alive, because the two computations reached an identical state and then continued from it identically.
 
-What they want is a construction designed for that promise, with the block-chaining problem handled deliberately rather than by hope. That is the next lesson.
+So ask what a digest of `secret + body` actually *is*, given that construction. It is not a summary of the input. It is the exact condition of a machine that has already eaten the secret. Publishing it publishes that.
+
+Work out what somebody could do with that before the next lesson, because it is the next lesson.
 
 </details>
 

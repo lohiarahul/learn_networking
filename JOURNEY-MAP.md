@@ -21,8 +21,8 @@ reconcile** in the cloud.
 > | **6** — one machine pretends to be many (containers) | Act IV | ✅ **built & teaching** |
 > | **7.3** — Kubernetes *networking* (incl. Gateway API, Service shapes) | Act V | ✅ **built & teaching** |
 > | **7.1** — the control plane: API server as a filesystem, static pods, the reconciliation loop, cluster PKI, etcd backup/restore, upgrades & version skew, node maintenance, control-plane troubleshooting | Act VI | ✅ **built & teaching** — 8 lessons + all supporting pages, every lesson run against a real cluster |
-> | **7.2, 7.4, 7.6–7.8** — workloads, scheduling, storage, config, Helm/Kustomize, CRDs/operators, autoscaling | Act VII | ✅ **built & teaching** — 10 lessons + all supporting pages; lessons 01–07 run against a real cluster and corrected, 08–10 pending verification |
-> | **4** — cryptography & trust | *(planned as Act VIII)* | 🔜 **roadmap** |
+> | **7.2, 7.4, 7.6–7.8** — workloads, scheduling, storage, config, Helm/Kustomize, CRDs/operators, autoscaling | Act VII | ✅ **built & teaching** — 10 lessons + all supporting pages, every lesson run against a real cluster and corrected |
+> | **4** — cryptography & trust | Act VIII | 🟡 **being built** — 4 of 6 lessons (hashes, HMAC, ciphers/AEAD, key exchange); certificates and the TLS 1.3 capstone still to come, plus supporting pages |
 > | **5** — identity & access | *(planned as Act IX)* | 🔜 **roadmap** |
 > | **7.5, 7.9** — CKS security: hardening, etcd encryption, seccomp/AppArmor, admission, supply chain | *(planned as Act X)* | 🔜 **roadmap** |
 > | **8** — AWS networking | *(none yet)* | 🔜 **roadmap** |

@@ -20,8 +20,8 @@ The interesting part is what happens when someone tries to fix that by reusing t
 cd "${TMPDIR:-/tmp}" && python3 - <<'PY'
 import os
 key = os.urandom(32)                          # one pad
-m1  = b'transfer 100 to bob'.ljust(32, b' ')
-m2  = b'transfer 999 to eve'.ljust(32, b' ')  # SAME pad, second message
+m1  = b'transfer 100 to bob'
+m2  = b'transfer 999 to eve'                  # SAME pad, second message
 c1 = bytes(a ^ b for a, b in zip(m1, key))
 c2 = bytes(a ^ b for a, b in zip(m2, key))
 print("c1 ^ c2 =", bytes(a ^ b for a, b in zip(c1, c2)).hex())
@@ -32,9 +32,9 @@ PY
 ```
 
 ```
-c1 ^ c2 = 0000000000000000000809090000000007190700000000000000000000000000
-m1 ^ m2 = 0000000000000000000809090000000007190700000000000000000000000000
-given m1, recovered: b'transfer 999 to eve             '
+c1 ^ c2 = 00000000000000000008090900000000071907
+m1 ^ m2 = 00000000000000000008090900000000071907
+given m1, recovered: b'transfer 999 to eve'
 ```
 
 **XOR the two ciphertexts and the key cancels out.** It appears in both, so it vanishes, and what is left is the XOR of the two *plaintexts* — which you can read structure out of directly (all those zeros are where the messages agree), and which hands you the second message outright if you can guess the first. The attacker never touched the key.
@@ -52,9 +52,11 @@ Sixteen bytes is not a message, so the question of how you use it to encrypt som
 The most obvious mode is to chop the input into 16-byte blocks and encrypt each one independently. It is called ECB. Try it on 48 identical bytes:
 
 ```bash
-printf 'A%.0s' {1..48} > rep.bin
+cd "${TMPDIR:-/tmp}" && printf 'A%.0s' {1..48} > rep.bin
 openssl enc -aes-128-ecb -nosalt -K 00112233445566778899aabbccddeeff -in rep.bin | xxd
 ```
+
+(`-nosalt` because `openssl enc` otherwise derives the key from a passphrase and a random salt; here the key is being supplied directly with `-K`, so there is nothing to derive and a salt would only add a header.)
 
 ```
 00000000: 5301 d125 1af0 8a9e a49c f859 82d8 df6e  S..%.......Y...n
@@ -98,6 +100,8 @@ enc: AEAD ciphers not supported
 enc: Use -help for summary.
 ```
 
+If instead you got `bad decrypt`, you are running Apple's stock `/usr/bin/openssl`, which is **LibreSSL** — a different project that reports a version number starting with 3 and is not OpenSSL 3.x. Everything else in this act works identically on it; this one block does not. `brew install openssl` and use that binary for this section.
+
 **A refusal, not a failure.** Worth stopping on, because a tool declining to do something it obviously knows how to do is usually telling you that your mental model is wrong. `enc`'s entire interface is *bytes in, bytes out* — it is a filter. Whatever GCM is, it does not fit that shape.
 
 > **Predict first —** work out what GCM must produce that a filter cannot express, and you will have derived the rest of this lesson. The clue is in the name of the category the error message uses: **AEAD**, where the first two letters stand for "authenticated encryption." What extra thing would come out, and what extra thing could therefore go wrong on the way back in?
@@ -106,8 +110,20 @@ enc: Use -help for summary.
 
 CBC hid the pattern. Here is what it did not do. The reader below holds a key you will never see:
 
+The next four blocks are the only place in this act that needs a Python package. Check whether you already have it, and install it only if not:
+
 ```bash
-python3 -m pip install cryptography    # if you do not already have it
+python3 -c 'import cryptography; print(cryptography.__version__)'
+```
+
+If that fails, note that a bare `pip install` is refused on most current systems — Homebrew Python and Debian/Ubuntu both mark themselves *externally managed*, and `--user` does not help. Use a throwaway virtual environment, which is the right answer anyway for a package you need for one lesson:
+
+```bash
+cd "${TMPDIR:-/tmp}" && python3 -m venv .venv && source .venv/bin/activate
+pip install cryptography
+```
+
+```bash
 python3 - <<'PY'
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import os
@@ -183,7 +199,7 @@ tampered: REJECTED: tag mismatch
 
 - **The tag covers the IV.** Authenticate only the ciphertext and the attack above still works, because the IV is what got edited. Anything that reaches the decryption function must be under the tag.
 - **The tag is computed over the *ciphertext*, not the plaintext.** Encrypt-then-MAC. The other order — MAC-then-encrypt — means the receiver must decrypt *before* it can check anything, so it is doing cryptographic work on attacker-controlled input, and the errors it produces while doing so have historically been enough to recover the plaintext one byte at a time.
-- **Two separate keys.** Never use one key for two different primitives. Deriving `kE` and `kM` from one master secret is fine and normal; passing the same bytes to AES and to HMAC is asking for interactions nobody has analysed.
+- **Two separate keys.** Never use one key for two different primitives. Deriving `kE` and `kM` from one master secret is fine and normal; passing the same bytes to AES and to HMAC means every tag you publish is computed under the same key that is encrypting your traffic, so any weakness in either primitive's use of that key now leaks into the other — and the analysis that says HMAC is safe assumed its key was used for nothing else. You are not defended by a proof that no longer covers your case.
 - **`compare_digest`, not `==`.** A normal comparison returns as soon as two bytes differ, so how long it takes reveals *how much of the tag was right* — which lets an attacker build a valid tag a byte at a time. Constant-time comparison exists for exactly this.
 
 That is four ways to get it wrong in a construction whose idea is one sentence. Which is the argument for the thing `openssl enc` refused to give you: a **single primitive that does both promises at once**, so that none of those four decisions is yours to make.
@@ -213,6 +229,8 @@ one flipped bit -> InvalidTag
 **Sixteen bytes became thirty-two, and there is the answer to the prediction.** AEAD output is not ciphertext; it is ciphertext *plus a 16-byte authentication tag*, and decryption either returns the plaintext or raises — it has a third outcome that a filter cannot express. That is why `openssl enc` refused: `enc` can put bytes on stdout, but it has nowhere to put "this was tampered with."
 
 `InvalidTag` on one flipped bit is what makes the CBC attack impossible rather than merely detected. There is no partial success and no plaintext returned alongside a warning: an AEAD decryption that fails yields *nothing*.
+
+AES-GCM is one AEAD; the other you will meet constantly is **ChaCha20-Poly1305**, which pairs a different stream cipher with a different authenticator and exists for one practical reason. AES is fast when the processor has instructions for it and slow when it does not, so on hardware without AES acceleration — older phones, small embedded devices — ChaCha20 is several times quicker. Same two promises, same interface, same nonce discipline. Which one a connection uses is a negotiation, not a security decision.
 
 > **Check yourself —** `AESGCM.encrypt` takes a third argument, which was `None` above. It is called **associated data**: bytes that get authenticated but not encrypted. That sounds like a contradiction. What is it for, and what breaks if you leave it out?
 
@@ -318,7 +336,7 @@ Hence the name. A nonce is a **n**umber used **once**, and the discipline is the
 cd "${TMPDIR:-/tmp}" && rm -f rep.bin
 ```
 
-> **You understand this when you can** explain why the one-time pad is unbreakable and why that makes it useless; derive from XOR why reusing a pad reveals the XOR of the plaintexts and hands over the second message given the first; say what AES actually does and why a "mode of operation" is a separate decision; explain what ECB leaks and why that is the mode's fault and not the cipher's; state how CBC decryption uses the previous block, and from that derive why an attacker who can edit the IV can flip chosen bits of plaintext without the key; explain why encryption is not integrity in one sentence an engineer would act on; name the four things that must be right in a hand-built encrypt-then-MAC and what each one prevents; say what an AEAD's output contains beyond ciphertext and why `openssl enc` refuses to produce it; explain what associated data is for; and explain why nonce reuse returns you to the first failure in this lesson.
+> **You understand this when you can** explain why the one-time pad is unbreakable and why that makes it useless; derive from XOR why reusing a pad reveals the XOR of the plaintexts and hands over the second message given the first; say what AES actually does and why a "mode of operation" is a separate decision; explain what ECB leaks and why that is the mode's fault and not the cipher's; state how CBC decryption uses the previous block, and from that derive why an attacker who can edit the IV can flip chosen bits of plaintext without the key; explain why encryption is not integrity in one sentence an engineer would act on; name the four things that must be right in a hand-built encrypt-then-MAC and what each one prevents; say what an AEAD's output contains beyond ciphertext and why `openssl enc` refuses to produce it; explain what associated data is for, and give the failure it prevents that is *not* header tampering — a valid, correctly-tagged ciphertext moved somewhere it was never written; say what an AEAD tag does and does not prove about who produced a message, and why that is no better than lesson 02 managed; and explain why nonce reuse returns you to the first failure in this lesson.
 
 **Which raises:** three promises are now kept, and every single experiment in all three lessons began by assuming a key was already shared. The one-time pad needed a key as long as the message and you dismissed it for exactly that reason — but AES needs a key too, and you have quietly been passing it around by writing it into both halves of the same script. On a real network there is no both-halves-of-the-same-script. There is a wire that every router in Act III can read, two parties who have never met, and no shared secret of any kind. **They must end up agreeing on a key while an eavesdropper watches every byte they exchange.** That sounds impossible — and the reason it is not is the single most surprising result in this act.
 

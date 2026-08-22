@@ -162,7 +162,9 @@ Both are settled in Act V. Notice that the second one is not really about crypto
 
 Notice what you just did: you *used* the lock, read its label, and trusted it — but you never looked inside. What is a "cipher suite" actually doing? How does `TLS_AES_256_GCM_SHA384` turn a wire that any router can read into a secret only two endpoints share, when they've never met and the whole handshake crossed the network in the clear? How can a signature prove a stranger's identity?
 
-Every one of those is a *deliberate* hole in this act. Opening the lock — hashes, HMAC, symmetric vs. asymmetric keys, Diffie–Hellman, signatures and the chain of trust, then the full TLS 1.3 handshake rebuilt from those parts — is **Stage 4 (cryptography), which is on the roadmap but not yet written** (see the "what's built, what's roadmap" banner in [`JOURNEY-MAP.md`](../../JOURNEY-MAP.md)). Sit with the cliffhanger honestly: you can drive TLS today, and you know exactly which door you haven't walked through yet.
+Every one of those is a *deliberate* hole in this act. Opening the lock — hashes, HMAC, symmetric vs. asymmetric keys, Diffie–Hellman, signatures and the chain of trust, then the full TLS 1.3 handshake rebuilt from those parts — is **Stage 4, [Act VIII](../act-8-trust/README.md)**, which opens by quoting the paragraph above.
+
+Do not go there yet, though, unless you are only here for cryptography. Act VIII sits five acts further on for a reason: containers, Kubernetes and its control plane all build directly on what you have just finished, and none of them need the lock opened first. Sit with the cliffhanger honestly instead — you can drive TLS today, and you know exactly which door you have not walked through.
 
 ### So which door do you walk through now?
 

@@ -26,9 +26,10 @@ and when you're building, you wield the modern one without ceremony.
 > | Stages | Status |
 > |---|---|
 > | **0–3** (orientation, Acts I–III), **6** (Act IV), **7** networking (Act V) | ✅ you meet these tools in a lesson |
-> | **4** cryptography, **5** identity, **8** AWS networking, **9** AWS security | 🔜 **no lessons yet** — treat these sections as a shopping list |
+> | **4** cryptography (Act VIII) | 🟡 **being built** — `openssl dgst`/`-hmac`/`enc`/`genpkey`/`pkeyutl` are taught; `cosign` is not yet |
+> | **5** identity, **8** AWS networking, **9** AWS security | 🔜 **no lessons yet** — treat these sections as a shopping list |
 >
-> So if you came here looking for where the course teaches `vault`, `aws`, or `cosign`: it doesn't, yet.
+> So if you came here looking for where the course teaches `vault`, `aws`, or `cosign`: it doesn't, yet. For `openssl`, it now does — Act VIII.
 > Those sections describe the destination. See the roadmap banner in [`JOURNEY-MAP.md`](JOURNEY-MAP.md)
 > for exactly where the built road ends.
 

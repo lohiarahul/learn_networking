@@ -18,7 +18,7 @@ And it is worth being clear how much of that reasoning is correct, because almos
 
 ### Doing it
 
-This needs a SHA-256 you can start in the middle, which no real library will let you do — so the script below carries its own. Save it and read only the second half:
+This needs a SHA-256 you can start in the middle, which no real library will let you do — so the script below carries its own. You do not have to trust that it is a real SHA-256, and you should not: line 62 is `assert sha256(b'msg') == hashlib.sha256(b'msg').hexdigest()`, so if the implementation were wrong in any way the script would refuse to run at all. Save it and read only the second half:
 
 ```bash
 cd "${TMPDIR:-/tmp}" && cat > extend.py <<'PY'
@@ -97,7 +97,8 @@ captured sig  : 371d8a6435e43f0f781dc64e06afcf7e0fe890257d7ca4e670757b6a775035b9
 accepted?     : True
 
 forged body : b'user=alice&action=read\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00
-\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x18&action=delete_everything'
+              \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x18&action=delete_everything'
+              (one line in reality; wrapped here to fit)
 forged sig  : c119bd5b469c0bd9f2bf35dccc6ea3d758804d28b55677b3cd5000149052a12b
 accepted?   : True
 ```
@@ -108,7 +109,7 @@ accepted?   : True
 
 Reconstruct it, because the reason is one sentence and it recasts everything lesson 01 said.
 
-SHA-256 eats its input in 64-byte blocks. Each block updates a 256-bit running state, and when the input runs out the final state *is* the digest. That is the construction — a small machine, fed a block at a time.
+SHA-256 eats its input in 64-byte blocks. Each block updates a 256-bit running state, and when the input runs out the final state *is* the digest. That is the construction — a small machine, fed a block at a time — and it has a name, **Merkle–Damgård**, worth knowing only because it is the label for "hashes that work this way, and therefore have this problem." SHA-1, SHA-256 and MD5 all do. Not everything does, which matters at the end of this lesson.
 
 So look at what publishing a digest actually publishes. Not a summary of the input. **The machine's exact resume point.** Hand someone `SHA256(secret + body)` and you have handed them the internal state of a computation that has already absorbed the secret — so they can carry on from there, appending whatever they like, without ever knowing what went in before.
 
@@ -146,7 +147,11 @@ That is HMAC, and it is genuinely almost that simple:
 HMAC(key, msg) = H( (key ^ opad) || H( (key ^ ipad) || msg ) )
 ```
 
-Two passes. The key is XORed with a different constant each time — `ipad` is `0x36` repeated, `opad` is `0x5c` repeated — which makes the inner and outer passes use two different derived keys rather than the same one twice. Build it by hand and check it against the library:
+Two passes. The key is XORed with a different constant each time — `ipad` is `0x36` repeated, `opad` is `0x5c` repeated.
+
+That detail is worth one sentence of *why*, because it looks arbitrary and is not. `0x36` and `0x5c` differ in four bits of every byte, so `key ^ ipad` and `key ^ opad` are two values that differ in half their bits — which, by lesson 01's avalanche property, makes the inner and outer passes behave as though keyed independently. Had the two constants been equal, the construction would be `H(k' || H(k' || msg))` with a *single* derived key used at both levels, and the security proof HMAC rests on would no longer apply. Two constants is the cheapest possible way to get two keys out of one.
+
+Build it by hand and check it against the library:
 
 ```bash
 python3 - <<'PY'
@@ -195,6 +200,8 @@ print('bits differ:', bin(int(a,16) ^ int(b,16)).count('1'), 'of 256')"
 ```
 
 ```
+7fe2f2cce3a8451c9159611204763cfca4fc7e3e5cf3da9f2c9aa756dfb40384
+da468e232446edf17bda4b770e5cf88dc6c27e87790ae352de88e24d39bf9ff7
 bits differ: 128 of 256
 ```
 
@@ -217,7 +224,9 @@ HMAC-SHA2-256(m.txt)= 4444a6268d12b5d1f9145b0c214e98cab83bf6a9a5d5ee2d363fb630b8
 hmac(sha256(key)): 4444a6268d12b5d1f9145b0c214e98cab83bf6a9a5d5ee2d363fb630b850bb9c
 ```
 
-Identical. **A key longer than the block size is silently replaced by its own hash** — the construction has to fold it down to one block, and hashing is how. So a 100-byte key and its 32-byte digest are *the same key*, and any key longer than 64 bytes buys exactly nothing over 32 bytes of good randomness. Nothing warns you. It is the same shape of surprise as lesson 01's birthday bound: a number you thought you had, quietly smaller.
+Identical. **A key longer than the block size is silently replaced by its own hash** — the construction has to fold it down to one block, and hashing is how. So a 100-byte key and its 32-byte digest are *the same key*, and any key longer than 64 bytes buys exactly nothing over 32 bytes of good randomness.
+
+Nothing warns you, and it is worth being fair about why not. From the implementer's side this is not an error condition — it is the specified key-preprocessing step, defined for every input length, and returning it faithfully is the correct behaviour. There is no such thing as a key that is "too long"; there is only a key whose extra bytes stop counting. A warning would be a library second-guessing a specification it is required to implement. Which is exactly why *you* have to know it: the surprise is real, it is nobody's bug, and so nothing in the system is ever going to tell you. Same shape as lesson 01's birthday bound — a number you thought you had, quietly smaller.
 
 The second hole is the one that ends the lesson, and it is not a flaw — it is the boundary of what a shared secret can ever prove.
 
@@ -283,9 +292,9 @@ This is not a reason to avoid HMAC. It is a reason to know what you bought. Insi
 cd "${TMPDIR:-/tmp}" && rm -f extend.py m.txt
 ```
 
-> **You understand this when you can** state what a length-extension attack needs and what it does not need, and explain why publishing `SHA256(secret + body)` publishes a resumable computation rather than a summary; say why the padding bytes have to appear inside the forged message and what that implies about which receivers are vulnerable; explain why swapping the concatenation order fixes length extension and what weaker property it then depends on instead; write out HMAC's two-pass shape and say specifically what the outer hash accomplishes that the inner one cannot; explain why `ipad` and `opad` differ; say what happens to a key longer than the block size and why that is not a warning-worthy event in the implementer's eyes; and explain why a shared secret cannot give non-repudiation no matter how strong the hash is.
+> **You understand this when you can** state what a length-extension attack needs and what it does not need, and explain why publishing `SHA256(secret + body)` publishes a resumable computation rather than a summary; name the property of a Merkle–Damgård hash that makes this possible; say why the padding bytes have to appear inside the forged message and what that implies about which receivers are vulnerable; explain why swapping the concatenation order kills length extension and what weaker property it then depends on instead; write out HMAC's two-pass shape and say specifically what the outer hash accomplishes that the inner one cannot; say why `ipad` and `opad` are two different constants rather than one; say what a one-bit change to the *key* does to the output and why that matters to an attacker who is guessing; explain what happens to a key longer than the block size and why no library will warn you about it; and explain why a shared secret cannot give non-repudiation no matter how strong the hash is.
 
-**Which raises:** you now have integrity and you have authenticity, and between them they have not concealed a single byte. An HMAC travels *beside* the message, in the clear, and the message is as readable as it ever was — lesson 01's promise table said as much, but it lands differently now that you have watched a tag verify a plaintext instruction to move money. So the next question is the one everybody assumes cryptography is about in the first place: **making the bytes unreadable to anyone but the intended reader.** That turns out to be a much older and much easier problem than the two you just solved — and the easy solutions fail in a way that will look strangely familiar, because a message an attacker cannot read is very often one they can still *edit*.
+**Which raises:** you now have integrity and you have authenticity, and between them they have not concealed a single byte. An HMAC travels *beside* the message, in the clear, and the message is as readable as it ever was — lesson 01's promise table said as much, but it lands differently now that you have watched a tag verify a plaintext instruction to move money. So the next question is the one everybody assumes cryptography is about in the first place: **making the bytes unreadable to anyone but the intended reader.** That turns out to be a much older problem than the two you just solved, and in one specific sense an easier one — there is a scheme for it that is not merely infeasible to break but provably impossible, which is a sentence that will not appear again in this act. The interesting part is what it costs, and what people do to avoid paying.
 
 ---
 
