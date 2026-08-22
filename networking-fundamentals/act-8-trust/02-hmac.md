@@ -289,4 +289,4 @@ cd "${TMPDIR:-/tmp}" && rm -f extend.py m.txt
 
 ---
 
-↑ **[Act VIII overview](README.md)** · Prev: **[A function that destroys information on purpose](01-hashing.md)** · Next: **[Act VIII overview](README.md)** — ciphers are being written →
+↑ **[Act VIII overview](README.md)** · Prev: **[A function that destroys information on purpose](01-hashing.md)** · Next: **[Unreadable is not the same as unchangeable](03-ciphers.md)** →
