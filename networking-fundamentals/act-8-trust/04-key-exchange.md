@@ -259,4 +259,4 @@ cd "${TMPDIR:-/tmp}" && rm -f alice.pem alice.pub bob.pem bob.pub mallory.pem ma
 
 ---
 
-↑ **[Act VIII overview](README.md)** · Prev: **[Unreadable is not the same as unchangeable](03-ciphers.md)** · Next: **[Act VIII overview](README.md)** — signatures and certificates are being written →
+↑ **[Act VIII overview](README.md)** · Prev: **[Unreadable is not the same as unchangeable](03-ciphers.md)** · Next: **[A claim someone else vouched for](05-certificates.md)** →
