@@ -4,7 +4,7 @@ Every replica count in this act was a number you typed. `--replicas=3`, `complet
 
 So close the loop: **what would it take for the cluster to pick the number itself?**
 
-Work out the requirements before reaching for a feature, because they turn out to be the entire lesson. Something would have to (1) know how loaded the workload currently is, (2) have an opinion about how loaded it *should* be, and (3) be able to write a replica count. You have the third — that is `/scale`. You have never had the first, and lesson 04 made a point of it:
+> **Predict first —** do not reach for a feature name. List what such a thing would have to be *able to do*, from first principles — there are three requirements and they are not subtle. Then, for each one, say whether this cluster can already do it. One of your three is going to be a problem, and finding out which is the first half of this lesson.
 
 ```bash
 kubectl top nodes
@@ -14,7 +14,9 @@ kubectl top nodes
 error: Metrics API not available
 ```
 
-That failure was a teaching point in lesson 04 and it is now a blocker. **Nothing in this cluster measures anything.**
+Three requirements, then, and they are: know how loaded the workload is now, hold an opinion about how loaded it should be, and be able to write a replica count. The third you built yourself last lesson — that is `/scale`, and it works on kinds nobody had heard of. The second is a number you type.
+
+The first is the problem, and the command above is the proof. That failure was a teaching point in lesson 04 and it is now a blocker: **nothing in this cluster measures anything.**
 
 ### The measurement has to come from somewhere
 
@@ -38,9 +40,13 @@ scraping metrics: unable to fully scrape metrics: ... x509: cannot validate
 certificate for 172.18.0.3 because it doesn't contain any IP SANs
 ```
 
-A **certificate verification failure**, and it is precisely the gap Act VI left open. That lesson showed you `/etc/kubernetes/pki` and the certificates kubeadm creates and signs — but the kubelet's *serving* certificate is not one of them. Unless a cluster explicitly turns on `serverTLSBootstrap`, each kubelet generates its own self-signed cert rather than asking the CSR API for one, so it is signed by nobody and no client can verify it against the cluster CA.
+A **certificate verification failure** — and read the reason precisely, because it is narrower than "the certificate is wrong." It says **no IP SANs**.
 
-Which leaves two honest options: make the kubelets get real certificates, or tell this one client to stop checking. Every kind tutorial does the second, and it is worth knowing that is what you are doing:
+Act VI taught exactly what that means. Its PKI lesson noted that a client verifying a server checks the name it asked for against the certificate's `subjectAltName` list, and marked `apiserver.crt` as a serving cert that *has* one. metrics-server is connecting to a kubelet by IP, `172.18.0.3`, and finding a certificate that lists no IP addresses at all. So the identity check fails before anything about trust chains is even reached.
+
+And the underlying cause is the gap Act VI left open. That lesson walked you through the certificates kubeadm creates and signs — and the kubelet's *serving* certificate is not one of them. Unless a cluster turns on `serverTLSBootstrap`, each kubelet generates its own, self-signed and without meaningful SANs, rather than asking the CSR API for a properly issued one. So there are two things wrong at once: the name does not match, and there is no chain to the cluster CA to fall back on.
+
+Which leaves two honest options: make the kubelets get real certificates through the CSR API, or tell this one client to stop checking. Every kind tutorial does the second, and it is worth being clear that it waives *both* checks, not just the one in the error message:
 
 ```bash
 kubectl -n kube-system patch deploy metrics-server --type=json \
@@ -148,7 +154,9 @@ kubectl delete pod load --now
 kubectl get hpa web -w        # Ctrl-C once it settles
 ```
 
-**It takes about five minutes to come back down**, long after the CPU is idle. That asymmetry is deliberate, it is configurable, and you can derive it:
+**It takes about five minutes to come back down**, long after the CPU is idle. Scaling up took seconds.
+
+> **Predict first —** that asymmetry is a default somebody chose, and it is roughly two orders of magnitude. Before reading the fields: which direction is the cautious one, and what is the cost of being wrong in each direction? You have made this exact argument once already in this act.
 
 ```yaml
 behavior:
@@ -172,7 +180,9 @@ kubectl get hpa web -o jsonpath='{.spec.scaleTargetRef}{"\n"}'
 
 **The HPA changes `spec.replicas`** — a number in a document, through the `/scale` subresource, which is why it needs nothing but a `scaleTargetRef`. And that is the payoff of the last lesson: it never looks at what it is scaling. Point it at your `Website` kind and it works, because you defined `specReplicasPath` and that is the entire contract.
 
-**A VerticalPodAutoscaler changes `requests`** — the denominator itself. Which cannot be done to a running Pod, and you can now say exactly why from two separate directions: `requests` is read once by the scheduler when placing the Pod, and the placement decision cannot be revisited because `spec.nodeName` is written once. So changing requests means a new Pod. Vertical and horizontal autoscaling on the same CPU metric therefore fight — one raises the denominator while the other multiplies the numerator's count.
+**A VerticalPodAutoscaler changes `requests`** — the denominator itself. Historically that meant replacing the Pod, and lesson 04 gives you the reason: `requests` is read once by the scheduler when placing the Pod, and the placement cannot be revisited because `spec.nodeName` is written once. Raising a request on a node that no longer has room is not a request the scheduler ever agreed to.
+
+Recent Kubernetes can resize *some* resources in place, precisely to avoid that replacement — but only within what the current node can still satisfy, which is the same constraint stated from the other side rather than a repeal of it. Either way the important point stands: vertical and horizontal autoscaling on the same CPU metric fight, because one raises the denominator while the other multiplies the count of numerators.
 
 **The Cluster Autoscaler changes the number of nodes**, and its input signal is the thing you have been treating purely as a diagnosis:
 
@@ -253,9 +263,9 @@ kubectl delete -f https://github.com/kubernetes-sigs/metrics-server/releases/lat
 kubectl get pods -A | grep -c metrics-server || echo "gone"
 ```
 
-Leaving metrics-server installed is harmless and useful if you would rather keep it — but lesson 04's `kubectl top` failure is load-bearing for anyone reading this act again, so removing it keeps the lab honest.
+**Read that last line before you run it.** Leaving metrics-server installed is harmless, and [the sixth diagnostic drill](diagnose.md) needs it — so if you are going straight on to those, skip the `delete -f`. Come back and run it afterwards: lesson 04's `kubectl top` failure is load-bearing for anyone reading this act a second time, and a lab where that command quietly works has lost the beat.
 
-> **You understand this when you can** explain why a cluster cannot autoscale without installing something first, and why usage data does not live in the same store as objects; say which certificate in Act VI's PKI is missing and what `--kubelet-insecure-tls` is actually waiving; state what the HPA divides by and derive from that why a Deployment created with a one-liner can never autoscale on utilisation, without an error ever appearing; compute a desired replica count from current, actual and target, and explain why the result is a jump rather than a step; derive why the scale-down window is long and the scale-up window is zero; and distinguish the three autoscalers by which field each one writes, including why one of them cannot act on a running Pod and why another one's input is a Pod that will not schedule.
+> **You understand this when you can** explain why a cluster cannot autoscale without installing something first, and why usage data does not live in the same store as objects; say which certificate in Act VI's PKI is never issued, read the `no IP SANs` error as a *name* check rather than a *trust* check, and say what `--kubelet-insecure-tls` waives beyond the error you were shown; state what the HPA divides by and derive from that why a Deployment created with a one-liner can never autoscale on utilisation, without an error ever appearing; compute a desired replica count from current, actual and target, and explain why the result is a jump rather than a step; derive why the scale-down window is long and the scale-up window is zero; and distinguish the three autoscalers by which field each one writes, including why one of them cannot act on a running Pod and why another one's input is a Pod that will not schedule.
 
 **Which raises:** you now have the whole shape — objects describing work, loops reading them, measurements feeding some of those loops, and your own kinds where the built-in ones fall short. Everything in this act assumed one thing without ever examining it: that whoever holds a kubeconfig may write any of these documents. You have created, patched and deleted freely for three acts, and nothing has ever refused you on the grounds of *who you are*.
 

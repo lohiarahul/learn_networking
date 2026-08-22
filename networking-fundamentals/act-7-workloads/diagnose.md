@@ -33,6 +33,10 @@ kubectl get nodes               # both Ready, neither SchedulingDisabled
 
 Each `no` names the component to look at, and every drill below lands on exactly one of those rows.
 
+**You now hold three checklists, so here is the rule for choosing.** Act VI's five questions descend a *dependency stack* and are for when the cluster is sick — start there only if `kubectl get nodes` is slow, wrong or unanswered. Act V's five questions descend the *network path* and are for when a request does not arrive at a Pod that is otherwise healthy. These six walk the *claim chain* between an object you wrote and a container doing work, and they are the right starting point for anything that reads as "my workload is not doing what I asked."
+
+They also overlap deliberately at one point. Row 5 here — *is it in the Service?* — is where this list hands over to Act V's, and it hands over as soon as the answer is "yes, and traffic still isn't arriving." Getting to row 5 is usually one command; do that before choosing between the other two lists.
+
 ---
 
 ## Drill 1 — "the deploy finished but the site is down"
@@ -40,9 +44,10 @@ Each `no` names the component to look at, and every drill below lands on exactly
 **Reproduce it:**
 
 ```bash
-kubectl create deployment shop --image=nginx:1.27-alpine --replicas=3 -l drill=1
-kubectl label deployment shop drill=1 --overwrite
-kubectl expose deployment shop --port=80 -l drill=1
+kubectl create deployment shop --image=nginx:1.27-alpine --replicas=3
+kubectl label deployment shop drill=1
+kubectl expose deployment shop --port=80
+kubectl label svc shop drill=1
 kubectl patch deployment shop --type=json -p='[{"op":"add","path":"/spec/template/spec/containers/0/readinessProbe","value":{"httpGet":{"path":"/healthz","port":8080},"periodSeconds":5}}]'
 kubectl rollout status deployment/shop --timeout=40s
 ```
@@ -95,7 +100,8 @@ kubectl rollout status deployment/shop --timeout=60s
 **Reproduce it:**
 
 ```bash
-kubectl create configmap appconf --from-literal=MODE=safe -l drill=2
+kubectl create configmap appconf --from-literal=MODE=safe
+kubectl label configmap appconf drill=2
 cat <<'EOF' | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
@@ -164,8 +170,8 @@ kubectl logs deploy/api --tail=1        # mode=live
 **Reproduce it:**
 
 ```bash
-kubectl create deployment heavy --image=nginx:1.27-alpine --replicas=4 -l drill=3
-kubectl label deployment heavy drill=3 --overwrite
+kubectl create deployment heavy --image=nginx:1.27-alpine --replicas=4
+kubectl label deployment heavy drill=3
 kubectl set resources deployment heavy --requests=cpu=3
 sleep 20
 ```
@@ -364,9 +370,10 @@ kubectl delete jobs -l drill=5 --ignore-not-found
 **Reproduce it:**
 
 ```bash
-kubectl create deployment busy --image=nginx:1.27-alpine --replicas=1 -l drill=6
-kubectl label deployment busy drill=6 --overwrite
-kubectl expose deployment busy --port=80 -l drill=6
+kubectl create deployment busy --image=nginx:1.27-alpine --replicas=1
+kubectl label deployment busy drill=6
+kubectl expose deployment busy --port=80
+kubectl label svc busy drill=6
 kubectl autoscale deployment busy --min=1 --max=6 --cpu-percent=50
 kubectl run loadgen --image=busybox:1.36 --restart=Never -l drill=6 -- \
   sh -c 'while true; do wget -q -O- http://busy/ >/dev/null; done'

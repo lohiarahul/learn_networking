@@ -85,9 +85,7 @@ The consequence is the one worth carrying: a cluster can be completely full and 
 
 1. **It is invisible to the scheduler's arithmetic.** Contributing zero to the ledger, it will be packed onto nodes whose capacity is already promised away — so it competes for real CPU with Pods that reserved it.
 2. **It is `BestEffort`, so it is first to be evicted.** QoS is derived from the two numbers, not written, and it decides the order in which the kubelet kills things when a node runs short of memory.
-3. **It can never be autoscaled on utilisation.** The HPA computes `actual ÷ requests`; with no requests there is no denominator, so `TARGETS` reads `<unknown>` forever and the Deployment never scales. No error appears.
-
-The third is the nastiest because it fails silently. The other two at least produce symptoms.
+3. **It can never be autoscaled on utilisation** — and that one has its own question later in this page, so work out why before you get there. The other two at least produce symptoms; this one is silent.
 
 </details>
 
@@ -161,11 +159,13 @@ A Secret is not encryption. It is a separate object with separate access control
 <details>
 <summary>Answer</summary>
 
-Surviving a **container restart**, surviving a **reschedule onto another node**, and surviving the **machine** itself.
+Surviving a **container restart**, surviving the **Pod**, and surviving the **machine**.
+
+Getting the middle one right matters, because "surviving a reschedule onto another node" is the plausible-sounding version and it is *not* what the middle promise says — the whole point of lesson 06's second half is that a `local-path` volume does not survive a reschedule at all.
 
 `emptyDir` gives you the first only: the kubelet made the directory when the Pod was placed, so it outlives a crashed container and dies with the Pod.
 
-A `local-path` PVC gives you the first two in the narrow sense that the data outlives the Pod — but the PV is a directory on one named node, pinned by node affinity. Lose that machine and the data is gone; make that machine unschedulable and the Pod cannot run anywhere.
+A `local-path` PVC gives you the first two — the data outlives the Pod, on the same node — but the PV is a directory on one named node, pinned by node affinity. Lose that machine and the data is gone; make that machine unschedulable and the Pod cannot run anywhere.
 
 And the sting: the manifest that gives you promise two and the manifest that gives you promise three are **the same manifest**. Which one you actually got depends entirely on what the StorageClass provisions, and `kubectl get storageclass` is the only place to find out.
 

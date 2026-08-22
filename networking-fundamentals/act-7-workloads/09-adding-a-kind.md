@@ -1,10 +1,14 @@
 # Adding a kind
 
-In Act V you installed the Gateway API, and one command in that lesson has been sitting unexplained ever since. You applied a file, and afterwards `kubectl get gateway` worked — a kind that did not exist on your cluster ten seconds earlier. The cleanup even made you delete them separately, because eleven of *something* survived when the objects did not.
+Act V already told you the answer to the last lesson's question, and told you the punchline of this one too. It is worth quoting, because you are about to find out whether you believed it:
 
-Meanwhile the last lesson established the opposite fact as hard as it could: Helm and Kustomize add no kinds, because they are clients, and the set of kinds is fixed.
+> *"Everything above is a **CustomResourceDefinition** — a kind the API server did not ship with, taught to it at runtime… And on a cluster where the CRDs are installed but no controller is running, every manifest in this lesson applies cleanly and nothing whatsoever happens."*
 
-Both are true, so something is missing. **How does a kind get added to a cluster that shipped without it, and — the question that matters more — who makes it *do* anything?**
+Two claims, handed over on trust while you were busy with `HTTPRoute`. That is the right way round for a lesson about routing — but it means you have been carrying the most important idea in this area as a *sentence you were told*, and there is a large difference between that and something you have watched happen.
+
+So this lesson does two things. It makes you build the mechanism yourself, small enough to hold entirely in your head. And then it makes you build the missing half, which Act V could only describe as an absence.
+
+**Start with the question Act V's sentence quietly begs: what does "taught to it at runtime" actually consist of?**
 
 ### Adding the noun
 
@@ -128,7 +132,21 @@ etcd get --prefix --keys-only /registry/example.com/
 /registry/example.com/websites/default/hello
 ```
 
-`/registry/<group>/<plural>/<namespace>/<name>` — the same layout as every built-in kind, with your group where `apps` or `batch` would be. Your invented kind is not a second-class citizen sitting in a side table. It is a directory in the same filesystem.
+`/registry/<group>/<plural>/<namespace>/<name>`. Compare it with what Act VI had you read, and there is one segment too many:
+
+```bash
+etcd get --prefix --keys-only /registry/deployments/
+```
+
+```
+/registry/deployments/default/web
+```
+
+**No `apps`.** A Deployment is in the `apps` API group — `kubectl api-resources` says so — and yet its key has no group segment at all, exactly as Act VI's rule described. Your `Website` has one.
+
+That asymmetry is a fossil, and reading it correctly is worth more than memorising either path. The built-in resources were given their storage paths before API groups existed, and those paths could never be changed afterwards, because the keys are what a live cluster's data actually sits at — moving them would be a migration of every object on every cluster in the world. So the old kinds keep their flat names and every kind added since is namespaced by its group, which is also why nobody can register a CRD called `deployments.example.com` that would collide with anything.
+
+The useful generalisation: Act VI's rule that your `kubectl` arguments are the path holds for everything, but the *prefix* records when the kind was born. Your invented kind is not a second-class citizen in a side table — it is in the same filesystem, filed under a scheme that was tidier by the time it arrived.
 
 ### Two subresources worth understanding rather than copying
 
@@ -342,10 +360,10 @@ rm -f /tmp/website-controller.sh
 kubectl get crd 2>/dev/null | grep -c example.com || echo "gone"
 ```
 
-> **You understand this when you can** explain how a cluster gains a kind, and why that is not a contradiction of the last lesson's claim that clients cannot add kinds; list what a CRD gives you without any code and say which of those things is enforced server-side; explain why an object of your own kind can be created and validated while absolutely nothing happens, and connect that to Act VI's split between the store and the loops; say why `status` is a separate subresource and what that makes possible; describe a controller in three words and explain why re-deriving state every pass is more robust than handling events; and diagnose a custom object with an empty status and no events without guessing.
+> **You understand this when you can** explain how a cluster gains a kind, and why that does not contradict the last lesson's finding that Helm and Kustomize add none; say what a custom resource's etcd key has that a Deployment's does not, and why that asymmetry can never be tidied up; list what a CRD gives you without any code and say which of those things is enforced server-side; explain why an object of your own kind can be created and validated while absolutely nothing happens, and connect that to Act VI's split between the store and the loops; say why `status` is a separate subresource and what that makes possible; describe a controller in three words and explain why re-deriving state every pass is more robust than handling events; and diagnose a custom object with an empty status and no events without guessing.
 
 **Which raises:** you gave your own kind a `/scale` endpoint, and `kubectl scale` used it — which means something can change a replica count without knowing what it is scaling. You have been typing those counts by hand all act. So what would it take for the cluster to choose the number itself, and what would it have to measure to do that honestly?
 
 ---
 
-← Prev: **[Shipping a set of objects](08-shipping-a-set-of-objects.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Act VII overview](README.md)** — autoscaling is being written →
+← Prev: **[Shipping a set of objects](08-shipping-a-set-of-objects.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Choosing the number](10-choosing-the-number.md)** →

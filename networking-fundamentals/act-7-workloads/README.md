@@ -44,8 +44,6 @@ kubectl get pvc -A        # empty, unless a lesson explicitly told you to keep o
 
 ## The lessons — read in this order
 
-*(This act is being written. Lessons appear here as they land.)*
-
 1. **[From a Pod to a Deployment](01-pod-to-deployment.md)** — you have used all three of these objects without being told why there are three.
 2. **[Rolling updates, and the promise nobody wrote down](02-rolling-updates.md)** — the percentages you never typed, why a rollback is not an undo log, and the one bad deploy that rolling updates cannot save you from.
 3. **[Who decides a container is working](03-probes.md)** — two probes with almost the same syntax. One of them is a load-balancer decision and the other is life or death, and the syntax will not tell you which.
@@ -54,7 +52,14 @@ kubectl get pvc -A        # empty, unless a lesson explicitly told you to keep o
 6. **[Three different promises called "survives"](06-storage.md)** — Act I's oldest unanswered question, and how much of the answer you cannot read off the manifest.
 7. **[When replicas are not interchangeable](07-the-other-workload-kinds.md)** — you built a StatefulSet by hand in Act V. Four workload kinds, each existing because one assumption about a replica is false.
 8. **[Shipping a set of objects](08-shipping-a-set-of-objects.md)** — two tools that disagree about what a manifest is, and the discovery that neither is a Kubernetes feature at all.
-9. **[Adding a kind](09-adding-a-kind.md)** — Act V made you install eleven of something and never said what. Then you write a controller, in shell, in twenty-five lines.
+9. **[Adding a kind](09-adding-a-kind.md)** — Act V told you what a CRD is and what happens when nobody watches one. This is where you prove it, and then write the watcher yourself in twenty-five lines of shell.
+10. **[Choosing the number](10-choosing-the-number.md)** — every replica count in this act was one you typed. What would it take for the cluster to pick it, and what would it have to measure to do that honestly?
+
+Then three pages to consolidate, in this order:
+
+- **[Test yourself](test-yourself.md)** — twenty questions on the derivations rather than the flags.
+- **[Diagnose it](diagnose.md)** — six workload failures, symptom first. In five of the six there is nothing wrong with the cluster and nothing wrong with the image.
+- **[In the wild](in-the-wild.md)** — what changes on a managed cluster, and the three findings here that are line items on an invoice.
 
 ## What breaks here
 

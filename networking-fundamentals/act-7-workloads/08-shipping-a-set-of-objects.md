@@ -6,23 +6,23 @@ Now scale that to a real application — twenty objects — and add the requirem
 
 **So: how do you ship a set of objects as one thing, and change one value across all of them without editing twenty files?**
 
-There are exactly two answers in general use, and they are worth meeting together because they disagree at the root. One says: *your YAML is not really YAML, it is a program that prints YAML.* The other says: *your YAML is real YAML, and what you write down is a transformation of it.*
+There are exactly two answers in general use, and they are worth meeting together because they disagree with each other at the root — about something as basic as what a manifest *is*. Read them in that spirit: not as two tools with different flags, but as two incompatible bets, each of which buys something the other cannot.
 
 Before either, though, one question that decides how much of this you have to be afraid of.
 
 > **Predict first —** whichever tool you pick, the cluster ends up holding Deployments and Services. Does the API server know which tool produced them? Put it concretely: after you install something with a tool, could a colleague with only `kubectl` tell? Act VI gave you everything you need to answer this.
 
-### Neither of these is a Kubernetes feature
+### What does the cluster see?
 
 ```bash
 kubectl api-resources | grep -i -E 'chart|release|kustom' ; echo "exit=$?"
 ```
 
-**Nothing.** There is no `Chart` kind, no `Release` kind, no `Kustomization` kind. Act VI established what the API server is — a store you POST documents to, with a fixed set of kinds — and neither of these tools adds one. They are **client-side**: they run on your laptop, produce exactly the same object bodies you could have typed by hand, and POST those. The cluster receives ordinary YAML from an ordinary client.
+**Nothing.** There is no `Chart` kind, no `Release` kind, no `Kustomization` kind — and, importantly, neither tool adds one when you use it. Kinds *can* be added to a cluster: Act V's Gateway lesson said so plainly, and the next lesson is about how. But adding one is something you do to the *server*, and these two tools never touch it. They are **client-side**: they run on your laptop, produce exactly the same object bodies you could have typed by hand, and POST those. The cluster receives ordinary YAML from an ordinary client.
 
 That is the single most useful thing to know about this whole topic, and it has consequences you will use all week:
 
-- Anything either tool can do, you could have done by editing files. They are labour-saving devices, not capabilities.
+- Anything either tool can do, you could have done by editing files. They are labour-saving devices, not capabilities — which is a real distinction, because the next lesson's subject genuinely *is* a new capability.
 - A cluster cannot be "a Helm cluster." Objects from either tool sit next to hand-written ones and nothing can tell.
 - When something is wrong, `kubectl get -o yaml` shows you the truth, and the truth has no templates in it.
 - And since the API server has no idea what a release *is*, any tool that wants to remember "what did I install last time" has to store that somewhere itself — in the cluster, as one of the kinds that already exists. Hold onto that; you will find where in a few minutes.
@@ -166,6 +166,14 @@ kubectl -n staging get deploy staging-web -o jsonpath='{.spec.template.spec.cont
 
 ### Answer two: print the YAML from a program
 
+This one needs a binary you do not have. It is the first third-party tool this course has asked you to install since `kind` in Act V, and unlike Kustomize it is not part of `kubectl`:
+
+```bash
+helm version --short || brew install helm     # or: see helm.sh/docs/intro/install
+```
+
+Worth noting *why* it is a separate binary when Kustomize is not. Kustomize operates on Kubernetes objects, so it was absorbed into the Kubernetes client. Helm operates on text files and keeps its own idea of a "release" that Kubernetes has never heard of — as you are about to discover — so it could not be.
+
 ```bash
 cd ~ && helm create demo >/dev/null && ls demo demo/templates
 ```
@@ -210,7 +218,7 @@ NAME                          TYPE                 DATA   AGE
 sh.helm.release.v1.mysite.v1  helm.sh/release.v1   1      30s
 ```
 
-**A Secret.** Because Helm needed somewhere in the cluster to remember what it installed, and the available kinds were the ones that already existed — so it uses one of those, with a made-up `type` string and a naming convention carrying the release name and revision. Look inside:
+**A Secret.** Because Helm needed somewhere in the cluster to remember what it installed, and the available kinds were the ones that already existed — so it uses one of those, with a naming convention carrying the release name and revision, and an invented value in `type` — a field on every Secret that Kubernetes mostly ignores and tools use to label what they put there. Look inside:
 
 ```bash
 kubectl -n staging get secret -l owner=helm \
@@ -320,7 +328,7 @@ kubectl get ns | grep -c staging || echo "gone"
 
 > **You understand this when you can** explain why no object in a cluster can be identified as Helm-managed or Kustomize-managed by the API server, and what that implies about where to look when something is wrong; say what `kubectl kustomize` and `helm template` have in common and why running them first is a habit worth having; explain what a `configMapGenerator`'s hash accomplishes that lesson 05 said you would otherwise have to remember to do by hand; say where a Helm release's state is stored and why it had to be stored in a kind that already existed; explain why `helm rollback` restores a manifest while `kubectl rollout undo` scales a ReplicaSet, and why neither is an undo log; and state the one thing Helm can express that Kustomize cannot, and the one guarantee Kustomize gives that Helm cannot.
 
-**Which raises:** you have spent this lesson establishing that these tools add no kinds — that `Chart` and `Release` are not things the API server has heard of, and that everything they do reduces to POSTing the kinds that already exist. But real clusters are full of objects like `Certificate`, `Gateway` and `ScaledObject`, which are not in any list you have seen and which *do* have controllers watching them. Act V had you install one of those without remarking on it. So how does a kind get added to a cluster that shipped without it — and who reconciles it?
+**Which raises:** everything in this lesson reduced to POSTing kinds the server already serves. But Act V's Gateway lesson told you, in one sentence you may have walked past, that `Gateway` and `HTTPRoute` were *not* built in — they were "a kind the API server did not ship with, taught to it at runtime." It even told you what happens when such a kind exists and nothing watches it. So there is a mechanism here that is genuinely not client-side, and a claim of Act V's that you have never actually tested. What does it take to teach the server a kind — and what, exactly, do you get when you do?
 
 ---
 
