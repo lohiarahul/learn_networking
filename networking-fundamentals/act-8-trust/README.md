@@ -75,6 +75,7 @@ This is a gentler act than the last two in one way and harsher in another. Nothi
 *(This act is being written. Lessons appear here as they land.)*
 
 1. **[A function that destroys information on purpose](01-hashing.md)** — why "did this change?" is answerable without comparing anything, and how to break MD5 by hand in two commands.
+2. **[A hash only certain people can compute](02-hmac.md)** — forge a signed API request without the key, then derive HMAC as the shape that stops you.
 
 ## What breaks here
 

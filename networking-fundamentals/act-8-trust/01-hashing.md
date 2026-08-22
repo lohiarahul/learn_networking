@@ -219,4 +219,4 @@ cd "${TMPDIR:-/tmp}" && rm -f f_a f_c one.bin two.bin doc1 doc2
 
 ---
 
-↑ **[Act VIII overview](README.md)** · Next: **[Act VIII overview](README.md)** — the keyed hash is being written →
+↑ **[Act VIII overview](README.md)** · Next: **[A hash only certain people can compute](02-hmac.md)** →
