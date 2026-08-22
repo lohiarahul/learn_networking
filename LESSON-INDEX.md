@@ -108,3 +108,15 @@ Spine: **cryptography is not one thing but four separate promises** — integrit
 - `05-certificates.md` — A claim someone else vouched for — X25519 REFUSING to sign (a keypair is for one job) vs Ed25519 sign/verify; signatures giving the non-repudiation lesson 02 could not; signing the digest making collision resistance load-bearing; the bootstrap recursion (a signature cannot introduce a stranger); build a root CA + CSR + signed leaf by hand; `openssl verify` giving OPPOSITE verdicts on the same file with and without `-CAfile`; ~195 self-signed trust anchors whose authority is being in the file; errors 20/7/79/62/10 distinguished; `CA:TRUE` checked not enforced; trust vs NAME check, re-reading Act VII's `no IP SANs`; client certs, `CN`=username, `O=system:masters` as cluster-admin by text field; expiry as the verifier's clock; why revocation never worked and short lives replaced it.
 
 - `06-tls-opened.md` — The lock, opened — capstone, introduces NOTHING; a real TLS 1.3 handshake against the reader's own CA via `s_server`/`s_client`; `TLS_AES_256_GCM_SHA384` decoded field by field and the two things it deliberately omits; `-msg` showing `InnerContent` from EncryptedExtensions onward, i.e. the CERT IS SENT ENCRYPTED, so authentication moves inside confidentiality and the handshake is 1-RTT; `CertificateVerify` signing the TRANSCRIPT (why relaying a real cert fails, and downgrade protection for free); `X25519MLKEM768` post-quantum hybrid negotiated by default; mTLS with the client reporting success while the server reports `peer did not return a certificate`; where TLS stops.
+
+- `01-authn-vs-authz.md` — Who are you, and what may you do — TODO: gist / introduces
+
+- `02-tokens-and-sessions.md` — Not sending the password every time — TODO: gist / introduces
+
+- `03-jwt.md` — A claim you can read and cannot alter — TODO: gist / introduces
+
+- `04-verifying-a-token.md` — Trusting a token you did not issue — TODO: gist / introduces
+
+- `05-oauth2-and-oidc.md` — Delegation without handing over a password — TODO: gist / introduces
+
+- `06-rbac-and-abac.md` — Two ways to write down a permission — TODO: gist / introduces
