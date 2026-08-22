@@ -23,7 +23,7 @@ reconcile** in the cloud.
 > | **7.1** — the control plane: API server as a filesystem, static pods, the reconciliation loop, cluster PKI, etcd backup/restore, upgrades & version skew, node maintenance, control-plane troubleshooting | Act VI | ✅ **built & teaching** — 8 lessons + all supporting pages, every lesson run against a real cluster |
 > | **7.2, 7.4, 7.6–7.8** — workloads, scheduling, storage, config, Helm/Kustomize, CRDs/operators, autoscaling | Act VII | ✅ **built & teaching** — 10 lessons + all supporting pages, every lesson run against a real cluster and corrected |
 > | **4** — cryptography & trust | Act VIII | ✅ **built & teaching** — 6 lessons + all supporting pages; needs no cluster, every claim verified on a real openssl |
-> | **5** — identity & access | *(planned as Act IX)* | 🔜 **roadmap** |
+> | **5** — identity & access: authn vs authz, tokens & sessions, JWT, token verification, OAuth2/OIDC, RBAC vs ABAC | Act IX | ✅ **built & teaching** — 6 lessons + all supporting pages, every command run against a real cluster and a real identity provider |
 > | **7.5, 7.9** — CKS security: hardening, etcd encryption, seccomp/AppArmor, admission, supply chain | *(planned as Act X)* | 🔜 **roadmap** |
 > | **8** — AWS networking | *(none yet)* | 🔜 **roadmap** |
 > | **9** — AWS security | *(none yet)* | 🔜 **roadmap** |

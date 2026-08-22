@@ -83,6 +83,8 @@ it authenticated 617 requests after its account ceased to exist.
 
 **Six hundred and seventeen authenticated requests by an account that does not exist.** Run it again and the count will differ — it depends how fast your laptop can loop — but the *ten seconds* will not. That is the API server's ServiceAccount cache, and it is not a bug, it is the trade priced and paid: paying for a fresh lookup on every request was judged not worth it, and the bill is a ten-second window in which a deleted identity keeps working.
 
+The `before deletion` request above was load-bearing, by the way, and not just as a sanity check. **A cache is filled by use**, so that one request is what put `victim` in it; delete an account that nobody has touched and the first lookup goes to the store and fails immediately. Which is worth sitting with, because it means the window is widest for exactly the accounts that are busy — and an account you are urgently revoking is, by definition, one that is busy.
+
 Sit with the shape rather than the number. **Every check in that window returned a correct answer to the question it was actually asking**, which was not "does this account exist?" but "did this account exist when I last looked?" Nothing malfunctioned. The answer was stale, and stale answers are indistinguishable from current ones at the point of use — which is the entire difficulty.
 
 > **Check yourself —** ten seconds is short. Suppose you disliked it and set the cache to zero, so every request re-reads the account. You have now bought perfectly current revocation. What did you pay, and — the part people miss — what *new* failure did you just introduce that did not exist before?
