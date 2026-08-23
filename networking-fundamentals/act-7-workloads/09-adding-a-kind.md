@@ -383,4 +383,4 @@ kubectl get crd 2>/dev/null | grep -q example.com && echo "still there" || echo 
 
 ---
 
-← Prev: **[Shipping a set of objects](08-shipping-a-set-of-objects.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Choosing the number](10-choosing-the-number.md)** →
+← Prev: **[GitOps, which you have already built](08b-gitops.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Choosing the number](10-choosing-the-number.md)** →

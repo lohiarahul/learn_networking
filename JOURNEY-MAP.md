@@ -21,7 +21,7 @@ reconcile** in the cloud.
 > | **6** — one machine pretends to be many (containers) | Act IV | ✅ **built & teaching** |
 > | **7.3** — Kubernetes *networking* (incl. Gateway API, Service shapes) | Act V | ✅ **built & teaching** |
 > | **7.1** — the control plane: API server as a filesystem, static pods, the reconciliation loop, cluster PKI, etcd backup/restore, upgrades & version skew, node maintenance, control-plane troubleshooting | Act VI | ✅ **built & teaching** — 8 lessons + all supporting pages, every lesson run against a real cluster |
-> | **7.2, 7.4, 7.6–7.8** — workloads, scheduling, storage, config, Helm/Kustomize, CRDs/operators, autoscaling | Act VII | ✅ **built & teaching** — 10 lessons + all supporting pages, every lesson run against a real cluster and corrected |
+> | **7.2, 7.4, 7.6–7.8** — workloads, scheduling, storage, config, Helm/Kustomize, CRDs/operators, autoscaling | Act VII | ✅ **built & teaching** — 11 lessons + all supporting pages, every lesson run against a real cluster and corrected |
 > | **4** — cryptography & trust | Act VIII | ✅ **built & teaching** — 6 lessons + all supporting pages; needs no cluster, every claim verified on a real openssl |
 > | **5** — identity & access: authn vs authz, tokens & sessions, JWT, token verification, OAuth2/OIDC, RBAC vs ABAC | Act IX | ✅ **built & teaching** — 6 lessons + all supporting pages, every command run against a real cluster and a real identity provider |
 > | **7.5, 7.9** — CKS security: workload hardening, seccomp/AppArmor, Pod Security Admission, admission control and policy engines, etcd encryption, the cluster's own open doors, supply chain, Pod-to-Pod encryption, audit and runtime detection, external secret stores | Act X | ✅ **built & teaching** — 11 lessons + all supporting pages, every lesson run against a real cluster |
@@ -306,7 +306,11 @@ recall Stage 4), SBOMs, and admitting only trusted provenance. **Runtime** detec
 (recall syscalls) and **audit logging**. Secrets done properly: ESO, Vault, Sealed Secrets, CSI.
 
 **7.6 Packaging, delivery, and platform.** Helm, Kustomize, CDK8s. **GitOps** (ArgoCD/Flux) is just
-the reconciliation loop from 7.1 pointed at a git repo — sync waves, app-of-apps, self-heal.
+the reconciliation loop from 7.1 pointed at a git repo — sync waves, app-of-apps, self-heal. Act VII
+lesson 08b builds that loop in four lines rather than installing a product, which is what lets it show
+that self-heal is a time bound rather than a prevention, that a deleted manifest file is not a deletion,
+and that a repo holding tags is not a source of truth. ArgoCD and Flux themselves remain roadmap; what
+they add over those four lines is operational and the lesson names it.
 **CRDs and operators** are that *same loop applied to your own object types* — the heart of extending
 Kubernetes — and **Crossplane** uses them to provision cloud infrastructure from a one-line claim,
 which is our bridge into AWS.

@@ -345,4 +345,4 @@ kubectl get ns | grep -q staging && echo "still there" || echo "gone"
 
 ---
 
-← Prev: **[When replicas are not interchangeable](07-the-other-workload-kinds.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Adding a kind](09-adding-a-kind.md)** →
+← Prev: **[When replicas are not interchangeable](07-the-other-workload-kinds.md)** · ↑ **[Act VII overview](README.md)** · Next: **[GitOps, which you have already built](08b-gitops.md)** →

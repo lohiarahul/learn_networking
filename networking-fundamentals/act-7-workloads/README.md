@@ -52,6 +52,7 @@ kubectl get pvc -A        # empty, unless a lesson explicitly told you to keep o
 6. **[Three different promises called "survives"](06-storage.md)** — Act I's oldest unanswered question, and how much of the answer you cannot read off the manifest.
 7. **[When replicas are not interchangeable](07-the-other-workload-kinds.md)** — you built a StatefulSet by hand in Act V. Four workload kinds, each existing because one assumption about a replica is false.
 8. **[Shipping a set of objects](08-shipping-a-set-of-objects.md)** — two tools that disagree about what a manifest is, and the discovery that neither is a Kubernetes feature at all.
+8b. **[GitOps, which you have already built](08b-gitops.md)** — the reconciliation loop with a git repo as desired state, in four lines. Self-heal turns out not to be healing, a deleted file turns out not to be a deletion, and the drift check reports `in sync` while an orphan runs.
 9. **[Adding a kind](09-adding-a-kind.md)** — Act V told you what a CRD is and what happens when nobody watches one. This is where you prove it, and then write the watcher yourself in twenty-five lines of shell.
 10. **[Choosing the number](10-choosing-the-number.md)** — every replica count in this act was one you typed. What would it take for the cluster to pick it, and what would it have to measure to do that honestly?
 
