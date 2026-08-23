@@ -250,7 +250,33 @@ kubernetes.default -> 200
 
 **The route is unchanged.** Removing the token removed a credential, not a path. Every Pod in your cluster can still open a connection to the API server and try things; it simply has nothing to try them with. Whether that distinction matters depends entirely on whether anything else in that Pod can obtain a credential — a mounted Secret, a cloud metadata endpoint, an environment variable — and this act has spent six lessons on how easily that happens.
 
-The thing that closes the route is a NetworkPolicy, which is Act V's mechanism and not this act's. It is also the honest limit of this lab: Act V established that **kindnet accepts a NetworkPolicy and enforces nothing** — no error, no effect — and used it as the example of an unreconciled object being indistinguishable from a working one. So a default-deny egress policy is the right answer here and *this* cluster cannot demonstrate it — which is worth knowing in exactly the shape Act V put it: if you write one and see no change, find out which of the two things you are looking at. If you want to see the policy actually work, [Act V's policy-shapes lesson](../act-5-kubernetes/07b-policy-shapes.md) builds exactly this document on the Calico cluster, and its second failure is the one relevant here: a default-deny egress closes the route to the API server and to CoreDNS in the same breath.
+The thing that closes the route is a NetworkPolicy, which is Act V's mechanism and not this act's — and on a cluster whose CNI enforces, which current kind's does, you can close it here in four lines. Ask by address rather than by name, because a default-deny egress takes DNS out with everything else and you want to measure the route, not the lookup:
+
+```bash
+kubectl exec -n doors probe2 -- \
+  curl -s -o /dev/null -w "10.96.0.1 -> %{http_code}\n" -k --max-time 5 https://10.96.0.1/version
+
+kubectl apply -f - <<'EOF'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: no-egress, namespace: doors }
+spec:
+  podSelector: {}
+  policyTypes: [ Egress ]
+EOF
+
+kubectl exec -n doors probe2 -- \
+  curl -s -o /dev/null -w "10.96.0.1 -> %{http_code}\n" -k --max-time 5 https://10.96.0.1/version
+```
+
+```
+10.96.0.1 -> 200
+10.96.0.1 -> 000
+```
+
+**`000` is curl reporting that there was no response at all** — not a refusal, not a 403, nothing to give a status code to. That is the door, and it took a document with no rules in it. Note what the two measurements together say: `automountServiceAccountToken: false` took the key and left the door, the policy took the door and would have left the key. Neither is the other's substitute, and only one of them is visible in a Pod spec.
+
+If your own cluster returns `200` twice, you are looking at the other failure and it is the more instructive one — [Act V's policy lesson](../act-5-kubernetes/07-network-policy.md) opens with the check that tells the two apart. [Act V's policy-shapes lesson](../act-5-kubernetes/07b-policy-shapes.md) has the rest of this document's consequences, and the one relevant here is that the same four lines closed the route to CoreDNS in the same breath.
 
 ### Door two: the port on every node
 
@@ -634,8 +660,10 @@ Then fix it, and expect the fix to break things: `AlwaysAllow` clusters accumula
      not a mount. SA-level covers every Pod; Pod-level wins.
      then measure again: /version -> 200 STILL.
      YOU REMOVED THE KEY, NOT THE DOOR. the door is a
-     NetworkPolicy -- which kindnet ACCEPTS AND DOES NOT
-     ENFORCE (Act V). right answer, undemonstrable lab.
+     NetworkPolicy (Act V): podSelector {} + Egress, no rules
+     -> 10.96.0.1 goes 200 then 000. ask BY ADDRESS; the
+     policy takes DNS out too. key and door are separate,
+     and only the key shows up in a Pod spec.
 
    DOOR 2 -- THE PORT ON EVERY NODE
      as shipped: 10250 -> 401 · 10255 -> 000 (not listening)

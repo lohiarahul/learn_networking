@@ -117,7 +117,7 @@ Hold those three, because every solution below is a different answer to "then wh
 
 ### A CNI that enforces things, and a capture that still reads
 
-kindnet cannot help us here for a reason Act V made a point of: **it does not enforce `NetworkPolicy`** — it accepts one and does nothing. So build the cluster Act V described for exactly this, with the CNI swapped for one that does transparent encryption.
+kindnet cannot help us here, and the reason is narrower than it sounds: it enforces `NetworkPolicy` perfectly well on current kind, and **it has no transparent encryption at all**. Policy decides which packets travel; nothing in kindnet decides how they look on the wire. So build the cluster Act V described for exactly this, with the CNI swapped for one that does encrypt.
 
 Two changes from Act V's recipe, and the first matters more than it looks. Keep this cluster's kubeconfig in its own file:
 
