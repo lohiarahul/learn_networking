@@ -2,10 +2,13 @@
 /**
  * A sticky strip naming which layer of the stack this lesson is about.
  *
- * The course teaches in five acts, which is a *pedagogical* order and deliberately cuts across the
- * stack — Act V's Services lesson is really about NAT, and its CoreDNS lesson is really about names.
- * The eyebrow above the title already says which act you are in. This says which rung of the descent
- * you are on, and the two are genuinely different facts.
+ * The course teaches in acts, which is a *pedagogical* order and deliberately cuts across the stack
+ * — Act V's Services lesson is really about NAT, and its CoreDNS lesson is really about names. The
+ * eyebrow above the title already says which act you are in. This says which rung of the descent you
+ * are on, and the two are genuinely different facts.
+ *
+ * In practice that means the rail appears in Acts I–V and nowhere after them, which is a decision and
+ * not an omission — see `layers.ts`.
  *
  * Sticky because orientation is worth least at the moment you land and most three screens down, when
  * you are reading `iptables -t nat -L` output and have lost the thread of why. It sits directly under

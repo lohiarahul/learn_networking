@@ -16,6 +16,15 @@
  * (overviews, `diagnose`, `test-yourself`, `in-the-wild`, the capstone) or about none of it (setup,
  * reference, progress). Silence is correct there — a rail claiming a drill lives on one rung would be
  * a lie, and the capstone's whole subject is that it visits every rung in turn.
+ *
+ * Which is also why the map below stops at Act V, and why that is a decision rather than a gap left
+ * to fill in later. The rungs are the descent from `write()` to the wire, and Acts VI–X are not on
+ * it: a controller loop, a Pod spec's claims, a key exchange, a token's expiry and an admission
+ * webhook are not layers a packet passes through. Two of them look close enough to tempt you — Act
+ * VIII is *about* what rides on the stream, and Act X's Pod-to-Pod encryption lesson is *about* the
+ * wire — but the rail exists to teach one specific order before `08-debugging.md` asks the reader to
+ * walk it, and a reader in Act VIII walked it three acts ago. Adding rungs there would buy nothing
+ * and would blur what the strip means everywhere it does appear.
  */
 export const RUNGS = [
   { id: 'name', label: 'Name', hint: 'DNS — turning a name into an address' },
@@ -68,12 +77,18 @@ const LAYER_BY_PATH: Record<string, RungId> = {
   '/act-3/tcp-states/': 'rewrite',
   '/act-3/http/': 'stream',
   '/act-3/tls/': 'stream',
+  // conntrack is the flow table NAT is written into, so it belongs on the rung it makes possible
+  // rather than on the state machine it grew out of.
+  '/act-3/conntrack/': 'rewrite',
 
   // Act IV — one machine as many. Namespaces and veths are wire; NAT and overlays are rewrites.
   '/act-4/namespaces/': 'wire',
   '/act-4/veth-and-bridge/': 'wire',
   '/act-4/iptables-and-nat/': 'rewrite',
   '/act-4/overlay-vxlan/': 'rewrite',
+  // `/act-4/cgroups/` is deliberately absent. It sits in a networking act because that is where the
+  // reader can first ask the question, but "how much of the machine may this process use" is not a
+  // rung in the descent — no packet passes through it.
 
   // Act V — every lesson is an earlier rung wearing a Kubernetes name.
   '/act-5/pod-networking/': 'wire',
@@ -82,6 +97,11 @@ const LAYER_BY_PATH: Record<string, RungId> = {
   '/act-5/cni/': 'wire',
   '/act-5/ingress/': 'stream',
   '/act-5/network-policy/': 'rewrite',
+  // The three lessons that split off an existing one sit on the rung their parent does: Gateway API
+  // is Ingress's rung, and both the Service and the policy shape-catalogues are rewrites.
+  '/act-5/gateway-api/': 'stream',
+  '/act-5/service-shapes/': 'rewrite',
+  '/act-5/policy-shapes/': 'rewrite',
 };
 
 /** The rung a page sits on, or null for pages that span the stack or sit outside it. */
