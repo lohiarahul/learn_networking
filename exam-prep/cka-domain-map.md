@@ -71,7 +71,7 @@ clustered around RBAC and building a cluster from bare machines.
 
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
-| Manage role based access control (RBAC) | ❌ **gap — the largest one left** | — planned for Act X. See the note below | `-` |
+| Manage role based access control (RBAC) | ✅ covered | [Act IX lesson 06](../networking-fundamentals/act-9-identity/06-rbac-and-abac.md) builds the four-object model from scratch and computes the reverse question against a live cluster; [Act X lesson 07](../networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md) adds the Node authorizer and `NodeRestriction`. See the note below for the one exam-shaped gap. | `-` |
 | Prepare underlying infrastructure for installing a Kubernetes cluster | ❌ gap | — `kind` cannot teach this honestly; needs two VMs | `-` |
 | Create and manage Kubernetes clusters using kubeadm | 🟡 partial | Act VI reads a *real* kubeadm cluster from the inside — [static pods](../networking-fundamentals/act-6-control-plane/02-static-pods.md) · [the cluster's own PKI](../networking-fundamentals/act-6-control-plane/04-the-clusters-own-pki.md) (`kubeadm certs check-expiration`/`renew`) · [etcd backup and restore](../networking-fundamentals/act-6-control-plane/05-etcd-backup-and-restore.md). A genuine `kubeadm init` + `join` is not done | `-` |
 | Manage the lifecycle of Kubernetes clusters | ✅ covered | [upgrades and version skew](../networking-fundamentals/act-6-control-plane/06-upgrades-and-version-skew.md) — skew derived rather than memorised, half an upgrade done by hand, `upgrade plan`/`apply`/`node` | `-` |
@@ -80,13 +80,19 @@ clustered around RBAC and building a cluster from bare machines.
 | **Understand extension interfaces (CNI, CSI, CRI, etc.)** | ✅ covered | CNI [in depth](../networking-fundamentals/act-5-kubernetes/05-cni.md) · CRI via `crictl` throughout [Act VI](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md) · CSI derived from the `ExternalExpanding` event in [storage](../networking-fundamentals/act-7-workloads/06-storage.md) | `-` |
 | **Understand CRDs, install and configure operators** | ✅ **covered, above exam depth** | [adding a kind](../networking-fundamentals/act-7-workloads/09-adding-a-kind.md) — write a CRD, discover it adds no behaviour, then write the controller in shell | `-` |
 
-> **On RBAC:** this is now the single biggest hole between you and a pass, and it is worth being
-> blunt about the arithmetic — it is one bullet of eight in a 25% domain, so perhaps 3% of the marks,
-> but it is also the domain's most commonly reported task. [Act VII's CRD lesson](../networking-fundamentals/act-7-workloads/09-adding-a-kind.md)
-> lays the groundwork by making `status` a separate subresource *because permissions can differ*, but
-> the four-object model (Role, ClusterRole, RoleBinding, ClusterRoleBinding) and
-> `kubectl auth can-i` are genuinely untaught. Until Act X lands, drill this externally — it is
-> small, self-contained, and entirely on an allowed doc.
+> **On RBAC:** this was the largest hole in the map and [Act IX](../networking-fundamentals/act-9-identity/README.md)
+> closed it. The four-object model (Role, ClusterRole, RoleBinding, ClusterRoleBinding), the scope
+> that is not one of them, `kubectl auth can-i --as`, and the reverse question — *who can do this* —
+> are all built from first principles, and [Act VII's CRD lesson](../networking-fundamentals/act-7-workloads/09-adding-a-kind.md)
+> still lays the groundwork by making `status` a separate subresource *because permissions can differ*.
+>
+> One exam-shaped gap remains and it is worth naming, because understanding is not the thing being
+> graded here. Act IX teaches you *why* RBAC has no deny and what that buys; the exam asks you to
+> produce a working Role and binding in about four minutes. Drill the imperative forms —
+> `kubectl create role`/`clusterrole`/`rolebinding`/`clusterrolebinding --verb --resource
+> --resource-name`, and `auth can-i --as=system:serviceaccount:ns:sa` to check your own work — under
+> a clock. It is one bullet of eight in a 25% domain, so perhaps 3% of the marks, but it is also the
+> domain's most commonly reported task.
 
 ### Helm and Kustomize — the most-named weak spot
 

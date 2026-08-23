@@ -32,21 +32,28 @@ qualifies you to schedule CKS. And from 18 June 2026, passing CKS reinstates or 
 
 ## Course coverage, stated plainly
 
-**The course covers almost none of CKS today.** Every pillar — seccomp, AppArmor, Pod Security
-Admission, admission control, image scanning and signing, SBOM, Falco, audit logging, etcd
-encryption at rest — exists only as roadmap prose in
-[`JOURNEY-MAP.md`](../JOURNEY-MAP.md) §7.5. There are exactly three hands-on beats anywhere:
+**[Act X](../networking-fundamentals/act-10-cluster-security/README.md) now covers most of CKS**, and
+this map was rewritten against it. Eleven lessons, every command run against a real cluster: workload
+hardening and capabilities, seccomp and AppArmor, Pod Security Admission, admission control from a
+hand-built webhook up to two policy engines, encryption at rest, the cluster's own open doors and a
+CIS benchmark run, supply-chain verification with digests and signatures, Pod-to-Pod encryption on a
+second cluster with Cilium and WireGuard, audit logging and runtime detection with Falco, and
+external secret stores.
 
-- [`--privileged` and the capability set](../networking-fundamentals/00-orientation/README.md) — one
-  paragraph, then the flag is used unexamined in roughly twenty lessons.
-- [image-layer secret retention](../networking-fundamentals/act-1-one-machine/06b-the-container-filesystem.md)
-  — `COPY secret.pem` then `RUN rm` leaves it recoverable in the layer. One paragraph, but it is the
-  best container-security passage in the repo.
-- [a TLS Secret is only base64](../networking-fundamentals/act-5-kubernetes/06-ingress.md) — one
-  command, and the right motivating wall for encryption at rest.
+**Two competencies remain genuine gaps**, both marked below: static analysis with **Kubesec /
+KubeLinter**, and **host OS footprint** reduction. Both are cheap to rehearse and neither is worth
+much of the syllabus.
 
-Plus [NetworkPolicy](../networking-fundamentals/act-5-kubernetes/07-network-policy.md), which is
-genuinely ✅ covered and does real work in the Cluster Setup domain below.
+**Read the 🟡 rows carefully, because they are where a pass is lost.** In each of them the course
+teaches the mechanism and does not build the exam's specific artifact — `ImagePolicyWebhook` rather
+than an admission webhook you wrote, `bom` rather than `trivy`'s SBOM, Istio's `PeerAuthentication`
+rather than Cilium's flag, gVisor actually running rather than `RuntimeClass` named. Understanding
+transfers; muscle memory under a clock does not, which is the entire reason this `exam-prep/` track
+exists separately from the lessons.
+
+One warning that survives Act X unchanged: the act is written to make you understand these controls,
+and the exam is written to make you configure them in about seven minutes each. Act X's lessons will
+tell you *why* `defaultAllow: false` matters; they will not make your fingers fast.
 
 Coverage key: ✅ covered · 🟡 partial · ❌ gap. Rate yourself: `-` untried · `?` shaky · `✓` under a clock.
 
@@ -56,10 +63,10 @@ Coverage key: ✅ covered · 🟡 partial · ❌ gap. Rate yourself: `-` untried
 
 | Sub-competency | Coverage | Notes | Me |
 |---|---|---|---|
-| Use appropriate pod security standards | ❌ gap | **PSA — reported as "a common opener" and "the fastest win."** Namespace labels `pod-security.kubernetes.io/{enforce,audit,warn}` = `privileged|baseline|restricted` (+ `-version`). Know what `baseline` vs `restricted` forbids, **and** the cluster-wide route: `AdmissionConfiguration` → `PodSecurityConfiguration` (`defaults`, `exemptions`) via `--admission-control-config-file`. | `-` |
-| Manage kubernetes secrets | ❌ gap | The examined material is `EncryptionConfiguration`, RBAC, `automountServiceAccountToken: false`, projected tokens — **not** Vault/ESO/Sealed Secrets (see the warning below). | `-` |
-| Understand and implement isolation techniques (multi-tenancy, sandboxed containers, etc.) | ❌ gap | Lead with **RuntimeClass** (`node.k8s.io/v1`, `handler: runsc`, then `runtimeClassName`). gVisor and Kata are **no longer named** — the competency generalised. Expect `runsc` pre-configured in containerd; gVisor's own docs are not allowed. | `-` |
-| **Implement Pod-to-Pod encryption (Cilium, Istio)** | ❌ gap | Both `docs.cilium.io` and `istio.io` are whitelisted, so this is real. See below. | `-` |
+| Use appropriate pod security standards | ✅ covered | [Lesson 03](../networking-fundamentals/act-10-cluster-security/03-a-default-that-refuses.md) does all of this and measures the two traps: `enforce` degrades to `warn` for anything containing a pod template, and a labelled namespace can be exempted so label-enumeration is an unsound audit. **PSA — reported as "a common opener" and "the fastest win."** Namespace labels `pod-security.kubernetes.io/{enforce,audit,warn}` = `privileged |baseline|restricted` (+ `-version`). Know what `baseline` vs `restricted` forbids, **and** the cluster-wide route: `AdmissionConfiguration` → `PodSecurityConfiguration` (`defaults`, `exemptions`) via `--admission-control-config-file`. | `-` |
+| Manage kubernetes secrets | ✅ covered | [Lesson 06](../networking-fundamentals/act-10-cluster-security/06-a-secret-that-is-actually-secret.md) for `EncryptionConfiguration` (including the provider-order rule and the compaction step every guide omits) and [lesson 07](../networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md) for projected tokens and `automountServiceAccountToken`. The examined material is `EncryptionConfiguration`, RBAC, `automountServiceAccountToken: false`, projected tokens — **not** Vault/ESO/Sealed Secrets (see the warning below). | `-` |
+| Understand and implement isolation techniques (multi-tenancy, sandboxed containers, etc.) | 🟡 partial | [Lesson 02](../networking-fundamentals/act-10-cluster-security/02-the-kernel-says-no.md) introduces `RuntimeClass` and measures `no runtime for "runsc" is configured`; gVisor is never actually run, and multi-tenancy is an explicit omission ([in the wild](../networking-fundamentals/act-10-cluster-security/in-the-wild.md)). Lead with **RuntimeClass** (`node.k8s.io/v1`, `handler: runsc`, then `runtimeClassName`). gVisor and Kata are **no longer named** — the competency generalised. Expect `runsc` pre-configured in containerd; gVisor's own docs are not allowed. | `-` |
+| **Implement Pod-to-Pod encryption (Cilium, Istio)** | 🟡 partial | [Lesson 09](../networking-fundamentals/act-10-cluster-security/09-encryption-between-pods.md) does Cilium WireGuard end to end on a second cluster — including the measurement most guides miss, that same-node traffic stays plaintext — but Istio and `PeerAuthentication` are described rather than run. Both `docs.cilium.io` and `istio.io` are whitelisted, so this is real. See below. | `-` |
 
 ### Pod-to-Pod encryption — the competency most study guides miss
 
@@ -84,9 +91,9 @@ sidecars."
 
 | Sub-competency | Coverage | Notes | Me |
 |---|---|---|---|
-| Minimize base image footprint | 🟡 partial | [image layers and the secret leak](../networking-fundamentals/act-1-one-machine/06b-the-container-filesystem.md) gets you the mechanism; multi-stage builds, distroless and non-root images are gaps | `-` |
-| Understand your supply chain (e.g. SBOM, CI/CD, artifact repositories) | ❌ gap | **Use `bom`, not syft** — see below | `-` |
-| Secure your supply chain (permitted registries, sign and validate artifacts, etc.) | ❌ gap | **ImagePolicyWebhook** for permitted registries; cosign for signing | `-` |
+| Minimize base image footprint | 🟡 partial | [Lesson 08](../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md) adds the sharp end of this: a minimal image scans to `Target -`, which the tool's own legend distinguishes from `0`. [image layers and the secret leak](../networking-fundamentals/act-1-one-machine/06b-the-container-filesystem.md) gets you the mechanism; multi-stage builds, distroless and non-root images are gaps | `-` |
+| Understand your supply chain (e.g. SBOM, CI/CD, artifact repositories) | 🟡 partial | [Lesson 08](../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md) generates a CycloneDX SBOM, re-runs the scan against the SBOM alone, and measures the two entry points disagreeing — but it uses `trivy`, not the exam's tool. **Use `bom`, not syft** — see below | `-` |
+| Secure your supply chain (permitted registries, sign and validate artifacts, etc.) | ✅ covered | [Lesson 04](../networking-fundamentals/act-10-cluster-security/04-deciding-before-it-exists.md) builds a registry-allowlist admission webhook by hand and then defeats it by renaming; [lesson 08](../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md) does digests, `cosign sign`/`verify`, and cluster-side verification with `mutateDigest`. **The one artifact the course does not build is `ImagePolicyWebhook` itself** — rehearse that separately. **ImagePolicyWebhook** for permitted registries; cosign for signing | `-` |
 | Perform static analysis of user workloads and container images (e.g. **Kubesec, KubeLinter**) | ❌ gap | Both named in the curriculum yet neither has docs or a single first-hand report — the clearest "named but unverified" case. Cheap to rehearse anyway. | `-` |
 
 ### `bom` is the SBOM tool — this is the most under-appreciated finding
@@ -128,11 +135,11 @@ stop there.
 
 | Sub-competency | Coverage | Notes | Me |
 |---|---|---|---|
-| Perform behavioral analytics to detect malicious activities | ❌ gap | Falco | `-` |
-| Detect threats within physical infrastructure, apps, networks, data, users and workloads | ❌ gap | Falco | `-` |
-| Investigate and identify phases of attack and bad actors within the environment | ❌ gap | audit-log forensics with `jq` | `-` |
-| Ensure immutability of containers at runtime | ❌ gap | `readOnlyRootFilesystem`, no shell in image, `allowPrivilegeEscalation: false` | `-` |
-| Use Kubernetes audit logs to monitor access | ❌ gap | see the trap below | `-` |
+| Perform behavioral analytics to detect malicious activities | ✅ covered | [Lesson 10](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) installs Falco with `driver.kind=modern_ebpf` and gets a real detection. Falco | `-` |
+| Detect threats within physical infrastructure, apps, networks, data, users and workloads | ✅ covered | [Lesson 10](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md), and it also measures the limit: the alert arrives with `k8s_pod_name=<NA>`. Falco | `-` |
+| Investigate and identify phases of attack and bad actors within the environment | ✅ covered | [Lesson 10](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) plus [diagnose](../networking-fundamentals/act-10-cluster-security/diagnose.md) drill 5 — the audit log knows *who* and not *what*, the runtime sensor the reverse, so an investigation is a join on container ID and timestamp. audit-log forensics with `jq` | `-` |
+| Ensure immutability of containers at runtime | ✅ covered | [Lesson 01](../networking-fundamentals/act-10-cluster-security/01-what-a-container-may-do.md) measures all three, including that `readOnlyRootFilesystem` breaks `/tmp` and what `allowPrivilegeEscalation: false` actually stops. `readOnlyRootFilesystem`, no shell in image, `allowPrivilegeEscalation: false` | `-` |
+| Use Kubernetes audit logs to monitor access | ✅ covered | [Lesson 10](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) — the three-part edit, the four levels, and the measured trap that `RequestResponse` on Secrets writes plaintext passwords to disk. see the trap below | `-` |
 
 ### Falco — expect to write a rule from scratch
 
@@ -176,10 +183,10 @@ investigation question ("who deleted this", "all exec sessions").
 | Sub-competency | Coverage | Notes | Me |
 |---|---|---|---|
 | Use Network security policies to restrict cluster level access | ✅ **covered** | [NetworkPolicy](../networking-fundamentals/act-5-kubernetes/07-network-policy.md) — including the timeout-not-403 insight and the "kindnet silently ignores policies" trap | `-` |
-| Use CIS benchmark to review the security configuration of Kubernetes components (etcd, kubelet, kubedns, kubeapi) | ❌ gap | `kube-bench` — see below | `-` |
+| Use CIS benchmark to review the security configuration of Kubernetes components (etcd, kubelet, kubedns, kubeapi) | ✅ covered | [Lesson 07](../networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md) runs `kube-bench`, connects its findings to specific lessons, and shows two of them are unfixable. `kube-bench` — see below | `-` |
 | Properly set up Ingress objects with TLS | ✅ **covered** | [Ingress with a TLS Secret and SNI](../networking-fundamentals/act-5-kubernetes/06-ingress.md). Note: **create TLS secrets with `kubectl create secret tls`, not by hand-editing a manifest** — a named failure. | `-` |
-| Protect node metadata and endpoints | ❌ gap | NetworkPolicy egress to the metadata IP; kubelet `readOnlyPort: 0` | `-` |
-| Verify platform binaries before deploying | ❌ gap | checksum/signature verification of Kubernetes release binaries | `-` |
+| Protect node metadata and endpoints | 🟡 partial | [Lesson 07](../networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md) covers the kubelet side thoroughly (port 10250, anonymous auth, `authorization.mode`, and why the same flag is right on the apiserver and fatal here); the cloud metadata IP is still a gap. NetworkPolicy egress to the metadata IP; kubelet `readOnlyPort: 0` | `-` |
+| Verify platform binaries before deploying | 🟡 partial | [Lesson 08](../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md) teaches exactly this mechanism — digests and signature verification — applied to images rather than to release binaries. checksum/signature verification of Kubernetes release binaries | `-` |
 
 **kube-bench** is not itself curriculum-named (CIS is) and has no allowed docs — but that's fine,
 because **the tool prints its own remediation text**. A September 2025 candidate: *"running and
@@ -196,10 +203,10 @@ restart it manually.**
 
 | Sub-competency | Coverage | Notes | Me |
 |---|---|---|---|
-| Use Role Based Access Controls to minimize exposure | ❌ gap | `kubectl auth can-i --as=system:serviceaccount:ns:sa verb resource`. Role vs ClusterRole vs the *binding's* namespace is the classic confusion. | `-` |
-| Exercise caution in using service accounts (disable defaults, minimize permissions on new ones) | ❌ gap | `automountServiceAccountToken: false`; `kubectl create token --duration`; bound tokens since 1.21 | `-` |
-| Restrict access to Kubernetes API | ❌ gap | `--anonymous-auth=false`, RBAC, NetworkPolicy to the apiserver, `--authorization-mode` | `-` |
-| Upgrade Kubernetes to avoid vulnerabilities | ❌ gap | shared with CKA's lifecycle bullet | `-` |
+| Use Role Based Access Controls to minimize exposure | ✅ covered | Act IX lesson 06 for the model, [lesson 07](../networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md) for the Node authorizer and `NodeRestriction`. `kubectl auth can-i --as=system:serviceaccount:ns:sa verb resource`. Role vs ClusterRole vs the *binding's* namespace is the classic confusion. | `-` |
+| Exercise caution in using service accounts (disable defaults, minimize permissions on new ones) | ✅ covered | [Lesson 07](../networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md) is largely this competency, and [lesson 11](../networking-fundamentals/act-10-cluster-security/11-secrets-from-outside.md) shows what the projected token is actually *for*. `automountServiceAccountToken: false`; `kubectl create token --duration`; bound tokens since 1.21 | `-` |
+| Restrict access to Kubernetes API | ✅ covered | [Lesson 07](../networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md) — and its rule that a permissive auth flag is only as safe as the authorizer behind it. `--anonymous-auth=false`, RBAC, NetworkPolicy to the apiserver, `--authorization-mode` | `-` |
+| Upgrade Kubernetes to avoid vulnerabilities | ✅ covered | Act VI lesson 06 covers upgrades and version skew. shared with CKA's lifecycle bullet | `-` |
 
 **Secrets encryption at rest** lives across this and the Microservice Vulnerabilities domain, and is
 the single biggest hole in the course. `apiserver.config.k8s.io/v1` `EncryptionConfiguration` with an
@@ -219,9 +226,9 @@ part people forget: **re-encrypt the existing Secrets** with
 | Sub-competency | Coverage | Notes | Me |
 |---|---|---|---|
 | Minimize host OS footprint (reduce attack surface) | ❌ gap | disable services, close ports | `-` |
-| Using least-privilege identity and access management | ❌ gap | reworded from "minimize IAM roles" | `-` |
+| Using least-privilege identity and access management | 🟡 partial | Act IX lesson 06 for RBAC vs ABAC; cloud IAM is Stage 9 roadmap. reworded from "minimize IAM roles" | `-` |
 | Minimize external access to the network | 🟡 partial | NetworkPolicy egress is ✅; host-level firewalling is a gap | `-` |
-| Appropriately use kernel hardening tools such as **AppArmor, seccomp** | ❌ gap | see below | `-` |
+| Appropriately use kernel hardening tools such as **AppArmor, seccomp** | ✅ covered | [Lesson 02](../networking-fundamentals/act-10-cluster-security/02-the-kernel-says-no.md) — seccomp fully (including a `Localhost` profile and why the filter is consulted before the capability check); AppArmor's *mechanism* and diagnostic, with the honest note that enforcement is impossible on Docker Desktop. see below | `-` |
 
 ### seccomp
 

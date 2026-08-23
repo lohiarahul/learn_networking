@@ -24,7 +24,7 @@ reconcile** in the cloud.
 > | **7.2, 7.4, 7.6–7.8** — workloads, scheduling, storage, config, Helm/Kustomize, CRDs/operators, autoscaling | Act VII | ✅ **built & teaching** — 10 lessons + all supporting pages, every lesson run against a real cluster and corrected |
 > | **4** — cryptography & trust | Act VIII | ✅ **built & teaching** — 6 lessons + all supporting pages; needs no cluster, every claim verified on a real openssl |
 > | **5** — identity & access: authn vs authz, tokens & sessions, JWT, token verification, OAuth2/OIDC, RBAC vs ABAC | Act IX | ✅ **built & teaching** — 6 lessons + all supporting pages, every command run against a real cluster and a real identity provider |
-> | **7.5, 7.9** — CKS security: hardening, etcd encryption, seccomp/AppArmor, admission, supply chain | *(planned as Act X)* | 🔜 **roadmap** |
+> | **7.5, 7.9** — CKS security: workload hardening, seccomp/AppArmor, Pod Security Admission, admission control and policy engines, etcd encryption, the cluster's own open doors, supply chain, Pod-to-Pod encryption, audit and runtime detection, external secret stores | Act X | ✅ **built & teaching** — 11 lessons + all supporting pages, every lesson run against a real cluster |
 > | **8** — AWS networking | *(none yet)* | 🔜 **roadmap** |
 > | **9** — AWS security | *(none yet)* | 🔜 **roadmap** |
 >
@@ -47,8 +47,10 @@ reconcile** in the cloud.
 > scheduling, storage, config, Helm, Kustomize, CRDs and autoscaling** — which between them leave
 > **Acts I–VII covering essentially all of CKA**, with **Act IX closing the RBAC gap** — it builds
 > Kubernetes RBAC from the four-object model up and computes the reverse question against a live
-> cluster. Still missing: **observability**, and nothing yet teaches CKS, **so this is not a CKS
-> course.** Every "you can now" line in Stage 7 that reaches past those topics is roadmap.
+> cluster. **Act X then covers CKS**, from capabilities and seccomp up through admission control,
+> supply-chain verification, audit logging and runtime detection. Still missing from Stage 7:
+> **observability** (7.8) and the cost/DR half of 7.9. Every "you can now" line in Stage 7 that
+> reaches past those topics is roadmap.
 >
 > If you came here *for* those exams, read [`exam-prep/`](exam-prep/README.md) first — it maps every
 > CKA and CKS competency to the lesson that covers it, and marks honestly the ones nothing covers yet.
@@ -319,12 +321,15 @@ PodDisruptionBudgets.
 default-deny; cost attribution (Kubecost); disaster recovery (Velero); upgrades; and CIS benchmarking
 (kube-bench, Polaris).
 
-**You can now** — *from Act V as built (7.3 only)* — explain and debug a cluster's whole network path
-from first principles: why a Pod is routable, what a CNI plugin does on creation, why a ClusterIP
-exists on no interface, how CoreDNS resolves a Service, where TLS terminates, and how a NetworkPolicy
-drops a packet. **Once 7.1–7.9 are written**, you will be able to run, secure, extend and debug a
-production cluster end to end. *(Cert ground, when complete: CKA + CKAD + CKS. Act V alone covers the
-networking third of it.)*
+**You can now** — *from Acts V–VII and X as built (7.1–7.7, 7.5, and most of 7.9)* — explain and
+debug a cluster's whole network path from first principles: why a Pod is routable, what a CNI plugin
+does on creation, why a ClusterIP exists on no interface, how CoreDNS resolves a Service, where TLS
+terminates, and how a NetworkPolicy drops a packet. You can run and repair the control plane, drive
+the workload and storage APIs, extend the cluster with your own object types — and, from Act X,
+harden it: decide what a container may do, make that decision mandatory rather than optional, write
+your own admission rules, encrypt what is at rest and what is in flight, verify what you shipped,
+and read the record of what has already happened. **Still unwritten in Stage 7: observability (7.8)
+and the cost/DR half of 7.9.** *(Cert ground as built: CKA + CKAD + CKS.)*
 **Which raises:** all of this runs on infrastructure someone must provision, connect, and defend at
 scale — and every primitive there is something you have already built by hand.
 

@@ -47,7 +47,11 @@ The same two-node `kind` cluster, plus one honest limitation and two additions.
 
 The limitation: **AppArmor cannot be enforced on macOS or Windows**, because Docker runs a Linux VM whose kernel has no Linux Security Modules compiled in. Lesson 02 measures this rather than skipping it — the failure message is the same one a real cluster gives when a profile has not been loaded, so the diagnostic is learnable even where the enforcement is not. On a Linux host with Ubuntu or SUSE underneath, it works.
 
-The additions are opt-in and flagged where they arrive: a **second cluster** with Cilium replacing the default CNI, for the lesson on encrypting traffic between Pods, and a handful of single-binary tools for the supply-chain lesson.
+The additions are opt-in and flagged where they arrive. Lesson 08 wants a **local registry** you control — because the whole subject is what happens when somebody changes what a name points at, and you cannot do that to Docker Hub — plus three single-binary tools that all run as containers, so nothing is installed. Lesson 09 builds a **second cluster** with Cilium replacing the default CNI. Lessons 05, 10 and 11 install a policy engine, a runtime detector and a secret operator respectively, and every one of them is uninstalled again at the end of its lesson.
+
+One habit is worth adopting from lesson 09 onwards, and it is why every command block in this act begins the same way: **the act keeps its kubeconfig in a scratch file** (`export KUBECONFIG="${TMPDIR:-/tmp}/act10.kubeconfig"`), and lesson 09 creates its second cluster with `kind create cluster --kubeconfig …` rather than letting `kind` write to `~/.kube/config`. Act V told you to switch clusters with `kubectl config use-context`, which works and edits your real kubeconfig — the one with your employer's clusters in it. A throwaway cluster should leave no trace when you delete it.
+
+One tool carries over as a hard requirement. Lesson 04 issues a serving certificate for a webhook, which needs the **Homebrew OpenSSL** that Act VIII already asked for — Apple's `/usr/bin/openssl` is LibreSSL and rejects the `-ext` flag. Lesson 04's final section also needs a server at **Kubernetes 1.36 or newer** for `MutatingAdmissionPolicy`; it says so, and it gates on it.
 
 Several lessons edit the API server's static Pod manifest. That is a real control plane being restarted, it takes about forty seconds each time, and every one of those lessons ends by putting it back. If you break it, Act VI lesson 08 is the recovery.
 
@@ -56,16 +60,16 @@ Several lessons edit the API server's static Pod manifest. That is a real contro
 1. **[What a container is allowed to do](01-what-a-container-may-do.md)** — the flag you have typed since the orientation page, and the far more interesting question of what a container has without it.
 2. **[When the kernel says no](02-the-kernel-says-no.md)** — fourteen capabilities against three hundred syscalls, and what stands in front of the rest.
 3. **[A default that refuses](03-a-default-that-refuses.md)** — making the previous two lessons mandatory instead of optional, and finding out where that policy actually lives.
-4. **Deciding before it exists** — a rule nobody built in.
-5. **Policy as a product** — the two engines everybody actually runs, and writing rules in both.
-6. **A Secret that is actually secret** — the one of Act VII's three locations that cluster configuration can close.
-7. **The doors the cluster leaves open** — the API server's own flags, the kubelet's own port, and the token every Pod is handed whether or not it wants one.
-8. **What you shipped** — the decision made earliest, knowing least, about an artifact that will be running for two years.
-9. **Encryption between Pods** — Act VIII's handshake, applied to traffic that never leaves the cluster.
-10. **Seeing it happen** — the two controls that refuse nothing, and why a system needs them anyway.
-11. **Secrets from outside the cluster** — how organisations actually do this, and why none of it is on an exam.
+4. **[Deciding before it exists](04-deciding-before-it-exists.md)** — a rule nobody built in.
+5. **[Policy as a product](05-policy-as-a-product.md)** — the two engines everybody actually runs, and writing rules in both.
+6. **[A Secret that is actually secret](06-a-secret-that-is-actually-secret.md)** — the one of Act VII's three locations that cluster configuration can close.
+7. **[The doors the cluster leaves open](07-the-doors-left-open.md)** — the API server's own flags, the kubelet's own port, and the token every Pod is handed whether or not it wants one.
+8. **[What you shipped](08-what-you-shipped.md)** — the decision made earliest, knowing least, about an artifact that will be running for two years.
+9. **[Encryption between Pods](09-encryption-between-pods.md)** — Act VIII's handshake, applied to traffic that never leaves the cluster.
+10. **[Seeing it happen](10-seeing-it-happen.md)** — the two controls that refuse nothing, and why a system needs them anyway.
+11. **[Secrets from outside the cluster](11-secrets-from-outside.md)** — how organisations actually do this, and why none of it is on an exam.
 
-Then **test yourself**, **diagnose it**, and **in the wild**.
+Then **[test yourself](test-yourself.md)**, **[diagnose it](diagnose.md)**, and **[in the wild](in-the-wild.md)**.
 
 ## What breaks here
 

@@ -469,4 +469,4 @@ docker exec netlab-control-plane rm -rf /etc/kubernetes/admission /root/kube-api
 
 ---
 
-↑ **[Act X overview](README.md)** · Prev: **[When the kernel says no](02-the-kernel-says-no.md)** · Next: *Deciding before it exists* — not yet written →
+↑ **[Act X overview](README.md)** · Prev: **[When the kernel says no](02-the-kernel-says-no.md)** · Next: **[Deciding before it exists](04-deciding-before-it-exists.md)** →
