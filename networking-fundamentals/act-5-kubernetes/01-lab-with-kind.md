@@ -155,11 +155,13 @@ Every lesson in the act has a foothold on this cluster. This is the map from les
 
 ## One honest caveat: kind's default CNI
 
-kind ships with a deliberately minimal CNI called **kindnet**. It does two things differently from a production cluster, and you should know both. First, it routes between nodes with plain host routes, **not VXLAN**, so the `tcpdump -i any udp port 8472` experiment from [Act IV's overlay lesson](../act-4-one-pretends-many/04-overlay-vxlan.md) will show nothing on a default kind cluster — there is no encapsulation to see, because kind's nodes share a Docker bridge and can route to each other directly. Second, kindnet does **not enforce NetworkPolicy**, so the [Network Policy](07-network-policy.md) before/after `nmap` test will show no change: no error, no effect. Both are features of kind's simplicity, not bugs.
+kind ships with a deliberately minimal CNI called **kindnet**. It does two things differently from a production cluster, and you should know both. First, it routes between nodes with plain host routes, **not VXLAN**, so the `tcpdump -i any udp port 8472` experiment from [Act IV's overlay lesson](../act-4-one-pretends-many/04-overlay-vxlan.md) will show nothing on a default kind cluster — there is no encapsulation to see, because kind's nodes share a Docker bridge and can route to each other directly. Second, **whether kindnet enforces NetworkPolicy is a fact about your kind version rather than about kind**: it did not enforce at all until kind v0.24, which embedded `kube-network-policies` into kindnetd, and it does from there on. `kind version` tells you which side of that you are on.
 
-## The second cluster: a real CNI, so VXLAN and policy are observable
+Do not take either answer from this page, and this is the one place in the act where that instruction is load-bearing. A policy applied to a CNI that does not enforce produces no error, no effect, and no status field that admits it — so *"does my cluster enforce?"* is the first thing in this course you have to measure rather than look up. [The policy lesson](07-network-policy.md) opens with the measurement. The VXLAN gap is a feature of kind's simplicity; this one is a moving target.
 
-To *see* VXLAN or *test* NetworkPolicy you turn kindnet off and install a real plugin yourself. This is the config that makes those two experiments work — the same two nodes, with the default CNI disabled:
+## The second cluster: a real CNI, so encapsulation and a second IPAM are observable
+
+To *see* VXLAN, to read a CNI's own iptables chains, or to work on a cluster whose Pod network is not the one kind picked, you turn kindnet off and install a plugin yourself. This is the config that makes those experiments work — the same two nodes, with the default CNI disabled:
 
 ```bash
 cat > kind-cni.yaml <<'EOF'
@@ -209,7 +211,7 @@ Switch back with `kubectl config use-context kind-netlab` whenever you want the 
 
 When you are done, `kind delete cluster --name netlab` (and `--name netcni`) removes every node container and you are back to a clean machine — the same throwaway-lab discipline as the netshoot `--rm` flag, one level up.
 
-> **You understand this when you can** create a two-node kind cluster, `docker exec` into a node to read its `KUBE-SERVICES` chain, run a netshoot Pod to `dig` a Service to its ClusterIP, and explain why the default-kindnet cluster shows no VXLAN traffic and no NetworkPolicy enforcement until you swap the CNI — and recover on your own when creation hangs on an image pull, a host port is taken, or a node stays `NotReady`.
+> **You understand this when you can** create a two-node kind cluster, `docker exec` into a node to read its `KUBE-SERVICES` chain, run a netshoot Pod to `dig` a Service to its ClusterIP, and explain why the default-kindnet cluster shows no VXLAN traffic, and describe how you would *measure* — not look up — whether its CNI enforces NetworkPolicy — and recover on your own when creation hangs on an image pull, a host port is taken, or a node stays `NotReady`.
 
 ---
 

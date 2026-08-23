@@ -21,12 +21,11 @@ This is a list-nesting question wearing a networking costume, and it is reported
 
 ## The bench
 
-**On the policy-enforcing cluster only.** Everything below is measurement, and on kindnet every measurement returns the same answer whether or not the policy exists. Use the `netcni` cluster with Calico from [the lab lesson](01-lab-with-kind.md), and confirm before you spend any time:
+**On a cluster that enforces, and nowhere else.** Everything below is measurement, and against a CNI that ignores NetworkPolicy every measurement returns the same answer whether or not the policy exists. [The previous lesson](07-network-policy.md) ends with the `before: exit 0 / after: exit 28` check that settles it — run it now, on whichever cluster you intend to use, if you have not already.
 
-```bash
-kubectl config use-context kind-netcni
-kubectl get pods -n kube-system | grep -c calico-node    # must be at least 1
-```
+Either cluster from [the lab lesson](01-lab-with-kind.md) will do. Current kind enforces on the default `netlab` cluster; the `netcni` cluster with Calico enforces too, and there the Pod network is `192.168.0.0/16` rather than `10.244.0.0/16` — which is exactly why shape 3 below reads its addresses off the cluster instead of naming them.
+
+Shape 1 then acts as a second check on itself: if all four of its lines come back `ALLOWED`, nothing is enforcing and nothing after that point means anything.
 
 Two namespaces, because a cross-namespace rule cannot be demonstrated inside one. One holds the target and two local clients; the other is labelled, and holds two more clients:
 
@@ -305,7 +304,7 @@ And the shape of the fix is the general lesson of the whole lesson. A default-de
 
 ```bash
 kubectl delete ns polns other
-kubectl config use-context kind-netlab
+# ...and kubectl config use-context kind-netlab, if you ran this on netcni
 ```
 
 > **You understand this when you can** write, from a blank file, a policy that permits exactly *Pods labelled `app=api` in namespaces labelled `tier=frontend`* — and say what the same two selectors permit when you add one hyphen; explain why a bare `podSelector` in a peer means "this namespace" and a `namespaceSelector` therefore *replaces* rather than extends that scope; say why `ipBlock` may not share a peer with a selector, and why an `ipBlock` naming a client's real network silently fails to match traffic that arrived through a NodePort; and predict, before running it, the two things a `policyTypes: [Egress]` document with no `egress:` list breaks — naming which one presents as a DNS fault and which label lets you allow it back.

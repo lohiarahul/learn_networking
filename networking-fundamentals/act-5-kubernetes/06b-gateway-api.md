@@ -280,7 +280,7 @@ Everything above is a **CustomResourceDefinition** — a kind the API server did
 
 That has a consequence worth sitting with. On a cluster with no Gateway API CRDs, `kubectl get gateway` doesn't return an empty list — it errors, because the *kind* does not exist. And on a cluster where the CRDs are installed but no controller is running, every manifest in this lesson applies cleanly and nothing whatsoever happens: `Programmed` never becomes `True`, `attachedRoutes` stays at zero, and no traffic moves.
 
-You met the first half of that shape back in the lab lesson: kindnet accepts a NetworkPolicy and enforces nothing — no error, no effect. **Both are the same class of bug. The cluster stored your intent, and nobody reconciled it.** An unreconciled object is indistinguishable from a working one under `kubectl get`, and the only thing that tells them apart is a status somebody has to read.
+You met the first half of that shape back in the lab lesson: on the `disableDefaultCNI` cluster every Pod you create is accepted and none of them start, because the objects exist and nothing reconciles them into a network. **Both are the same class of bug. The cluster stored your intent, and nobody reconciled it.** An unreconciled object is indistinguishable from a working one under `kubectl get`, and the only thing that tells them apart is a status somebody has to read.
 
 > **Check yourself —** `kubectl get httproute` shows your route. `kubectl get gateway` shows your Gateway. `curl` times out. Which of the two `.status` blocks do you read first, and what are you hoping to distinguish?
 

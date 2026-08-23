@@ -16,8 +16,9 @@ reading files in the order [the five questions](08-debugging.md) prescribe.
 **Where:** your own terminal, with `kubectl` pointed at the two-node kind cluster from
 [the lab lesson](01-lab-with-kind.md). Node-level commands go through `docker exec -it
 netlab-control-plane bash`; Pod-level commands go through a throwaway netshoot Pod. Drill 4 is the
-exception and says so: it needs the policy-enforcing cluster from the same lesson, because kindnet
-will not enforce the policy that breaks it — and it needs `kubectl` **1.30 or newer**, because
+exception and says so: the policy is the thing that breaks it, so it needs a cluster whose CNI
+actually enforces NetworkPolicy — [lesson 07](07-network-policy.md) opens with the measurement that
+tells you whether yours does — and it needs `kubectl` **1.30 or newer**, because
 `kubectl debug node/… --profile=sysadmin` is the command that gets you conntrack. Check with
 `kubectl version --client` before you start it; on an older client the drill's final measurement is
 simply unavailable.
@@ -426,11 +427,12 @@ kubectl delete namespace drill3
 > Running and READY, the Service has endpoints, and rolling the client back changed nothing. Someone
 > suggested restarting the database. Should we?"*
 
-> **This drill needs the policy-enforcing cluster** — the `disableDefaultCNI` cluster with Calico from
-> [the lab lesson](01-lab-with-kind.md). On a default kindnet cluster the reproduce block applies with
-> no error and nothing breaks, which is worth seeing exactly once and then leaving behind. Check with
-> `kubectl config current-context` and `kubectl get pods -n kube-system | grep -i -e calico -e cilium`
-> before you start; node-level commands below use that cluster's node container name.
+> **This drill needs a cluster whose CNI enforces NetworkPolicy**, because the policy is the fault.
+> Current kind enforces on the default `netlab` cluster; the `disableDefaultCNI` cluster with Calico
+> from [the lab lesson](01-lab-with-kind.md) does too. Where a CNI ignores policy, the reproduce block
+> applies with no error and nothing breaks — worth seeing exactly once, and then leaving behind.
+> [Lesson 07](07-network-policy.md) opens with the `before: exit 0 / after: exit 28` check that tells
+> you which you have; run it first if you are not sure.
 
 **Reproduce it** (run; don't read):
 
@@ -498,7 +500,8 @@ lesson is what buys you conntrack) and read the table:
 
 ```bash
 DB_IP=$(kubectl -n drill4 get pod -l app=db -o jsonpath='{.items[0].status.podIP}')
-kubectl debug node/netcni-control-plane -it --profile=sysadmin --image=nicolaka/netshoot \
+NODE=$(kubectl -n drill4 get pod hang -o jsonpath='{.spec.nodeName}')   # the *client's* node
+kubectl debug node/$NODE -it --profile=sysadmin --image=nicolaka/netshoot \
   -- sh -c "conntrack -L 2>/dev/null | grep $DB_IP"
 ```
 

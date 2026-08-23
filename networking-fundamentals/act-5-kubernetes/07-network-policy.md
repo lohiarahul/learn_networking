@@ -96,16 +96,42 @@ For Cilium, there are no iptables chains to read — the enforcement is in eBPF,
 
 ### Can you watch a label flip a port open?
 
-**Check which cluster you are on first, or this experiment will lie to you.** The paragraph above said enforcement requires CNI support; here is where that stops being trivia. A default kind cluster runs **kindnet, which does not enforce NetworkPolicy** — it will accept the policy you apply, report no error, and change nothing. Your `nmap` output will be identical before and after, and you will draw exactly the wrong conclusion.
+**Establish that your cluster enforces before you measure anything, or this experiment will lie to you.** The paragraph above said enforcement requires CNI support; here is where that stops being trivia. Apply a policy to a CNI that does not enforce and you get no error, no effect, and no status field that admits it — your `nmap` output is identical before and after, and the conclusion you draw is exactly the wrong one.
 
-So run this on the policy-enforcing cluster from [the lab lesson](01-lab-with-kind.md) — the `disableDefaultCNI` config with Calico installed — and confirm before you start that something is actually watching your policies:
+You cannot settle this by reading, which is the point. Calico and Cilium enforce. Flannel never has. kindnet did not until kind v0.24 embedded `kube-network-policies` into kindnetd, and does after — so two people running "a default kind cluster" get different answers depending on when they installed it. Measure it instead, with the one document that has no legitimate reason to allow anything:
 
 ```bash
-kubectl config current-context                 # kind-netcni, not kind-netlab
-kubectl get pods -n kube-system | grep -i -e calico -e cilium
+kubectl create ns npcheck
+kubectl -n npcheck run t --image=nginx:alpine
+kubectl -n npcheck run c --image=nicolaka/netshoot --command -- sleep infinity
+kubectl -n npcheck wait --for=condition=Ready pod --all --timeout=120s
+TIP=$(kubectl -n npcheck get pod t -o jsonpath='{.status.podIP}')
+
+kubectl -n npcheck exec c -- curl -s -o /dev/null --max-time 4 "http://$TIP/"
+echo "before: exit $?"
+
+kubectl apply -f - <<'EOF'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: deny-all, namespace: npcheck }
+spec:
+  podSelector: {}
+  policyTypes: [ Ingress ]
+EOF
+
+kubectl -n npcheck exec c -- curl -s -o /dev/null --max-time 4 "http://$TIP/"
+echo "after:  exit $?"
+kubectl delete ns npcheck
 ```
 
-If that second command prints nothing, stop and go build the other cluster; nothing below will be real.
+```
+before: exit 0
+after:  exit 28
+```
+
+**`28` is curl's timeout, and it is the only evidence that a policy engine exists.** If the second number is also `0`, your CNI accepted a document forbidding all ingress and then served the page anyway — go build the `disableDefaultCNI` cluster with Calico from [the lab lesson](01-lab-with-kind.md), because nothing below this line will be real.
+
+That check is worth more than its result, and it is the shape of the whole lesson: the only thing that tells you a policy engine is running is **a packet that does not arrive**.
 
 This is the trap [the Gateway API lesson](06b-gateway-api.md) left you holding, and it is the same one exactly: the cluster stored your intent and nobody reconciled it. There it was a Gateway with no controller, and the tell was a `Programmed` condition that never went `True`. Here it is a NetworkPolicy with no enforcing CNI — and it is *worse*, because a Gateway that routes nothing fails loudly the moment someone curls it, while a policy that filters nothing looks exactly like a policy that is working. "The policy silently did nothing" is not only a lab problem; it is a production incident that ships as a false sense of security, and there is no status field to catch it.
 
