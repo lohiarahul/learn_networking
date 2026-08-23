@@ -292,6 +292,94 @@ The general rule: **a restore reverts the cluster's beliefs, not the world.** An
 
 </details>
 
+
+### How many members, and the arithmetic that decides
+
+Everything above ran against a store with exactly one member, which is why losing one directory lost
+the cluster. Before you leave, ask etcd what it believes its own membership to be — because on the day
+something is wrong this is the first command, and it answers a question nothing else answers: **who is
+supposed to be here?**
+
+```bash
+etcd() {
+  kubectl -n kube-system exec etcd-$CP -- etcdctl \
+    --cacert /etc/kubernetes/pki/etcd/ca.crt \
+    --cert   /etc/kubernetes/pki/etcd/server.crt \
+    --key    /etc/kubernetes/pki/etcd/server.key "$@"
+}
+etcd member list -w table
+etcd endpoint status -w table
+```
+
+```
++------------------+---------+----------------------+-------------------------+-------------------------+------------+
+|        ID        | STATUS  |         NAME         |       PEER ADDRS        |      CLIENT ADDRS       | IS LEARNER |
++------------------+---------+----------------------+-------------------------+-------------------------+------------+
+| d7380397c3ec4b90 | started | netlab-control-plane | https://172.19.0.2:2380 | https://172.19.0.2:2379 |      false |
++------------------+---------+----------------------+-------------------------+-------------------------+------------+
+
+|    ENDPOINT    |        ID        | VERSION | DB SIZE | IS LEADER | IS LEARNER | RAFT TERM | RAFT INDEX |
+| 127.0.0.1:2379 | d7380397c3ec4b90 |   3.6.8 |   14 MB |      true |      false |         4 |     289905 |
+```
+
+Four things in there earn their space. **Two ports, and the split is the one to keep: `2379` is where
+clients talk to etcd, `2380` is where members talk to each other** — so a firewall that blocks 2380
+leaves every client working and stops the cluster agreeing about anything. `IS LEADER` is per-endpoint,
+which is why `endpoint status` takes a list and `member list` does not. `RAFT TERM` counts *elections*
+and `RAFT INDEX` counts *committed entries*, so a term climbing on its own is members failing to keep a
+leader, which is a different fault from a store that is merely slow. And `IS LEARNER` is the column
+worth knowing before you need it: a learner is a member that replicates and **does not vote**, which
+exists precisely so that adding a member does not change the arithmetic below while it catches up.
+
+> **Predict first —** a write is committed when a **majority** of members have written it down. Fill in
+> both right-hand columns for one through five members before you read on. The second column is the one
+> people get wrong.
+
+```
+  members   must agree   can be lost
+     1           1            0
+     2           2            0
+     3           2            1
+     4           3            1
+     5           3            2
+```
+
+**Every even size buys nothing.** Two members survive no failures, exactly like one, and cost you a
+machine and a network round trip on every write. Four survive one, exactly like three. That is the whole
+reason the number is odd — not superstition, arithmetic: an even-numbered member raises the bar for a
+majority without raising the number of failures a majority can absorb. Three is the first size that
+tolerates anything at all, five is the next, and past seven the cost of agreeing exceeds the value of
+the extra failure you can take.
+
+Which also settles the question people ask about this lab. A single-member etcd is not "quorum of one"
+in some degenerate sense — it is a real majority of a real membership, and it commits writes properly.
+What it has is **zero tolerance**, and you have spent this lesson finding out what zero tolerance costs.
+
+**What losing quorum looks like from outside**, and this is the part the one-node lab cannot show you,
+so take it as reasoning rather than measurement: nothing announces it. There is no error that says
+*quorum lost*. Without a majority there is no leader, and etcd's default read is **linearizable** — it
+asks the leader to confirm against a majority before answering — so writes fail *and reads fail with
+them*. That makes it strictly worse than the full-disk case [lesson 08](08-when-the-control-plane-breaks.md)
+measures, where etcd goes read-only and every read still works. Same silence, different half of the
+store. The way you tell them apart is the pair of commands above: `member list` says how many should be
+there, `endpoint health --cluster` says how many answer, and if the second number is not a majority of
+the first you have found it. Nothing in `kubectl` will have told you.
+
+Two operational consequences follow, and both are the kind that gets skipped.
+
+**Remove a dead member before you add its replacement.** A member that is down is still a member, and
+still counts in the denominator. Lose one of three and you have `3` members with `2` required and `1`
+left over — add a fourth to "restore redundancy" and you now need `3` of `4` while holding `2`, so you
+have made an unavailable cluster permanently unavailable. `etcd member remove <ID>` first, then
+`etcd member add`, and take the ID from the `member list` output above.
+
+**And a multi-member restore is not the same command you just ran.** Every member restores from *the
+same snapshot*, each with its own `--name` and `--initial-advertise-peer-urls` and the same
+`--initial-cluster` listing all of them — plus `--initial-cluster-token`, whose only job is to make the
+restored cluster refuse to talk to any surviving member of the old one. Restore one member and let the
+others join it and you will get a cluster that disagrees with itself about history, which is the one
+failure mode etcd is built to make impossible and this is how you hand it to it anyway.
+
 <!-- figure -->
 
 ```
@@ -333,6 +421,19 @@ The general rule: **a restore reverts the cluster's beliefs, not the world.** An
      RUNNING AND SERVING, indefinitely, with no object anywhere.
      systemctl restart kubelet -> fresh list -> reaped in seconds.
      A RESTORE IS AN ASSERTION, NOT A REWIND. make the nodes look again.
+
+   HOW MANY MEMBERS
+     2379 = clients · 2380 = peers. block 2380 and clients are FINE
+       while the cluster agrees about nothing.
+     majority: 1->1 · 2->2 · 3->2 · 4->3 · 5->3
+     can lose: 1->0 · 2->0 · 3->1 · 4->1 · 5->2
+       EVERY EVEN SIZE BUYS NOTHING. that is the whole reason for odd.
+     lost quorum = no leader = linearizable reads fail TOO, so it is
+       worse than the full-disk case (read-only, reads fine).
+       nothing says "quorum lost". member list vs endpoint health.
+     member remove BEFORE member add, or you raise the denominator
+       on a cluster that already cannot reach it.
+     IS LEARNER = replicates, does NOT vote. that is what it is for.
 ```
 
 **Cleanup** — and the last two commands are not optional, because the next lessons break static Pods and a kubelet still carrying pre-restore state will report nonsense about them:
@@ -348,7 +449,7 @@ kubectl get nodes                                                  # both Ready
 docker exec $CP ls /etc/kubernetes/manifests/                      # all four
 ```
 
-> **You understand this when you can** take a snapshot, say why it must be written inside the `hostPath`, and verify it by something other than the file existing; say from any etcd operation alone whether it needs `etcdctl` or `etcdutl`, and why neither is on the node; explain why a cluster whose store has been wiped answers `Forbidden` rather than refusing to connect, and which credential still works and why; and describe what a restore does *not* undo — using both a node that joined after the snapshot and a workload that is still serving traffic — and name the one command that resolves both.
+> **You understand this when you can** take a snapshot, say why it must be written inside the `hostPath`, and verify it by something other than the file existing; say from any etcd operation alone whether it needs `etcdctl` or `etcdutl`, and why neither is on the node; explain why a cluster whose store has been wiped answers `Forbidden` rather than refusing to connect, and which credential still works and why; describe what a restore does *not* undo — using both a node that joined after the snapshot and a workload that is still serving traffic — and name the one command that resolves both; and, from `member list` and `endpoint health` alone, say how many members may be lost, why four is never worth building, why losing quorum is worse than filling the disk, and what `member remove` protects you from.
 
 **Which raises:** you have now stopped the control plane deliberately and put it back, twice, and both times every component returned at exactly the version it left at. But a cluster that lives long enough gets upgraded, and an upgrade is the case where the components come back *different*, one at a time, while the cluster keeps serving. What is allowed to be out of step with what, and for how long?
 
