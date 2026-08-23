@@ -35,9 +35,9 @@ Two things worth knowing before you spend the money:
 
 - **CKS does not need a *current* CKA.** Any achieved CKA qualifies you to schedule CKS, even an
   expired one. This is a change from the older rule.
-- **From 18 June 2026, the CARE program means passing or recertifying CKS reinstates or extends
-  your CKA**, with the expiry dates synchronised. So the two certifications are less independent
-  than the $445 + $445 framing suggests.
+- **The CARE program (in force since 18 June 2026) means passing or recertifying CKS reinstates or
+  extends your CKA**, with the expiry dates synchronised. So the two certifications are less
+  independent than the $445 + $445 framing suggests.
 
 Tasks are **any order and equally weighted**, and you do not need to finish. One reported candidate
 answered 13 of 16 and scored 84%. The margin cuts both ways — another lost three questions to a

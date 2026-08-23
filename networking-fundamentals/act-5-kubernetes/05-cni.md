@@ -39,15 +39,15 @@ Here is the part the marketing obscures: locally, nothing is. Every CNI plugin d
 
 **Calico** uses **BGP** — real routing, no encapsulation. Each node runs a BGP speaker that advertises "I own Pod CIDR 10.244.1.0/24" to its peers, and the result is genuine kernel routes: a packet for `10.244.1.7` is routed natively to the right node, no wrapping, no extra header. Lower latency and overhead than VXLAN, and the packet on the wire is just the Pod packet. The cost is a requirement: the surrounding network (or a route reflector) must speak BGP and permit those Pod routes, which a locked-down cloud network may not.
 
-**Cilium** uses **eBPF** — and it is the one that changes the local story too, for the reasons you worked out in [the Services lesson](03-services.md): you counted the rules kube-proxy writes, found the per-Service constant, and saw that the chain is a list walked in order and blind above L4. Cilium loads programs into the kernel that make the forwarding and policy decisions in the datapath directly, so the rules you counted are not there to count. For cross-node traffic it can use either encapsulation or native routing — that part is a configuration choice, not its identity. Its identity is the missing chains, and you can check that claim directly on a Cilium node:
+**Cilium** uses **eBPF** — and it is the one that changes the local story too, for the reasons you worked out in [the Services lesson](03-services.md): you counted the rules kube-proxy writes, found the per-Service constant, and saw that the chain is a list walked in order and blind above L4. Cilium loads programs into the kernel that make the forwarding and policy decisions in the datapath directly, so the rules you counted are not there to count. For cross-node traffic it can use either encapsulation or native routing — that part is a configuration choice, not its identity. Its identity is the missing chains. **You have no Cilium node yet, so read the next three commands as a claim rather than an exercise** — the lab lesson offers Flannel and Calico, and the first Cilium cluster in this course is built five acts later, in [Act X's Pod-to-Pod encryption lesson](../act-10-cluster-security/09-encryption-between-pods.md). This is what you would run there, and what it would say:
 
-```bash
+```
 iptables -t nat -L KUBE-SERVICES -n        # on a Cilium node: absent, or nearly empty
 cilium service list                         # the same Services, as map entries instead
 cilium monitor --type drop                  # why a packet died, from inside the datapath
 ```
 
-If the `KUBE-SERVICES` chain is missing and `cilium service list` shows the Services anyway, you have found the whole point: the Service definition moved out of a rule table and into a map, so the linear walk has nothing to walk. Cluster-wide, the same shift is why Cilium ships **Hubble** — once the decisions live in programs, the flow record has to come from the programs too.
+If the `KUBE-SERVICES` chain is missing and `cilium service list` shows the Services anyway, that is the whole point: the Service definition moved out of a rule table and into a map, so the linear walk has nothing to walk. Cluster-wide, the same shift is why Cilium ships **Hubble** — once the decisions live in programs, the flow record has to come from the programs too. (Act X's lesson installs Cilium and does not turn Hubble on; it says why, and gives you the flag if you want it.)
 
 All three are answering the one Act IV question — *how do Pod IPs route across nodes?* — with the three tools you already have names for: an overlay, real routes, or kernel programs. Only the third also answers the *other* question, the one the rule count raised.
 

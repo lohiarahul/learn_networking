@@ -7,7 +7,7 @@
 2. **Form a hypothesis before you inspect.** Say out loud what you think is wrong and which file or tool would prove it — *then* look.
 3. **Open the reveal only after you've tried.**
 
-**Where:** the same `kind` cluster as the lessons. If you do not have it, [the Act V lab lesson](../act-5-kubernetes/01-lab-with-kind.md) builds it in a minute.
+**Where:** the same `kind` cluster as the lessons. If you do not have it, [the Act V lab lesson](../act-5-kubernetes/01-lab-with-kind.md) builds it in a minute — pinned, and the pin matters here. **Drill 5 needs a server at 1.29 or newer**: it breaks the cluster by deleting `clusterrolebinding kubeadm:cluster-admins` and recovers through `/etc/kubernetes/super-admin.conf`, and neither of those exists on an older node image. `kubectl version` tells you the server version; if it is below 1.29 the drill's reproduce step fails `NotFound` and there is nothing to hunt.
 
 **One warning this act needs and the others did not.** These drills stop control-plane components and edit files the kubelet is watching. Every one has a `Fix it` block that restores the cluster, and you should run it before starting the next drill. If you abandon a drill halfway, run this — it is the single check that catches almost everything:
 
@@ -33,7 +33,30 @@ CP=netlab-control-plane        # used by every drill below
 
 ---
 
+## The clock
+
+Every drill below carries a **target time**, and this is the one thing these drills do that the
+lessons deliberately do not. The course is built to make you understand; a certification is scored on
+whether you can act inside a budget, and those are different skills that look identical from the
+inside. So: Eight rather than seven, because this act's method is a *descent* — you may have to go down three layers before a tool answers — and because in real life these are the failures you get paged for rather than graded on.
+
+Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
+
+1. **Start the clock when the symptom appears**, not when you start the reproduce block. Building the
+   broken state is setup, and on the exam somebody else has already done it.
+2. **At the target, say your best hypothesis out loud** even if you are not confident. Naming a wrong
+   hypothesis at 8 minutes is worth more than a right one at twenty, because the wrong one is
+   falsifiable in one command and the exam pays for closed tasks.
+3. **At 10 minutes, stop and open the reveal.** That is not giving up, it is the exam's own rule —
+   *"the moment a task passes 10 minutes, flag it and move on"* — and the skill it builds is the
+   costly one. A task that eats 25 minutes has cost you three others worth the same marks.
+
+Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
+notice that the second number is the one that predicts anything.
+
 ## Drill 1 — "kubectl works, but nothing we deploy ever starts"
+
+**Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"We deployed a new service an hour ago and it is still `Pending`. `kubectl` is fine, the nodes say `Ready`, there is loads of spare CPU, and the manifest is byte-identical to one that worked last week. We've deleted and re-applied it three times. Nothing."*
 
@@ -90,6 +113,8 @@ docker exec $CP ls /etc/kubernetes/manifests/
 ---
 
 ## Drill 2 — "the dashboard says everything is healthy and it is not"
+
+**Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"Our monitoring says `payments` is at 3/3 and has been all morning. Support says a third of requests fail. We've checked the Service, the endpoints, the Ingress. The Deployment reports healthy. Somebody is lying."*
 
@@ -157,6 +182,8 @@ docker exec $CP ls /etc/kubernetes/manifests/
 
 ## Drill 3 — "kubectl died after a config change and we cannot get in"
 
+**Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 > **Ticket:** *"Someone tuned an API server flag about twenty minutes ago. Now every `kubectl` command hangs and times out. We can SSH to the node. We have no idea what they changed and they have gone home."*
 
 **Reproduce it** (run; don't read — and this one genuinely takes the cluster down):
@@ -219,6 +246,8 @@ docker exec $CP rm -f /tmp/apiserver.good
 
 ## Drill 4 — "same symptom, and this time crictl shows nothing"
 
+**Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 > **Ticket:** *"Identical to the last one — `kubectl` times out after someone edited a manifest. But we tried your `crictl` trick and it returns nothing at all. We think the runtime is broken too."*
 
 **Reproduce it** (run; don't read):
@@ -280,6 +309,8 @@ docker exec $CP rm -f /tmp/apiserver.good
 ---
 
 ## Drill 5 — "we are locked out of our own cluster and nothing is down"
+
+**Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"Every `kubectl` command says Forbidden. Not a timeout — Forbidden. Our kubeconfig has not changed, the certificate has months left, and the cluster is up: the app is serving traffic fine. How can we be denied by a cluster that we own?"*
 
@@ -350,6 +381,8 @@ rm -f /tmp/crb-backup.yaml
 
 ## Drill 6 — "the drain has been running for half an hour"
 
+**Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 > **Ticket:** *"Patching a node. The drain has been going for thirty minutes and has not finished. It keeps printing something every few seconds so we assume it is making progress. Do we let it run? We have a maintenance window closing."*
 
 **Reproduce it** (run; don't read):
@@ -417,6 +450,8 @@ docker exec $CP ls /etc/kubernetes/manifests/      # all four
 ---
 
 ## Drill 7 — "the node is fine and the cluster says it does not exist"
+
+**Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"We restored an etcd snapshot last night after an incident. This morning one worker is missing from `kubectl get nodes` entirely. But we can SSH to it, its kubelet is running, and `crictl ps` shows our containers serving traffic on it. Do we rebuild the node?"*
 

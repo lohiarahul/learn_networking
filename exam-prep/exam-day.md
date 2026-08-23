@@ -67,6 +67,24 @@ Two passes:
    passes 10 minutes, flag it and move on.** Do not fight.
 2. **Pass two — the flagged ones**, hardest last. Aim to have 10–15 minutes left for a review sweep.
 
+> **Where to practise this, because reading it does nothing.** All ten of the course's `diagnose.md`
+> drill sets now carry a per-drill **target time** and the 10-minute walk-away rule, keyed to this
+> paragraph: [Act I](../networking-fundamentals/act-1-one-machine/diagnose.md) ·
+> [II](../networking-fundamentals/act-2-two-machines/diagnose.md) ·
+> [III](../networking-fundamentals/act-3-the-internet/diagnose.md) ·
+> [IV](../networking-fundamentals/act-4-one-pretends-many/diagnose.md) ·
+> [V](../networking-fundamentals/act-5-kubernetes/diagnose.md) ·
+> [VI](../networking-fundamentals/act-6-control-plane/diagnose.md) ·
+> [VII](../networking-fundamentals/act-7-workloads/diagnose.md) ·
+> [VIII](../networking-fundamentals/act-8-trust/diagnose.md) ·
+> [IX](../networking-fundamentals/act-9-identity/diagnose.md) ·
+> [X](../networking-fundamentals/act-10-cluster-security/diagnose.md). That is **53 timed
+> symptom-first exercises**, which is the only artifact in this repo shaped like an exam task. Acts V,
+> VII, IX and X are the ones whose subject matter the exams actually cover; Acts I–IV build the
+> reflex on cheaper ground.
+
+
+
 **Do the broken-cluster troubleshooting tasks last.** Two independent sources say this, and the logic
 is sound: Troubleshooting is 30% of the marks but close to 90% of the time-sink risk. A task that
 eats 25 minutes has cost you three others worth the same marks.
@@ -121,8 +139,8 @@ throttling**; another when video froze after 12 of 17 questions. Mitigations can
 - Results arrive by email **within 24 hours**.
 - **Certifications are valid 2 years.**
 - **CKS does not require an *active* CKA** — any achieved CKA qualifies, even an expired one. And
-  from **18 June 2026**, passing or recertifying CKS **reinstates or extends your CKA**, with expiry
-  dates synchronised.
+  under CARE (in force since **18 June 2026**), passing or recertifying CKS **reinstates or extends
+  your CKA**, with expiry dates synchronised.
 
 ## Calibration against killer.sh
 

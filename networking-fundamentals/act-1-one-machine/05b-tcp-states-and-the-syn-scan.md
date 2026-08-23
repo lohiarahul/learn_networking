@@ -225,7 +225,7 @@ accept(3, NULL, NULL
 
 You proved a gap: the kernel answered a scan the application never heard. So take the question forward rather than a product name — **if the application layer has a blind spot shaped exactly like a SYN, where would you have to stand to see into it, and which of the kernel's files would you have to be reading?**
 
-You already know the honest answer to "where": down here, in the kernel, in the ledgers you have spent this act learning to read. What you *cannot* yet answer is how anyone does that across a few thousand processes on a few dozen machines at once, continuously, without stopping the world the way `strace` does. Hold that; it is one of the reasons eBPF exists, and Act V is where you meet it.
+You already know the honest answer to "where": down here, in the kernel, in the ledgers you have spent this act learning to read. What you *cannot* yet answer is how anyone does that across a few thousand processes on a few dozen machines at once, continuously, without stopping the world the way `strace` does. Hold that; it is one of the reasons eBPF exists, and [Act X's runtime-detection lesson](../act-10-cluster-security/10-seeing-it-happen.md) is where you meet it — watching a detector load an eBPF program into a node's kernel and declare which event source it attached to.
 
 ## Where you are now
 

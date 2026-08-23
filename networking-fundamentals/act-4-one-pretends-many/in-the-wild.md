@@ -91,4 +91,4 @@ Kubernetes hides behind `kubectl`, which Act V opens up.
 
 ---
 
-↑ **[Act IV overview](README.md)** · Back to the wiring: **[iptables and NAT](03-iptables-and-nat.md)**
+↑ **[Act IV overview](README.md)** · Back to the wiring: **[iptables and NAT](03-iptables-and-nat.md)** · Next: **[Act V — Many machines each pretend to be many](../act-5-kubernetes/README.md)** →

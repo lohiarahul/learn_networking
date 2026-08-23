@@ -15,6 +15,27 @@ CA="${TMPDIR:-/tmp}/ca.crt"
 URL="$API/api/v1/namespaces/default/pods"
 ```
 
+## The clock
+
+Every drill below carries a **target time**, and this is the one thing these drills do that the
+lessons deliberately do not. The course is built to make you understand; a certification is scored on
+whether you can act inside a budget, and those are different skills that look identical from the
+inside. So: Seven, because that is the number: **17 tasks in 120 minutes** is about seven minutes each, and these drills are the closest thing in the course to a task.
+
+Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
+
+1. **Start the clock when the symptom appears**, not when you start the reproduce block. Building the
+   broken state is setup, and on the exam somebody else has already done it.
+2. **At the target, say your best hypothesis out loud** even if you are not confident. Naming a wrong
+   hypothesis at 7 minutes is worth more than a right one at twenty, because the wrong one is
+   falsifiable in one command and the exam pays for closed tasks.
+3. **At 10 minutes, stop and open the reveal.** That is not giving up, it is the exam's own rule —
+   *"the moment a task passes 10 minutes, flag it and move on"* — and the skill it builds is the
+   costly one. A task that eats 25 minutes has cost you three others worth the same marks.
+
+Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
+notice that the second number is the one that predicts anything.
+
 ## The method for this act
 
 Act V's five questions walked a network path. Act VI descended a dependency stack. Act VII asked which loop read which field. Act VIII had only a verdict to work from. This act has a method of its own, and it is three questions in a fixed order — the order matters because each one is meaningless until the previous is settled:
@@ -28,6 +49,8 @@ Question 3 is the one nobody asks, and it is where the genuinely confusing incid
 ---
 
 ## Drill 1 — three refusals, one of which is lying to you about its category
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 Three requests. Predict each status code, then run them.
 
@@ -95,6 +118,8 @@ The general shape, and the reason this drill exists: **a genuine credential pres
 ---
 
 ## Drill 2 — a RoleBinding that is syntactically perfect and grants nothing
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 Two variants. Both created without complaint; neither works.
 
@@ -185,6 +210,8 @@ yes
 
 ## Drill 3 — you deleted the account and the calls keep succeeding
 
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 A colleague reports that they revoked a compromised ServiceAccount, watched the deletion succeed, and the attacker's requests kept working for a while afterwards. You try to reproduce it and cannot — the token dies instantly. They try again on their machine and it survives ten seconds. Neither of you is doing anything wrong.
 
 Here is the whole thing in one block. The only difference between the two halves is a single extra request:
@@ -252,6 +279,8 @@ What to tell the colleague: deleting the account is correct and it is not immedi
 
 ## Drill 4 — the powerless token that can see everything
 
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 Somebody is testing a locked-down ServiceAccount. They pass its token to `kubectl` and it lists every pod in the cluster. They conclude the account has far too much access and start auditing bindings.
 
 ```bash
@@ -297,6 +326,8 @@ The fix for the experiment is to construct the request yourself, which is why ev
 ---
 
 ## Drill 5 — the service that reads a token and never checks it
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 A small internal service accepts ServiceAccount tokens and reads the caller's name out of them, so that it can log who did what and apply its own rules. Here it is, and it works:
 
@@ -394,6 +425,8 @@ Second, the fixed version is still not finished. It checks the signature and not
 ---
 
 ## Drill 6 — a permission that no binding mentions
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 First, set the scene. Run this and then put it out of your mind — pretend a colleague ran it last quarter to unblock a deployment, and that it is one line among four hundred in a cluster you inherited:
 

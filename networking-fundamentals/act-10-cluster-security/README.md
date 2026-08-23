@@ -69,7 +69,7 @@ Several lessons edit the API server's static Pod manifest. That is a real contro
 10. **[Seeing it happen](10-seeing-it-happen.md)** — the two controls that refuse nothing, and why a system needs them anyway.
 11. **[Secrets from outside the cluster](11-secrets-from-outside.md)** — how organisations actually do this, and why none of it is on an exam.
 
-Then **[test yourself](test-yourself.md)**, **[diagnose it](diagnose.md)**, and **[in the wild](in-the-wild.md)**.
+Then **[test yourself](test-yourself.md)**, the nine **[on-call drills](diagnose.md)** — where every component is healthy, every command succeeds, and the control is not doing what somebody believes it is doing — and **[in the wild](in-the-wild.md)**.
 
 ## What breaks here
 

@@ -30,9 +30,10 @@ Hard invariants (exit non-zero on any failure):
 
 1. **link-integrity** — every relative `](…)` target resolves. *(Would have caught the three dead
    `the-whole-stack.md` links and the missing `networking-fundamentals/README.md`.)*
-2. **act-shape** — every act carries `README` + `test-yourself` + `diagnose` + `in-the-wild`
-   (Act V exempt from `diagnose`: it folds the drills into `08/09-debugging`). *(Would have caught
-   the missing Act 3/4 `diagnose.md` and Act 4 `in-the-wild.md`.)*
+2. **act-shape** — every act carries `README` + `test-yourself` + `diagnose` + `in-the-wild`, with
+   **no exemptions**. Act V used to fold its drills into `08/09-debugging`; those are a method and a
+   worked example, so it now has a real `diagnose.md` and the invariant is enforced everywhere.
+   *(Would have caught the missing Act 3/4 `diagnose.md` and Act 4 `in-the-wild.md`.)*
 3. **has-prediction** — every teaching lesson contains a "Predict first". Setup/method/orientation
    pages are listed in `PREDICTION_EXEMPT`.
 4. **ladder-ends** — every lesson has a milestone marker ("you can now" / "you understand this when"

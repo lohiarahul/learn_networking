@@ -152,7 +152,7 @@ Two questions, and you have everything you need to feel their weight without bei
 
 **First:** the handshake you just drew requires a private key, and whichever machine performs the handshake must hold that key in memory. In a cluster of hundreds of interchangeable Pods behind one hostname, how many copies of that key exist, on which machines, and who put them there? **Second:** certificates expire — you read the dates yourself. Nothing in TLS renews anything. So in a system nobody logs into by hand, what has to be watching the clock, and what does it do at 3am on the day of expiry?
 
-Both are settled in Act V. Notice that the second one is not really about cryptography at all: it is about something continuously comparing "what is" against "what should be" — a shape you will meet again and again.
+Both get settled, in different places, and the split is worth noticing now. The first — where the key lives and who put it there — is [Act V's Ingress lesson](../act-5-kubernetes/06-ingress.md), where one machine holds the key and terminates TLS on behalf of every Pod behind it. The second is not really about cryptography at all: it is about something continuously comparing "what is" against "what should be", which is why it waits for a control plane to exist. [Act VI's lesson on the cluster's own PKI](../act-6-control-plane/04-the-clusters-own-pki.md) shows you a cluster reading its own expiry dates, and [Act VIII](../act-8-trust/README.md) closes it by naming why the answer cannot be "nothing." That shape — a loop comparing what is against what should be — you will meet again and again.
 
 ### What's inside the lock we didn't open?
 

@@ -39,7 +39,30 @@ They also overlap deliberately at one point. Row 5 here — *is it in the Servic
 
 ---
 
+## The clock
+
+Every drill below carries a **target time**, and this is the one thing these drills do that the
+lessons deliberately do not. The course is built to make you understand; a certification is scored on
+whether you can act inside a budget, and those are different skills that look identical from the
+inside. So: Seven, because that is the number: **17 tasks in 120 minutes** is about seven minutes each, and these drills are the closest thing in the course to a task.
+
+Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
+
+1. **Start the clock when the symptom appears**, not when you start the reproduce block. Building the
+   broken state is setup, and on the exam somebody else has already done it.
+2. **At the target, say your best hypothesis out loud** even if you are not confident. Naming a wrong
+   hypothesis at 7 minutes is worth more than a right one at twenty, because the wrong one is
+   falsifiable in one command and the exam pays for closed tasks.
+3. **At 10 minutes, stop and open the reveal.** That is not giving up, it is the exam's own rule —
+   *"the moment a task passes 10 minutes, flag it and move on"* — and the skill it builds is the
+   costly one. A task that eats 25 minutes has cost you three others worth the same marks.
+
+Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
+notice that the second number is the one that predicts anything.
+
 ## Drill 1 — "the deploy finished but the site is down"
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 **Reproduce it:**
 
@@ -96,6 +119,8 @@ kubectl rollout status deployment/shop --timeout=60s
 ---
 
 ## Drill 2 — "it worked in staging"
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 **Reproduce it:**
 
@@ -167,6 +192,8 @@ kubectl logs deploy/api --tail=1        # mode=live
 
 ## Drill 3 — "half the replicas never start"
 
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 **Reproduce it:**
 
 ```bash
@@ -218,6 +245,8 @@ kubectl get pods -l app=heavy
 ---
 
 ## Drill 4 — "we scaled it down but the bill didn't move"
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 **Reproduce it:**
 
@@ -296,6 +325,8 @@ kubectl get pvc
 
 ## Drill 5 — "the cron job hasn't run and nothing is wrong"
 
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 **Reproduce it:**
 
 ```bash
@@ -366,6 +397,8 @@ kubectl delete jobs -l drill=5 --ignore-not-found
 ---
 
 ## Drill 6 — "the autoscaler is broken"
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 **Reproduce it:**
 

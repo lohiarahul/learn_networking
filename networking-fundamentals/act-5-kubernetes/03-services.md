@@ -18,6 +18,8 @@ A Service is a stable virtual IP — the **ClusterIP** — plus a set of iptable
 
 The component that makes it real is **kube-proxy**, a daemon on every node that watches the API server. When you create a Service, kube-proxy writes DNAT rules into the node's `nat` table; when the Service's endpoints change (a Pod dies, another is born), kube-proxy rewrites those rules.
 
+> **On the words "API server", "kubelet" and "control plane", which this act is about to lean on.** Three names are going to do real work in the next few lessons and this act deliberately never explains any of them. Take them, for now, as exactly this much: **the API server** is the one process everything else talks to, holding the cluster's stored intentions; **the kubelet** is the agent on each node that makes its own machine match those intentions; **the control plane** is the API server plus a set of processes that each watch it for one specific discrepancy and act on it. That is enough to follow every mechanism in this act, and it is deliberately not enough to explain *why* the system is built that way. [Act VI](../act-6-control-plane/README.md) opens all three, and the surprise there is how little is inside. If a sentence below says something *watches* or *notices* or *arranges*, the honest answer to "who?" is: one of those three, and Act VI is where you find out which and how.
+
 The "proxy" name is a historical fossil — modern kube-proxy in iptables mode proxies nothing; it programs the kernel's NAT engine and gets out of the way. The packet never passes through a userspace proxy. It is rewritten in the kernel, by a rule, at the same hooks you used in Act IV.
 
 ### What path does the packet actually take?

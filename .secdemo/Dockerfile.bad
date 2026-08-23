@@ -1,3 +1,0 @@
-FROM alpine
-ARG API_KEY
-RUN echo "fetching deps with $API_KEY" > /build.log

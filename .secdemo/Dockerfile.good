@@ -1,4 +1,0 @@
-# syntax=docker/dockerfile:1
-FROM alpine
-RUN --mount=type=secret,id=apikey \
-    KEY=$(cat /run/secrets/apikey) && echo "fetched deps with $KEY" > /build.log

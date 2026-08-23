@@ -166,6 +166,14 @@ netenc-control-plane   Ready    control-plane   12m   v1.36.1
 netenc-worker          Ready    <none>          12m   v1.36.1
 ```
 
+**One debt to settle before going on, because Act V opened it twice.** Act V's Services and CNI lessons both argued that moving the forwarding decision out of a rule table and into a kernel map costs you your best diagnostic — `iptables -L` has nothing to list — and both named **Hubble** as Cilium's answer: the flow record, rebuilt from the programs themselves and labelled by workload instead of by IP. This lesson is the only place in the course where a Cilium cluster exists, so this is where that pointer either gets paid or gets retired honestly, and it is the latter. Hubble is **not enabled above**, deliberately: it is a second component plus a relay plus its own CLI, and everything this lesson measures it measures better with `tcpdump` on the wire, which is the whole argument the lesson is making. If you want it, it is two flags and a port-forward on the install you just ran:
+
+```
+--set hubble.enabled=true --set hubble.relay.enabled=true
+```
+
+Treat that as a signpost rather than a step — it is not part of this lesson's verified path, and the two mentions in Act V are describing why Hubble exists, not promising you will run it. What you should carry forward is the *shape* of the problem: when a decision moves from a table into a program, the observability has to be rebuilt as a feature, and somebody has to choose to turn it on.
+
 Recreate the three Pods on this cluster — same manifests, `netenc-worker` in place of `netlab-worker` — and then ask Cilium what it is doing, because it has made a choice kindnet did not:
 
 ```bash

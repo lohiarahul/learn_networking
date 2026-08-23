@@ -20,18 +20,23 @@ and when you're building, you wield the modern one without ceremony.
 
 > ## ⚑ This is the nine-stage roster, not the built course
 >
-> The stage headings below run 0–9, because this list is pinned to the *whole* journey. Only some of
-> that road is paved:
+> The stage headings below run 0–9, because this list is pinned to the *whole* journey. Most of that
+> road is now paved:
 >
 > | Stages | Status |
 > |---|---|
-> | **0–3** (orientation, Acts I–III), **6** (Act IV), **7** networking (Act V) | ✅ you meet these tools in a lesson |
-> | **4** cryptography (Act VIII) | 🟡 **being built** — `openssl dgst`/`-hmac`/`enc`/`genpkey`/`pkeyutl` are taught; `cosign` is not yet |
-> | **5** identity, **8** AWS networking, **9** AWS security | 🔜 **no lessons yet** — treat these sections as a shopping list |
+> | **0–3** (orientation, Acts I–III), **6** (Act IV), **7** networking and cluster (Acts V–VII, X) | ✅ you meet these tools in a lesson |
+> | **4** cryptography (Act VIII) | ✅ six lessons — `openssl dgst`/`-hmac`/`enc`/`genpkey`/`pkeyutl`/`x509`, the full TLS 1.3 handshake rebuilt from parts |
+> | **5** identity (Act IX) | ✅ six lessons against a live Keycloak — tokens, sessions, OAuth2/OIDC, RBAC |
+> | **8** AWS networking, **9** AWS security | 🔜 **no lessons yet** — treat these sections as a shopping list |
 >
-> So if you came here looking for where the course teaches `vault`, `aws`, or `cosign`: it doesn't, yet. For `openssl`, it now does — Act VIII.
-> Those sections describe the destination. See the roadmap banner in [`JOURNEY-MAP.md`](JOURNEY-MAP.md)
-> for exactly where the built road ends.
+> So the honest answer to "where does the course teach this?" is now tool by tool, and the sections
+> below mark it: **(taught — …)** means a lesson runs it, and anything unmarked is roster only. The
+> ones people arrive looking for: `cosign` and `trivy` are taught in Act X lesson 08, `Falco` in
+> lesson 10, `Kyverno` in lesson 05, `External Secrets` in lesson 11, `crictl` and `etcdctl` across
+> Acts VI and X, `openssl` throughout Act VIII. `vault` and the `aws` CLI are not taught — those are
+> Stages 8–9. See the roadmap banner in [`JOURNEY-MAP.md`](JOURNEY-MAP.md) for exactly where the
+> built road ends.
 
 ---
 
@@ -150,8 +155,8 @@ and when you're building, you wield the modern one without ceremony.
 
 **Fundamentals (see the mechanism)**
 - `kubectl` — the universal client; learn `explain`, `get -o yaml`, `describe`, `debug`, `auth can-i`.
-- `etcdctl` — read the cluster's actual stored state; back it up and restore it.
-- `crictl` — talk to the node's container runtime directly when `kubectl` can't.
+- `etcdctl` — read the cluster's actual stored state; back it up and restore it. (taught — Act VI [`05-etcd-backup-and-restore.md`](networking-fundamentals/act-6-control-plane/05-etcd-backup-and-restore.md))
+- `crictl` — talk to the node's container runtime directly when `kubectl` can't. (taught — Act VI [`02-static-pods.md`](networking-fundamentals/act-6-control-plane/02-static-pods.md) and [`08-when-the-control-plane-breaks.md`](networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md))
 - `kubeadm` / `kind` / `k3s`+`k3d` / `minikube` — stand up clusters (kind for this course).
 - node-level `iptables` / `cilium` BPF maps — see how a Service is actually implemented.
 
@@ -160,17 +165,22 @@ and when you're building, you wield the modern one without ceremony.
 - `krew` plugins: `tree`, `neat`, `who-can`, `access-matrix`, `df-pv`, `node-shell`, `sick-pods`.
 
 **Networking & mesh**
-- `Cilium` + `Hubble` (eBPF CNI, observability — the future of cluster networking) ·
-  `Calico` · `MetalLB` · `ingress-nginx` · **Gateway API** (taught — Act V
+- `Cilium` (taught — Act X [`09-encryption-between-pods.md`](networking-fundamentals/act-10-cluster-security/09-encryption-between-pods.md), with WireGuard in the datapath; `Hubble` is named but **not** run anywhere in the course) ·
+  `Calico` (taught — Act V [`01-lab-with-kind.md`](networking-fundamentals/act-5-kubernetes/01-lab-with-kind.md), as the CNI that actually enforces NetworkPolicy) · `MetalLB` · `ingress-nginx` · **Gateway API** (taught — Act V
   [`06b-gateway-api.md`](networking-fundamentals/act-5-kubernetes/06b-gateway-api.md), with
   `nginx-gateway-fabric` as the controller) · `Istio`/`Linkerd` (service mesh).
 
 **Packaging, delivery, platform**
-- `Helm` + `helmfile` · `Kustomize` · `cdk8s` · `ArgoCD`/`Flux` (GitOps) · `Crossplane` (cloud from a claim).
+- `Helm` and `Kustomize` (both taught — Act VII [`08-shipping-a-set-of-objects.md`](networking-fundamentals/act-7-workloads/08-shipping-a-set-of-objects.md)) · `helmfile` · `cdk8s` · `ArgoCD`/`Flux` (GitOps) · `Crossplane` (cloud from a claim).
 
 **Security (CKS)**
-- `OPA Gatekeeper` / `Kyverno` (policy) · `kube-bench` (CIS) · `Trivy` / `kubescape` / `Polaris` (posture) ·
-  `Falco` (runtime) · `cosign` (provenance) · `kubeseal`/Sealed Secrets · `External Secrets` + `Vault`.
+- `OPA Gatekeeper` and `Kyverno` (policy — both taught, Act X [`05-policy-as-a-product.md`](networking-fundamentals/act-10-cluster-security/05-policy-as-a-product.md)) ·
+  `kube-bench` (CIS — taught, Act X [`07-the-doors-left-open.md`](networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md)) ·
+  `Trivy` and `cosign` (posture and provenance — both taught, Act X [`08-what-you-shipped.md`](networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md)) ·
+  `Falco` (runtime — taught, Act X [`10-seeing-it-happen.md`](networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md)) ·
+  `External Secrets` (taught, Act X [`11-secrets-from-outside.md`](networking-fundamentals/act-10-cluster-security/11-secrets-from-outside.md), against its `fake` provider so no account is needed) ·
+  `kubescape` / `Polaris` · `kubeseal`/Sealed Secrets · a real secret store behind External Secrets.
+- **Named as gaps, honestly:** `bom` (the SBOM tool the exam whitelists — the course teaches Trivy's SBOM instead), `kubesec`, `kube-linter`, `aa-status`, and sigstore keyless signing. [`exam-prep/`](exam-prep/README.md) says so in the domain maps; no lesson closes them.
 
 **Scaling & observability**
 - `metrics-server` · `KEDA` · Cluster Autoscaler · `Velero` (DR) · `Kubecost` ·

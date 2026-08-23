@@ -17,7 +17,10 @@ reading files in the order [the five questions](08-debugging.md) prescribe.
 [the lab lesson](01-lab-with-kind.md). Node-level commands go through `docker exec -it
 netlab-control-plane bash`; Pod-level commands go through a throwaway netshoot Pod. Drill 4 is the
 exception and says so: it needs the policy-enforcing cluster from the same lesson, because kindnet
-will not enforce the policy that breaks it.
+will not enforce the policy that breaks it — and it needs `kubectl` **1.30 or newer**, because
+`kubectl debug node/… --profile=sysadmin` is the command that gets you conntrack. Check with
+`kubectl version --client` before you start it; on an older client the drill's final measurement is
+simply unavailable.
 
 **The cleanup contract:** every drill builds everything it needs inside its **own namespace**, so its
 `Cleanup` line is a single `kubectl delete namespace`, and nothing a drill creates can outlive it. Run
@@ -27,7 +30,30 @@ object, so a forgotten cleanup costs you a stray namespace, never a broken clust
 
 ---
 
+## The clock
+
+Every drill below carries a **target time**, and this is the one thing these drills do that the
+lessons deliberately do not. The course is built to make you understand; a certification is scored on
+whether you can act inside a budget, and those are different skills that look identical from the
+inside. So: Seven, because that is the number: **17 tasks in 120 minutes** is about seven minutes each, and these drills are the closest thing in the course to a task.
+
+Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
+
+1. **Start the clock when the symptom appears**, not when you start the reproduce block. Building the
+   broken state is setup, and on the exam somebody else has already done it.
+2. **At the target, say your best hypothesis out loud** even if you are not confident. Naming a wrong
+   hypothesis at 7 minutes is worth more than a right one at twenty, because the wrong one is
+   falsifiable in one command and the exam pays for closed tasks.
+3. **At 10 minutes, stop and open the reveal.** That is not giving up, it is the exam's own rule —
+   *"the moment a task passes 10 minutes, flag it and move on"* — and the skill it builds is the
+   costly one. A task that eats 25 minutes has cost you three others worth the same marks.
+
+Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
+notice that the second number is the one that predicts anything.
+
 ## Drill 1 — "One new Pod can't reach anything by name"
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"We shipped a new client Pod and it cannot reach the `web` Service. Every other Pod in
 > the same namespace reaches it fine — same node, same Service, same everything. The Pod is Running.
@@ -139,6 +165,8 @@ kubectl delete namespace drill1
 ---
 
 ## Drill 2 — "The Service refuses every connection, instantly"
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"`shop` is down. The name resolves, both Pods are Running with zero restarts, and the
 > app is definitely listening — we curled it on its Pod IP and got a 200. But every connection to the
@@ -259,6 +287,8 @@ kubectl delete namespace drill2
 ---
 
 ## Drill 3 — "The Pod answers on its own IP and refuses through its Service"
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"`cart` refuses every connection through its Service, instantly. We learned from the
 > `shop` ticket, so we checked the selector first this time and it matches the Pod labels exactly.
@@ -387,6 +417,8 @@ kubectl delete namespace drill3
 ---
 
 ## Drill 4 — "It hangs for thirty seconds and nothing is logged anywhere"
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"A batch of config changes went in yesterday. Since then one client cannot reach the
 > `db` Service. There is no error — the client hangs for about thirty seconds and gives up. The

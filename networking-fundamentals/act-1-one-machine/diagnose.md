@@ -18,7 +18,30 @@ raw-socket scan), which the lab already has.
 
 ---
 
+## The clock
+
+Every drill below carries a **target time**, and this is the one thing these drills do that the
+lessons deliberately do not. The course is built to make you understand; a certification is scored on
+whether you can act inside a budget, and those are different skills that look identical from the
+inside. So: Five rather than seven, because each of these drills has a narrower surface than an exam task — one machine, or two, and a handful of files.
+
+Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
+
+1. **Start the clock when the symptom appears**, not when you start the reproduce block. Building the
+   broken state is setup, and on the exam somebody else has already done it.
+2. **At the target, say your best hypothesis out loud** even if you are not confident. Naming a wrong
+   hypothesis at 5 minutes is worth more than a right one at twenty, because the wrong one is
+   falsifiable in one command and the exam pays for closed tasks.
+3. **At 10 minutes, stop and open the reveal.** That is not giving up, it is the exam's own rule —
+   *"the moment a task passes 10 minutes, flag it and move on"* — and the skill it builds is the
+   costly one. A task that eats 25 minutes has cost you three others worth the same marks.
+
+Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
+notice that the second number is the one that predicts anything.
+
 ## Drill 1 — "It works for me, but they can't reach it"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"The service is up — I can `curl` it on the box all day. But every other container gets
 > `connection refused`. The process is running, the port's right. What gives?"*
@@ -73,6 +96,8 @@ refuses every Service connection, because `kube-proxy` knocks on the *outside* d
 ---
 
 ## Drill 2 — "It leaks, and a restart fixes it for a while"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"This service's open-handle count climbs all day. Eventually it starts refusing
 > connections; we restart it and it's fine again for a few hours. CPU and memory look normal the whole
@@ -161,6 +186,8 @@ and the restart "fixes" it only by resetting the count.
 ---
 
 ## Drill 3 — "We were scanned, but the logs are clean"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"Security flagged a port scan against this host overnight. Our application logged zero
 > connections all night. So nothing actually happened — right?"*

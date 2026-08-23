@@ -213,6 +213,8 @@ k8snolatest       constraints.gatekeeper.sh/v1beta1    false    K8sNoLatest
 
 **Writing a policy template added a new kind to your cluster's API.** That is Act VII lesson 09, exactly and literally: a CRD extends the store, and everything a built-in kind gets for free — a REST endpoint, a watch stream, schema validation, `kubectl explain` — comes with it. Gatekeeper's design decision is that the *second* object is an instance of a type the *first* object defined, so your rule's parameters get a schema and are validated by the API server rather than by the policy engine.
 
+Note the version in that output and do **not** generalise from it. `constraints.gatekeeper.sh/v1beta1` is correct here and is the *only* version that group has ever had — Gatekeeper has never shipped a `v1`, so `v1beta1` is not a pre-release you should be avoiding, it is the stable name for this group. That is unlike almost everywhere else: for Kubernetes' own API groups a `beta` version genuinely does mean *this will change under you*, and Act VI's version-skew lesson is about exactly that risk. The rule is per-group, not per-suffix. `kubectl api-resources --api-group=constraints.gatekeeper.sh` is how you check whether a newer version exists before assuming one does.
+
 Now the second object:
 
 ```bash

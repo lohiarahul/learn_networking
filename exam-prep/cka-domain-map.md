@@ -33,8 +33,9 @@ Rate yourself in the last column as you go: `-` untried · `?` shaky · `✓` ca
 
 ## Troubleshooting — 30%
 
-The largest domain, and the one where time bleeds. All five bullets are now covered, and the course
-carries two independent diagnostic methods — one for a broken *cluster*, one for a broken *workload*.
+The largest domain, and the one where time bleeds. Four of the five bullets are covered — two of them
+above exam depth — and the course carries two independent diagnostic methods, one for a broken
+*cluster* and one for a broken *workload*. It is the best-verified domain in the map.
 
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
@@ -66,32 +67,38 @@ it is before starting: `kubectl get nodes` answering normally means you want the
 
 ## Cluster Architecture, Installation and Configuration — 25%
 
-The domain that changed most in 2025, and now the only one with real holes left — all of them
-clustered around RBAC and building a cluster from bare machines.
+The domain that changed most in 2025, and the one with the most words spent on it and the worst
+coverage rate — four ✅, three 🟡 and two ❌ across eight bullets. Two of the gaps are honest lab
+limits (bare-metal install, HA), and three are things the course explains without ever making you do:
+the in-place upgrade, Helm's repository workflow, and RBAC at speed.
 
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
 | Manage role based access control (RBAC) | ✅ covered | [Act IX lesson 06](../networking-fundamentals/act-9-identity/06-rbac-and-abac.md) builds the four-object model from scratch and computes the reverse question against a live cluster; [Act X lesson 07](../networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md) adds the Node authorizer and `NodeRestriction`. See the note below for the one exam-shaped gap. | `-` |
 | Prepare underlying infrastructure for installing a Kubernetes cluster | ❌ gap | — `kind` cannot teach this honestly; needs two VMs | `-` |
 | Create and manage Kubernetes clusters using kubeadm | 🟡 partial | Act VI reads a *real* kubeadm cluster from the inside — [static pods](../networking-fundamentals/act-6-control-plane/02-static-pods.md) · [the cluster's own PKI](../networking-fundamentals/act-6-control-plane/04-the-clusters-own-pki.md) (`kubeadm certs check-expiration`/`renew`) · [etcd backup and restore](../networking-fundamentals/act-6-control-plane/05-etcd-backup-and-restore.md). A genuine `kubeadm init` + `join` is not done | `-` |
-| Manage the lifecycle of Kubernetes clusters | ✅ covered | [upgrades and version skew](../networking-fundamentals/act-6-control-plane/06-upgrades-and-version-skew.md) — skew derived rather than memorised, half an upgrade done by hand, `upgrade plan`/`apply`/`node` | `-` |
+| Manage the lifecycle of Kubernetes clusters | 🟡 **partial** | [upgrades and version skew](../networking-fundamentals/act-6-control-plane/06-upgrades-and-version-skew.md) — skew derived rather than memorised, `kubeadm upgrade plan` run for real, and the component-version layout read from the manifests. But the lesson says outright that `upgrade apply` and `upgrade node` are *"not for your lab — read them, do not run them"*, because a `kind` node image cannot be upgraded in place. **The exam task is the in-place upgrade**, so this bullet needs a multi-node practice cluster (killer.sh, or two VMs) that the course cannot give you | `-` |
 | Implement and configure a highly-available control plane | ❌ gap | — one control-plane node in the lab | `-` |
-| **Use Helm and Kustomize to install cluster components** | ✅ covered | [shipping a set of objects](../networking-fundamentals/act-7-workloads/08-shipping-a-set-of-objects.md) — both, contrasted; see the drill warning below | `-` |
+| **Use Helm and Kustomize to install cluster components** | 🟡 **partial — the Kustomize half is solid, the Helm half is not** | [shipping a set of objects](../networking-fundamentals/act-7-workloads/08-shipping-a-set-of-objects.md) contrasts both and is good on what templating *is*. But its chart comes from `helm create`, so the whole **repository** workflow is untouched: `helm repo add`/`update`, `search repo`, `show values`, `upgrade --install`, `--create-namespace`, `history`, `rollback` and `--skip-crds` appear nowhere in the course. Those are the task shapes — drill them against any public chart | `-` |
 | **Understand extension interfaces (CNI, CSI, CRI, etc.)** | ✅ covered | CNI [in depth](../networking-fundamentals/act-5-kubernetes/05-cni.md) · CRI via `crictl` throughout [Act VI](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md) · CSI derived from the `ExternalExpanding` event in [storage](../networking-fundamentals/act-7-workloads/06-storage.md) | `-` |
 | **Understand CRDs, install and configure operators** | ✅ **covered, above exam depth** | [adding a kind](../networking-fundamentals/act-7-workloads/09-adding-a-kind.md) — write a CRD, discover it adds no behaviour, then write the controller in shell | `-` |
 
 > **On RBAC:** this was the largest hole in the map and [Act IX](../networking-fundamentals/act-9-identity/README.md)
-> closed it. The four-object model (Role, ClusterRole, RoleBinding, ClusterRoleBinding), the scope
+> closed it — the summary table at the foot of this page no longer lists RBAC as an open gap, only as
+> a speed gap. The four-object model (Role, ClusterRole, RoleBinding, ClusterRoleBinding), the scope
 > that is not one of them, `kubectl auth can-i --as`, and the reverse question — *who can do this* —
 > are all built from first principles, and [Act VII's CRD lesson](../networking-fundamentals/act-7-workloads/09-adding-a-kind.md)
 > still lays the groundwork by making `status` a separate subresource *because permissions can differ*.
 >
-> One exam-shaped gap remains and it is worth naming, because understanding is not the thing being
-> graded here. Act IX teaches you *why* RBAC has no deny and what that buys; the exam asks you to
-> produce a working Role and binding in about four minutes. Drill the imperative forms —
-> `kubectl create role`/`clusterrole`/`rolebinding`/`clusterrolebinding --verb --resource
-> --resource-name`, and `auth can-i --as=system:serviceaccount:ns:sa` to check your own work — under
-> a clock. It is one bullet of eight in a 25% domain, so perhaps 3% of the marks, but it is also the
+> What remains is speed, not understanding, and it is worth naming because understanding is not the
+> thing being graded here. Lesson 06 now shows the stored form of all four objects — `Role`,
+> `ClusterRole`, `RoleBinding` and `resourceNames` — via `--dry-run=client -o yaml`, plus the two
+> fields whose failures are silent (`roleRef.name` and `subjects[].namespace`). So the shape is
+> familiar. What the course cannot give you is the clock: the exam wants a working Role and binding in
+> about four minutes. Drill `kubectl create role`/`clusterrole`/`rolebinding`/`clusterrolebinding
+> --verb --resource --resource-name`, each one piped through `--dry-run=client -o yaml` so you also
+> practise reading what you produced, and `auth can-i --as=system:serviceaccount:ns:sa` to check your
+> own work. It is one bullet of eight in a 25% domain, so perhaps 3% of the marks, but it is also the
 > domain's most commonly reported task.
 
 ### Helm and Kustomize — the most-named weak spot
@@ -141,16 +148,39 @@ active "implement/configure/troubleshoot" ones — a signal that tasks are more 
 
 ## Servicing and Networking — 20%
 
-**The course's strength.** Act V is at or above exam depth on almost all of this.
+**Act V's home domain, and the course's strength — but read the two 🟡 rows below carefully.**
+Connectivity, Services, Ingress and NetworkPolicy are at or above exam depth. Gateway-API-**with-TLS**
+and CoreDNS-as-a-**server** are where this domain stops being enough on its own, and both are small,
+specific, one-evening gaps rather than missing topics.
 
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
 | Understand connectivity between Pods | ✅ **above exam depth** | [the Pod as a shared netns](../networking-fundamentals/act-5-kubernetes/02-pod-networking.md) · [CNI](../networking-fundamentals/act-5-kubernetes/05-cni.md) | `-` |
-| **Define and enforce Network Policies** | ✅ covered | [NetworkPolicy](../networking-fundamentals/act-5-kubernetes/07-network-policy.md) | `-` |
+| **Define and enforce Network Policies** | ✅ covered | [NetworkPolicy](../networking-fundamentals/act-5-kubernetes/07-network-policy.md) for the model — selectors are additive, any policy makes its Pods default-deny for that direction, `policyTypes` is what decides, and a denial times out rather than returning 403 — then [the four shapes](../networking-fundamentals/act-5-kubernetes/07b-policy-shapes.md) for the authoring: `namespaceSelector` with `podSelector` in one peer vs two (the AND-vs-OR hyphen), `ipBlock` with `except` and why it may not share a peer, and a `policyTypes: [Egress]` default-deny including the DNS outage it causes and the `kubernetes.io/metadata.name` label that fixes it. Proved against a four-client bench on Calico, not asserted | `-` |
 | Use ClusterIP, NodePort, LoadBalancer service types and endpoints | ✅ **above exam depth** | [Services and kube-proxy](../networking-fundamentals/act-5-kubernetes/03-services.md) · [Service shapes](../networking-fundamentals/act-5-kubernetes/04b-service-shapes.md) — headless, SRV, `sessionAffinity`, `ExternalName`, `externalTrafficPolicy` | `-` |
-| **Use the Gateway API to manage Ingress traffic** | ✅ covered | [Gateway API](../networking-fundamentals/act-5-kubernetes/06b-gateway-api.md) — `GatewayClass`/`Gateway`/`HTTPRoute`, the delegation model, weighted canary, and reading `.status` | `-` |
+| **Use the Gateway API to manage Ingress traffic** | 🟡 **partial** | [Gateway API](../networking-fundamentals/act-5-kubernetes/06b-gateway-api.md) — `GatewayClass`/`Gateway`/`HTTPRoute`, the delegation model, weighted canary, and reading `.status`, all genuinely hands-on. Its only listener is `protocol: HTTP`: **`protocol: HTTPS`, `tls.mode` and `certificateRefs` appear nowhere**, and the reported task shape is *convert an Ingress into a Gateway plus HTTPRoute **with TLS***. Add an HTTPS listener with a `certificateRefs` Secret yourself | `-` |
 | Know how to use Ingress controllers and Ingress resources | ✅ covered | [Ingress](../networking-fundamentals/act-5-kubernetes/06-ingress.md) | `-` |
-| Understand and use CoreDNS | ✅ **above exam depth** | [CoreDNS](../networking-fundamentals/act-5-kubernetes/04-coredns.md) | `-` |
+| Understand and use CoreDNS | 🟡 **partial — and this row used to overclaim** | [CoreDNS](../networking-fundamentals/act-5-kubernetes/04-coredns.md) is thorough on the **resolver-client** side: `/etc/resolv.conf`, `ndots`, the search-domain walk, the FQDN forms, why a trailing dot changes the query count. It never touches the **server**: the `Corefile` does not appear in the course, the CoreDNS ConfigMap and Deployment are never read or edited, and `dnsConfig`/`hostAliases` appear nowhere. The exam surface for this bullet is the server config — `kubectl -n kube-system edit cm coredns` and back again | `-` |
+
+### The NetworkPolicy note — still the highest-value hour in this map
+
+This used to be a gap and is now a lesson, which changes what to do with it rather than removing the
+work. [The four shapes](../networking-fundamentals/act-5-kubernetes/07b-policy-shapes.md) writes and
+measures all of the following on the policy-enforcing `netcni` cluster. Reading it once is not the
+point — **type each of these from a blank file, on that cluster, until you stop having to think**:
+
+1. **`namespaceSelector` and `podSelector` in ONE `from` element** — this means *a Pod matching
+   \[that label\] **in** a namespace matching \[that label\]*. Both must hold.
+2. **The same two selectors as TWO `from` elements** — this means *any Pod matching \[that label\]
+   anywhere*, **OR** *any Pod at all in that namespace*. The YAML differs by two characters of
+   indentation and the meaning is completely different. This is the most-cited technical failure
+   across both exams, and it is a list-nesting question wearing a networking costume.
+3. **`ipBlock` with `except`**, and **one `egress` policy** with `policyTypes: [Egress]` — including
+   the trap that a default-deny egress policy breaks DNS until you allow UDP/53 to `kube-system`.
+
+If you do one hour of manifest practice for CKA, do this hour. The lesson supplies the bench and the
+four-client probe so that you are checking your work rather than trusting it — which is the difference
+between having read about the AND-vs-OR trap and being immune to it.
 
 **Gateway API is the thinnest-covered competency in the entire free ecosystem**, and its docs are
 whitelisted at `gateway-api.sigs.k8s.io` — which is independent confirmation it is examined. Reported
@@ -181,7 +211,7 @@ editor worth using to check your intuition.
 | Use ConfigMaps and Secrets to configure applications | ✅ **above exam depth** | [configuration](../networking-fundamentals/act-7-workloads/05-configuration.md) — env vs mounted file, the `..data` swap, `subPath` silently never reloading, and the three plaintext locations | `-` |
 | **Configure workload autoscaling** | ✅ covered | [choosing the number](../networking-fundamentals/act-7-workloads/10-choosing-the-number.md) — HPA, and the reason a Deployment made by a one-liner can never scale | `-` |
 | Understand the primitives used to create robust, self-healing, application deployments | ✅ covered | [probes](../networking-fundamentals/act-7-workloads/03-probes.md) — readiness, liveness and startup, with the outage each one causes when swapped · [the other workload kinds](../networking-fundamentals/act-7-workloads/07-the-other-workload-kinds.md) | `-` |
-| **Configure Pod admission and scheduling (limits, node affinity, etc.)** | ✅ **above exam depth** | [scheduling](../networking-fundamentals/act-7-workloads/04-scheduling.md) — `requests` vs `limits` and their different enforcers, QoS, `nodeSelector`/affinity, taints and tolerations, `topologySpreadConstraints`, and the auto-added `tolerationSeconds: 300` | `-` |
+| **Configure Pod admission and scheduling (limits, node affinity, etc.)** | 🟡 **partial — scheduling above depth, admission absent** | [scheduling](../networking-fundamentals/act-7-workloads/04-scheduling.md) is above exam depth on the scheduling half: `requests` vs `limits` and their different enforcers, QoS, `nodeSelector`/affinity, taints and tolerations, `topologySpreadConstraints`, the auto-added `tolerationSeconds: 300`. The **admission** half is not covered: **`ResourceQuota` and `PriorityClass` appear nowhere in the course**, and `LimitRange` is created once, in [configuration](../networking-fundamentals/act-7-workloads/05-configuration.md), not here. Namespace-scoped quota is a common task — practise `create quota` and `create priorityclass` | `-` |
 
 **Small-detail losses candidates report**, and where the course already addresses each:
 
@@ -199,13 +229,16 @@ editor worth using to check your intuition.
 
 ## Storage — 10%
 
-**Fully covered**, in one lesson that answers a question Act I posed six acts earlier.
+One lesson answers a question Act I posed six acts earlier, and it does the *reasoning* better than
+most paid material. It also never asks you to **author** a `StorageClass` or a `PersistentVolume`,
+which is what the exam asks for — so the smallest domain has the map's worst authored-vs-explained
+ratio. Two manifests of practice close it.
 
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
-| **Implement storage classes and dynamic volume provisioning** | ✅ covered | [three promises called "survives"](../networking-fundamentals/act-7-workloads/06-storage.md) — `WaitForFirstConsumer` derived rather than quoted, and `allowVolumeExpansion` accepted-then-ignored | `-` |
+| **Implement storage classes and dynamic volume provisioning** | 🟡 **partial** | [three promises called "survives"](../networking-fundamentals/act-7-workloads/06-storage.md) — `WaitForFirstConsumer` derived rather than quoted, and `allowVolumeExpansion` accepted-then-ignored, which is genuinely better than most material. But it *consumes* the `standard` class `kind` ships and patches one field of it: **no `StorageClass` is ever authored in this course.** Write one, with a `provisioner`, a `reclaimPolicy` and `volumeBindingMode`, and make it the default | `-` |
 | Configure volume types, access modes and reclaim policies | ✅ covered | [storage](../networking-fundamentals/act-7-workloads/06-storage.md) — `emptyDir` vs PVC, `ReadWriteOnce` as *one node* not one Pod, `Delete` vs `Retain` | `-` |
-| Manage persistent volumes and persistent volume claims | ✅ covered | [storage](../networking-fundamentals/act-7-workloads/06-storage.md) · [`volumeClaimTemplates` and why scale-down keeps volumes](../networking-fundamentals/act-7-workloads/07-the-other-workload-kinds.md) | `-` |
+| Manage persistent volumes and persistent volume claims | 🟡 **partial** | [storage](../networking-fundamentals/act-7-workloads/06-storage.md) · [`volumeClaimTemplates` and why scale-down keeps volumes](../networking-fundamentals/act-7-workloads/07-the-other-workload-kinds.md) cover the PVC side and the binding *rules* well. **No static `PersistentVolume` is ever written in this course**, so the classic task — author a `hostPath` PV, then a PVC whose size, `accessModes` and `storageClassName` cause it to bind or stay `Pending` — has no worked example here. It is a five-minute gap to close by hand and worth closing, in the smallest domain | `-` |
 
 **The precise binding rule**, which resolves most "why won't my PVC bind" tasks: a PVC binds when
 **capacity ≥ request AND accessModes match AND storageClassName matches**. Check those three before
@@ -215,21 +248,35 @@ anything else.
 
 ## Honest summary
 
-| Domain | Weight | Course covers |
-|---|---|---|
-| Troubleshooting | 30% | 4½ of 5 bullets, two of them above exam depth |
-| Cluster Architecture | 25% | 4½ of 8 bullets — the gaps are RBAC, HA, and bare-metal install |
-| Servicing and Networking | 20% | 6 of 6 bullets, most above exam depth |
-| Workloads and Scheduling | 15% | 5 of 5 bullets, most above exam depth |
-| Storage | 10% | 3 of 3 bullets |
+Counting a 🟡 as a half, and stating the arithmetic so you can check it:
 
-Roughly **85% of the CKA syllabus** is now covered, and what remains is concentrated and nameable:
+| Domain | Weight | Course covers | ✅ | 🟡 | ❌ |
+|---|---|---|---|---|---|
+| Troubleshooting | 30% | **4½ of 5** — two above exam depth | 4 | 1 | 0 |
+| Cluster Architecture | 25% | **5½ of 8** — the gaps are HA, bare-metal install, and half of upgrade and Helm | 4 | 3 | 2 |
+| Servicing and Networking | 20% | **5 of 6** — Gateway-with-TLS and CoreDNS-the-server are the shortfalls | 4 | 2 | 0 |
+| Workloads and Scheduling | 15% | **4½ of 5** — admission (quota, PriorityClass) is the shortfall | 4 | 1 | 0 |
+| Storage | 10% | **2 of 3** — nothing is ever authored | 1 | 2 | 0 |
+
+That is **21½ of 27 bullets** counted this way, so roughly **80% of the CKA syllabus** — down from the
+85% this map used to claim, because eight rows that read ✅ were re-checked against what the linked
+lesson actually *does* rather than what it explains, and one of the eight has since been closed with a
+lesson rather than a caveat. The gap between explaining a thing and authoring
+it under a clock is the whole difference, and it is where the remaining hours should go.
+
+What remains is concentrated and nameable:
 
 | Gap | Domain share | Why it is still open |
 |---|---|---|
-| **RBAC** | ~3% | Needs the identity material planned for Acts IX–X. The most commonly reported of the three. |
+| **In-place `kubeadm upgrade apply` / `upgrade node`** | ~3% | A `kind` node image cannot be upgraded in place, so the lesson reads the commands and declines to run them. |
 | **HA control plane** | ~3% | The lab has one control-plane node. |
 | **`kubeadm init` / `join` from bare machines** | ~3% | `kind` nodes arrive already provisioned; this needs two VMs. |
+| **Authoring a `StorageClass` and a static `PersistentVolume`** | ~3% | Both consumed, neither written. Two manifests of practice. |
+| **Helm's repository workflow** (`repo add`, `--skip-crds`, `rollback`) | ~2% | The lesson's chart comes from `helm create`, so no repo is ever added. |
+| **Gateway API with TLS** (`certificateRefs`, `tls.mode`) | ~2% | The lesson's only listener is plain HTTP. |
+| **CoreDNS as a server** (the `Corefile`, the ConfigMap) | ~2% | Taught entirely from the resolver-client side. |
+| **`ResourceQuota` and `PriorityClass`** | ~2% | Neither appears anywhere in the course. |
+| **RBAC under a clock** | ~2% | Understood well, and the manifest shape is now taught — see the note in Cluster Architecture. What is left is typing speed, which only a timed simulator gives you. |
 | **`kubectl logs` as a subject** | ~1% | Used constantly, never taught deliberately. |
 
 **And the honest caution, which has not changed.** Coverage is not readiness. This course will make

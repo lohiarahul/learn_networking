@@ -60,4 +60,4 @@ Five things this act left out, so you know the shape of the hole.
 
 ---
 
-↑ **[Act IX overview](README.md)** · Prev: **[Diagnose it](diagnose.md)**
+↑ **[Act IX overview](README.md)** · Prev: **[Diagnose it](diagnose.md)** · Next: **[Act X — Securing the cluster](../act-10-cluster-security/README.md)** →

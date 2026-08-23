@@ -15,6 +15,7 @@ You run these in your own terminal (not inside netshoot), and you can run them f
 ```bash
 docker info >/dev/null 2>&1 && echo "Docker is up" || echo "start Docker Desktop first"
 brew install kind kubectl          # Homebrew — see brew.sh if you don't have it
+kubectl version --client           # 1.30 or newer; one drill in this act needs it
 ```
 
 A single-node cluster is enough for Services, CoreDNS, and iptables. But the most illuminating experiments in this act are about packets crossing *between* nodes — that is the entire point of the CNI and overlay material — so create two nodes. Two extra details in the config below buy you the [Ingress](06-ingress.md) lesson for free later: the control-plane node gets the label `ingress-ready=true`, and host ports 80 and 443 are mapped into it. Drop the config into a file (this writes `kind-2node.yaml` in your current folder):
@@ -42,13 +43,23 @@ nodes:
 EOF
 ```
 
-Then build the cluster (this takes a minute the first time, while it pulls the node image):
+Then build the cluster (this takes a minute the first time, while it pulls the node image). Note the `--image` flag — you are pinning the Kubernetes version rather than accepting a default, and the next paragraph is why:
 
 ```bash
-kind create cluster --name netlab --config kind-2node.yaml
+kind create cluster --name netlab --config kind-2node.yaml --image kindest/node:v1.36.1
 kubectl get nodes -o wide          # netlab-control-plane and netlab-worker, each with an internal IP
 docker ps --filter name=netlab     # the same two nodes, as Docker containers
 ```
+
+**Why pin, when the tempting thing is to leave it off.** Without `--image`, `kind` installs whichever Kubernetes *its own* release pinned, so your cluster's version becomes a fact about the day you installed `kind` rather than anything you chose. That costs you nothing in this act and quite a lot later, because three things downstream have a version *floor*:
+
+| what needs it | floor | why |
+|---|---|---|
+| [Act VI drill 5](../act-6-control-plane/diagnose.md) | **server 1.29** | it deletes `clusterrolebinding kubeadm:cluster-admins` and recovers through `/etc/kubernetes/super-admin.conf`. Neither of those existed before 1.29, so on an older node image the drill's own reproduce step fails `NotFound` and there is nothing to diagnose |
+| [Act X lesson 04](../act-10-cluster-security/04-deciding-before-it-exists.md), final section | **server 1.36** | `MutatingAdmissionPolicy` reached `admissionregistration.k8s.io/v1` there |
+| [Act V drill 4](diagnose.md) | **`kubectl` 1.30** | `kubectl debug node/… --profile=sysadmin`. This one is your *client*, not the node image — `kubectl version --client` tells you, and `brew upgrade kubectl` fixes it |
+
+So any tag at `v1.36` or above satisfies every server-side floor in the course, and `v1.36.1` is the version every recorded output in Acts VI through X was captured on. If that tag has aged out by the time you read this, take the newest one from [kind's release notes](https://github.com/kubernetes-sigs/kind/releases) and use it everywhere below — the floor is what matters, not the exact patch.
 
 That second-to-last line shows nodes; the last line shows that those nodes *are* containers. The defaults match the example addresses used throughout this act almost exactly: the service CIDR is `10.96.0.0/16` (so the `kubernetes` Service is `10.96.0.1` and CoreDNS is `10.96.0.10`), and the Pod CIDR is `10.244.0.0/16`. The IPs in [Services and kube-proxy](03-services.md) and [CoreDNS](04-coredns.md) will look familiar because kind uses the same conventional ranges.
 
@@ -59,11 +70,11 @@ That second-to-last line shows nodes; the last line shows that those nodes *are*
 **It hangs on "Ensuring node image".** kind is pulling a node image of roughly a gigabyte, and a slow or blocked connection looks identical to a hang. Pull the image yourself first, where you can see progress, then create the cluster — with the image already local, creation skips the download:
 
 ```bash
-docker pull kindest/node:v1.31.0
-kind create cluster --name netlab --config kind-2node.yaml --image kindest/node:v1.31.0
+docker pull kindest/node:v1.36.1
+kind create cluster --name netlab --config kind-2node.yaml --image kindest/node:v1.36.1
 ```
 
-Pin the same tag in both commands. A version mismatch means kind pulls a *different* image and you wait all over again.
+Use the same tag in both commands, and the same tag you pinned above. A mismatch means kind pulls a *different* image and you wait all over again — and if the tag you reach for here is older than `v1.36`, you have quietly built the cluster that fails Act X's lesson 04 and Act VI's fifth drill.
 
 **It fails on a port that is already taken.** The `extraPortMappings` above ask Docker for host ports 80 and 443. If something on your Mac already holds one — another kind cluster, a local web server, an old container — creation fails with a bind error naming the port. Find the holder and stop it, or drop the two mappings from the config and skip the Ingress lesson's `curl`s:
 
@@ -162,7 +173,7 @@ nodes:
   - role: worker
 EOF
 
-kind create cluster --name netcni --config kind-cni.yaml
+kind create cluster --name netcni --config kind-cni.yaml --image kindest/node:v1.36.1
 kubectl config current-context   # kind switched you to kind-netcni; kind-netlab is still there
 kubectl get nodes                # BOTH NotReady — expected: there is no CNI yet
 ```

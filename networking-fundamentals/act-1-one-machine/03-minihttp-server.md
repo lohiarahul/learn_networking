@@ -48,7 +48,7 @@ Don't take the ritual on faith — trace minihttp making each call. Stop it (`Ct
 
 > **`ltrace`** is its sibling: it traces *library* calls (the `libc` functions your program calls) instead of syscalls — same idea, one layer up.
 
-> **A forward note on cost (and why we don't reach for eBPF yet) —** `strace` works by *stopping* the program at every syscall (via `ptrace`), so it can badly slow a busy process. There is a modern, near-free way to watch the same events from *inside* the kernel — **eBPF** (`bpftrace`) — but a `bpftrace` one-liner is a small program loaded into the kernel, so it only makes sense once you understand kernel hooks. We earn it in the Kubernetes stage, not here. Until then, `strace` is exactly right.
+> **A forward note on cost (and why we don't reach for eBPF yet) —** `strace` works by *stopping* the program at every syscall (via `ptrace`), so it can badly slow a busy process. There is a modern, near-free way to watch the same events from *inside* the kernel — **eBPF**, the mechanism behind tools like `bpftrace` — but an eBPF probe is a small program loaded into the kernel and attached to a hook, so it only makes sense once you understand kernel hooks. You meet one being loaded, named, and attached in [Act X's runtime-detection lesson](../act-10-cluster-security/10-seeing-it-happen.md), which is the first point in the course where there are kernels worth watching and a reason to watch them. Until then, `strace` is exactly right.
 
 > **Predict first —** name the calls you expect to see, in order, *before* any client connects. Which one will the program stop inside?
 
@@ -189,7 +189,7 @@ A container is nothing more than a process holding socket descriptors, so everyt
 - Something *outside* the process has to decide whether it is healthy, and the only evidence available from outside is the ritual you just traced. Which half would you use — a bare `connect()`, or a `connect()` followed by a `write()` and a `read()`? What would each one fail to notice about a server that is listening but broken?
 - You watched `accept()` mint a fresh row per client, and you found the ceiling with `ulimit -n`. A proxy fronting a thousand backends holds how many rows? Hold the shape: **the resource that runs out first is table rows, and no CPU or memory graph shows it running out.**
 
-Act V puts both on trial against real machinery.
+Both go on trial against real machinery, in two different places, because they turn out to be different questions. The first — what an outside observer can tell about a server that is listening but broken — is [Act VII's probes lesson](../act-7-workloads/03-probes.md), where the choice between a bare `connect()` and a full request-and-read becomes a field somebody has to fill in. The second — the table row as the resource that runs out with no graph to show it — is [Act V's Services lesson](../act-5-kubernetes/03-services.md), which finds the same rows again under a different name.
 
 ## Where you are now
 

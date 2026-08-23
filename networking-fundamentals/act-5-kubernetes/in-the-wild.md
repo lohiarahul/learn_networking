@@ -85,4 +85,4 @@ it still doesn't work, because the problem was never in the network.
 
 ---
 
-↑ **[Act V overview](README.md)** · Back to the method: **[The five questions](08-debugging.md)** · Under fire: **[Diagnose it](diagnose.md)**
+↑ **[Act V overview](README.md)** · Back to the method: **[The five questions](08-debugging.md)** · Under fire: **[Diagnose it](diagnose.md)** · Next: **[Act VI — The cluster that runs itself](../act-6-control-plane/README.md)** →

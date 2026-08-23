@@ -35,7 +35,30 @@ limits — which is also precisely why the changes reach the host.
 
 ---
 
+## The clock
+
+Every drill below carries a **target time**, and this is the one thing these drills do that the
+lessons deliberately do not. The course is built to make you understand; a certification is scored on
+whether you can act inside a budget, and those are different skills that look identical from the
+inside. So: Five rather than seven, because each of these drills has a narrower surface than an exam task — one machine, or two, and a handful of files.
+
+Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
+
+1. **Start the clock when the symptom appears**, not when you start the reproduce block. Building the
+   broken state is setup, and on the exam somebody else has already done it.
+2. **At the target, say your best hypothesis out loud** even if you are not confident. Naming a wrong
+   hypothesis at 5 minutes is worth more than a right one at twenty, because the wrong one is
+   falsifiable in one command and the exam pays for closed tasks.
+3. **At 10 minutes, stop and open the reveal.** That is not giving up, it is the exam's own rule —
+   *"the moment a task passes 10 minutes, flag it and move on"* — and the skill it builds is the
+   costly one. A task that eats 25 minutes has cost you three others worth the same marks.
+
+Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
+notice that the second number is the one that predicts anything.
+
 ## Drill 1 — "The new API just hangs — no error, nothing"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"Connecting to the new payments API times out after a few seconds. Not `connection
 > refused` — it just sits there, then gives up. Every other host is instant. DNS resolves fine, the IP
@@ -108,6 +131,8 @@ look in. **Fix:** find and remove whatever is dropping the SYN.
 
 ## Drill 2 — "The app logged 'upload complete' but the client is still waiting"
 
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 > **Ticket:** *"Our service logs `finished writing response` and moves on, but the client swears it's
 > still downloading thirty seconds later. The app is done — so why isn't the client? Is the network
 > eating our data?"*
@@ -162,6 +187,8 @@ Send-Q empty → the app hasn't actually sent, or it *was* delivered.
 ---
 
 ## Drill 3 — "curl works with a flag, the browser screams, and DNS is fine"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"Half the team says the internal service is up — `curl` gets a 200. The other half gets a
 > big red 'your connection is not private' in the browser and refuses to load it. The address is right,
@@ -223,6 +250,8 @@ production.
 ---
 
 ## Drill 4 — "Timeouts under load, and they clear when traffic dies down"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"Under peak traffic a fraction of connections just time out — no RST, no application error,
 > nothing in the logs. When the load drops it clears itself. CPU, memory, and the app are all healthy.

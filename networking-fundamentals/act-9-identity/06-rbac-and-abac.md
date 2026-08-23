@@ -86,6 +86,123 @@ pods                                            []                              
 
 Hold on to that. It is exactly what the other model gives up.
 
+### The same three objects, as documents
+
+Everything above was typed as a verb — `kubectl create role`, `create rolebinding` — and that is the
+right way to *learn* the model, because each command names exactly one idea. It is also not what the
+objects are. Act VI's first lesson established that the API server is a filesystem and every verb you
+type is a document being written, so the honest question is what document those three commands wrote.
+There is one flag that answers it, and it is the most useful flag in `kubectl`:
+
+```bash
+kubectl create role pod-reader --verb=get,list --resource=pods \
+  --dry-run=client -o yaml
+```
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: pod-reader
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+```
+
+`--dry-run=client` means *do not send this anywhere*; `-o yaml` means *print what you would have
+sent*. Together they turn every imperative command in this lesson into a manifest generator, and that
+is worth more than it looks: you get the correct `apiVersion` and the correct field names without
+remembering either, which is precisely the part people get wrong from memory. Note what the Role
+actually contains — **a list of rules, each one a cross product of `apiGroups` × `resources` ×
+`verbs`.** The empty string in `apiGroups` is the core group, which is why `pods` needs `""` and
+`deployments` would need `apps`.
+
+Now the binding, which is the join:
+
+```bash
+kubectl create rolebinding probe-reads --role=pod-reader \
+  --serviceaccount=default:probe --dry-run=client -o yaml
+```
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  creationTimestamp: null
+  name: probe-reads
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pod-reader
+subjects:
+- kind: ServiceAccount
+  name: probe
+  namespace: default
+```
+
+**`roleRef` is singular and `subjects` is a list**, and that asymmetry is the whole grant in one line
+of YAML: one named permission set, many holders. It is also where the two most common RBAC failures
+live, and both are visible in this document without a cluster. A `roleRef` naming a Role that does not
+exist is accepted happily and grants nothing — nothing validates it, because RBAC is a union and a
+missing term contributes zero. And a `subjects` entry for a ServiceAccount **must** carry
+`namespace:`, because a ServiceAccount's identity is namespaced while the binding's own namespace is a
+separate fact; drop it and you have bound a subject in the wrong namespace, which again grants nothing
+and reports nothing.
+
+Two more shapes the model implies and the commands above did not reach. The cluster-wide twin, for the
+resources that have no namespace to live in:
+
+```bash
+kubectl create clusterrole node-reader --verb=get,list,watch --resource=nodes \
+  --dry-run=client -o yaml | grep -A3 '^rules'
+```
+
+```
+rules:
+- apiGroups:
+  - ""
+  resources:
+```
+
+And the narrowest grant RBAC can express — not *pods*, but *one named pod*:
+
+```bash
+kubectl create role web-restarter --verb=get,patch --resource=pods \
+  --resource-name=web-0 --dry-run=client -o yaml | grep -A2 resourceNames
+```
+
+```
+  resourceNames:
+  - web-0
+  resources:
+```
+
+`resourceNames` is the one field in RBAC that narrows *inside* a resource type, and it comes with a
+limit that follows directly from what a request is. `get`, `patch`, `update` and `delete` all name the
+object they are about, so the authorizer can compare that name against the list. `list`, `watch` and
+`create` do not — a `list` request asks about a collection and carries no name at all, so there is
+nothing to compare and `resourceNames` cannot restrict it. This is the same lesson as `auth can-i`
+above, from the other side: **the authorizer can only filter on facts the request actually contains.**
+
+> **Predict first —** somebody applies a Role granting `get` and `list` on pods plus a RoleBinding for
+> a ServiceAccount. Both objects exist — `kubectl get role,rolebinding` lists them, no errors, no
+> events. And `auth can-i list pods --as=…` says `no`. Given the two documents above, name the two
+> fields most likely to be wrong, and say what the two failures have in common.
+
+Both fields are in the RoleBinding, not the Role: **`roleRef.name`**, misspelled so it points at a Role
+that does not exist, and **`subjects[].namespace`**, absent or wrong so the grant landed on a
+ServiceAccount nobody is using. What they have in common is the important half. Neither is an error.
+RBAC is a union of grants, a grant that refers to nothing contributes nothing, and *nothing* is a
+perfectly valid contribution to a union — so the API server accepts both documents, writes both, and
+reports success. The only way to see it is to ask the question from the other end, which is the next
+section.
+
 ### Ask it backwards
 
 Now the question you predicted. `can-i --list` went forward, from a subject to its permissions. Go the other way: **who can delete pods in `default`?**

@@ -92,4 +92,4 @@ On the lab cluster you answer that by moving a file. On a managed cluster you an
 
 ---
 
-← **[Diagnose it](diagnose.md)** · ↑ **[Act VI overview](README.md)**
+← **[Diagnose it](diagnose.md)** · ↑ **[Act VI overview](README.md)** · Next: **[Act VII — Describing the work](../act-7-workloads/README.md)** →

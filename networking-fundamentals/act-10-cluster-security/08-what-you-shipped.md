@@ -503,7 +503,111 @@ The image scan enumerated `nginx` with the **byte-identical purl** the SBOM carr
 
 Do not over-read this into a diagnosis of one tool's internals — that is not what you measured, and the numbers will differ by version. What you measured is the general fact, and it is the one worth keeping: **a scan is a program's opinion, and two of its own entry points can disagree about the same package.** Lesson 07 taught you not to trust a scanner's completeness. This is stronger and it is uncomfortable: you cannot fully trust its *consistency*, so "we scan our images" is a description of a habit, not of a property. The usable version of the habit is to fix the tool, the version, the database snapshot and the entry point, record all four alongside the result, and treat a change in any of them as a change in the finding.
 
-Which sets up the real problem. Everything so far — the digest, the scan, the inventory — is something *you* computed about bytes *you* had. None of it survives being handed to somebody else, because none of it is a **claim anyone is accountable for**.
+### The thing no inventory lists
+
+An SBOM enumerates packages. A vulnerability scan joins packages against a database. Both of them are
+answers to the question *what software is in here*, and there is a second question they cannot answer
+at all: **what else is in here.** The most common wrong answer to that, by a wide margin, is a
+credential — and it gets in during the build, from somebody who was trying to be careful.
+
+Here is the shape, in the smallest form that still contains the whole problem. A build needs a token to
+fetch a private dependency. The obvious way to hand it in is `ARG`:
+
+```bash
+SECDEMO="${TMPDIR:-/tmp}/secdemo"; mkdir -p "$SECDEMO"
+printf 'SUPERSECRET_KEY_12345\n' > "$SECDEMO/secret.txt"   # stands in for a real token
+
+cat > "$SECDEMO/Dockerfile.bad" <<'EOF'
+FROM alpine
+ARG API_KEY
+RUN echo "fetching deps with $API_KEY" > /build.log
+EOF
+
+docker build -q -t leaky:v1 --build-arg API_KEY="$(cat "$SECDEMO/secret.txt")" \
+  -f "$SECDEMO/Dockerfile.bad" "$SECDEMO"
+```
+
+The token was never `COPY`d, never written to a file you asked for, and never appears in the
+Dockerfile. Now ask the image what it remembers:
+
+```bash
+docker history --no-trunc leaky:v1 | grep -o 'SUPERSECRET_KEY_[A-Za-z0-9]*' | head -1
+docker run --rm leaky:v1 cat /build.log
+```
+
+```
+SUPERSECRET_KEY_12345
+fetching deps with SUPERSECRET_KEY_12345
+```
+
+**Two leaks, and they are different leaks.** The second one you can at least reason about — a command
+wrote the value into a file, and the file is a layer. The first is the one that catches people:
+`docker history` is reading the *build metadata*, and a `--build-arg` value is recorded there as part
+of the command that consumed it. Delete `/build.log`, add a `RUN rm /build.log`, squash the layer you
+think is guilty — the history entry is still there, and it travels with the image to every registry it
+is ever pushed to. Anyone who can `docker pull` the image can read it, which is the point: **this is
+not a filesystem problem, so no filesystem fix reaches it.**
+
+> **Predict first —** BuildKit has a `--secret` mount for exactly this. Before you run it: the token
+> has to be readable by the `RUN` command, so it must exist somewhere in the container at that moment.
+> Where can it be such that neither the layer nor the history keeps it?
+
+The answer is a mount, and it is the same reasoning as Act IV's — a mount is a thing the kernel
+attaches for the life of a process and then detaches, so it is present during the `RUN` and belongs to
+no layer:
+
+```bash
+cat > "$SECDEMO/Dockerfile.good" <<'EOF'
+# syntax=docker/dockerfile:1
+FROM alpine
+RUN --mount=type=secret,id=apikey \
+    KEY=$(cat /run/secrets/apikey) && echo "fetched deps with $KEY" > /build.log
+EOF
+
+DOCKER_BUILDKIT=1 docker build -q -t tight:v1 \
+  --secret id=apikey,src="$SECDEMO/secret.txt" \
+  -f "$SECDEMO/Dockerfile.good" "$SECDEMO"
+
+docker history --no-trunc tight:v1 | grep -c 'SUPERSECRET_KEY'   # 0 — not in the metadata
+docker run --rm tight:v1 ls /run/secrets/ 2>&1 | head -1         # gone — not in the filesystem
+docker run --rm tight:v1 cat /build.log                          # but the build did read it
+```
+
+```
+0
+ls: /run/secrets/: No such file or directory
+fetched deps with SUPERSECRET_KEY_12345
+```
+
+Read those three lines together, because separately each one is unremarkable and together they are the
+whole control. The history does not have it. The filesystem does not have it. And the build demonstrably
+*used* it — `/build.log` proves the `RUN` could read `/run/secrets/apikey` at the moment it ran. The
+secret was present exactly once, for exactly one command, and left nothing behind.
+
+**The part that generalises past Docker.** `/run/secrets/apikey` is a path that existed during one
+process and does not exist in the result. You have now met that idea three times under three names: the
+tmpfs the kubelet mounts for a projected ServiceAccount token, the `emptyDir` that dies with the Pod,
+and now a build mount. It is the same trick each time, and it is the only honest way to put a secret
+somewhere a program can read it: **make the reading and the existing the same interval.** Anything
+longer-lived is a copy, and every copy is a thing somebody has to remember to delete.
+
+Two footnotes worth carrying to an exam and to a code review. First, `ENV` is worse than `ARG`, not
+better — an `ARG` at least stops existing after the build, while an `ENV` is written into the image
+config and is handed to every process that ever runs in the container, `docker inspect` included.
+Second, this is why "we removed the secret in a later layer" is never a fix and why scanning your
+*registry* for leaked credentials is a real and separate control from scanning it for vulnerabilities:
+the two look in different places, and the SBOM you built above lists neither.
+
+Clean up:
+
+```bash
+docker rmi -f leaky:v1 tight:v1 >/dev/null 2>&1
+rm -rf "$SECDEMO"
+```
+
+Which sets up the real problem. Everything so far — the digest, the scan, the inventory, the credential
+you just proved was hiding in the metadata — is something *you* computed about bytes *you* had. None of
+it survives being handed to somebody else, because none of it is a **claim anyone is accountable for**.
 
 ### Saying who built it
 

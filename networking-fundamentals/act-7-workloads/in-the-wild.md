@@ -113,4 +113,4 @@ And one habit of thought, which is really the act's spine turned into a diagnost
 
 ---
 
-↑ **[Act VII overview](README.md)** · Prev: **[Diagnose it](diagnose.md)**
+↑ **[Act VII overview](README.md)** · Prev: **[Diagnose it](diagnose.md)** · Next: **[Act VIII — Trust on an untrusted wire](../act-8-trust/README.md)** →

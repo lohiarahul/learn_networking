@@ -20,7 +20,30 @@ namespaces and veths from scratch (the same commands you ran in lessons 1–3), 
 
 ---
 
+## The clock
+
+Every drill below carries a **target time**, and this is the one thing these drills do that the
+lessons deliberately do not. The course is built to make you understand; a certification is scored on
+whether you can act inside a budget, and those are different skills that look identical from the
+inside. So: Five rather than seven, because each of these drills has a narrower surface than an exam task — one machine, or two, and a handful of files.
+
+Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
+
+1. **Start the clock when the symptom appears**, not when you start the reproduce block. Building the
+   broken state is setup, and on the exam somebody else has already done it.
+2. **At the target, say your best hypothesis out loud** even if you are not confident. Naming a wrong
+   hypothesis at 5 minutes is worth more than a right one at twenty, because the wrong one is
+   falsifiable in one command and the exam pays for closed tasks.
+3. **At 10 minutes, stop and open the reveal.** That is not giving up, it is the exam's own rule —
+   *"the moment a task passes 10 minutes, flag it and move on"* — and the skill it builds is the
+   costly one. A task that eats 25 minutes has cost you three others worth the same marks.
+
+Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
+notice that the second number is the one that predicts anything.
+
 ## Drill 1 — "The new container can reach the host but not the internet"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"We wired up a fresh container-style namespace. It can ping its own gateway, DNS is
 > configured, forwarding is on — but every ping to the outside times out. The host itself reaches
@@ -107,6 +130,8 @@ ip netns del app
 
 ## Drill 2 — "Two containers on the same host can't reach each other"
 
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 > **Ticket:** *"Two namespaces are plugged into the same bridge, both have addresses in the same subnet,
 > both interfaces show `UP` inside their namespace. But ns1 can't ping ns2 — no route error, it just
 > times out. It's one switch and two cables; how is this not the simplest thing in the world?"*
@@ -186,6 +211,8 @@ ip netns del ns1; ip netns del ns2; ip link del br0
 
 ## Drill 3 — "The published service answers inside the container but nowhere else"
 
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 > **Ticket:** *"The app is definitely running — `exec` into the container and `curl localhost:8080`
 > returns 200 every time. But hitting the same port from the host gets `connection refused`. We didn't
 > change the app. It's like the port publish just… didn't."*
@@ -263,6 +290,8 @@ pkill -f 'http.server 8080'; ip netns del app
 ---
 
 ## Drill 4 — "Small requests are fine, big responses hang forever"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"Two namespaces, one cable, both ends up, both addresses in the same `/24` — and `ping`
 > works. Small requests come back instantly. Anything that returns a big payload hangs until the client

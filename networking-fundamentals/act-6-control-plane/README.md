@@ -37,7 +37,7 @@ Then, when you have worked through all eight:
 - **[Diagnose it](diagnose.md)** — seven on-call drills that put your cluster into a genuinely broken state and hand you only the symptom.
 - **[Act VI in the wild](in-the-wild.md)** — why every managed Kubernetes service hides exactly the four things this act taught you to read, and which of your commands survive that.
 
-> **On verification.** All eight lessons have been run against a real cluster (`kind`, Kubernetes v1.36.1, etcd 3.6.8) and corrected against what actually happened — including several places where the cluster contradicted the text outright. The drills in `diagnose.md` reuse those verified commands but have not been walked end to end as drills, so treat their timings as the least-tested thing here. **The act's supporting pages do not exist yet either** — every other act carries a `test-yourself`, a `diagnose` set of on-call drills and an `in-the-wild`, and this one will when it is finished. The roadmap banner in [the journey map](../../JOURNEY-MAP.md) tracks what is real.
+> **On verification.** All eight lessons have been run against a real cluster (`kind`, Kubernetes v1.36.1, etcd 3.6.8) and corrected against what actually happened — including several places where the cluster contradicted the text outright. The drills in `diagnose.md` reuse those verified commands but have not been walked end to end as drills, so treat their timings as the least-tested thing here. All three supporting pages linked above are written; the roadmap banner in [the journey map](../../JOURNEY-MAP.md) tracks what is real across the whole course.
 
 ## What breaks here
 

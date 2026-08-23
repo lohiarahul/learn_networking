@@ -37,7 +37,30 @@ Three rules follow, and they are not optional:
 
 ---
 
+## The clock
+
+Every drill below carries a **target time**, and this is the one thing these drills do that the
+lessons deliberately do not. The course is built to make you understand; a certification is scored on
+whether you can act inside a budget, and those are different skills that look identical from the
+inside. So: Five rather than seven, because each of these drills has a narrower surface than an exam task — one machine, or two, and a handful of files.
+
+Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
+
+1. **Start the clock when the symptom appears**, not when you start the reproduce block. Building the
+   broken state is setup, and on the exam somebody else has already done it.
+2. **At the target, say your best hypothesis out loud** even if you are not confident. Naming a wrong
+   hypothesis at 5 minutes is worth more than a right one at twenty, because the wrong one is
+   falsifiable in one command and the exam pays for closed tasks.
+3. **At 10 minutes, stop and open the reveal.** That is not giving up, it is the exam's own rule —
+   *"the moment a task passes 10 minutes, flag it and move on"* — and the skill it builds is the
+   costly one. A task that eats 25 minutes has cost you three others worth the same marks.
+
+Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
+notice that the second number is the one that predicts anything.
+
 ## Drill 1 — "Internet's down, but the machine looks perfectly healthy"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"This box can't reach anything outside the LAN — every external ping times out. But the
 > interface is up, the IP is right, the cable's fine, nothing changed in the routing. It's like the
@@ -97,6 +120,8 @@ ping -c1 -W2 8.8.8.8 && echo "recovered"
 
 ## Drill 2 — "One particular service is unreachable; everything else is fine"
 
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 > **Ticket:** *"We can reach the whole internet — except one provider's API range. Pings to `8.8.8.8`
 > time out, but `1.1.1.1` is instant. Same machine, same interface, same gateway. How can one
 > destination be dead and the next one alive?"*
@@ -154,6 +179,8 @@ ping -c1 -W2 8.8.8.8 && echo "recovered"
 ---
 
 ## Drill 3 — "SSH connects, then freezes; small requests work, big ones hang"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"Login works, short commands work, but the moment a command prints a lot of output the
 > session just freezes. `curl` of a small endpoint is fine; downloading anything large stalls forever.
@@ -217,6 +244,8 @@ cat /sys/class/net/eth0/mtu       # must read 1500 again
 ---
 
 ## Drill 4 — "The name resolves to the wrong server, and DNS swears it's right"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 > **Ticket:** *"Our app keeps talking to the wrong backend for `example.com`. But when the network team
 > runs `dig example.com` they get the correct address and tell us DNS is fine. Both can't be right — so

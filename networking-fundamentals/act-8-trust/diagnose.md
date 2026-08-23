@@ -2,6 +2,12 @@
 
 Six drills. Unlike the previous three acts these do not break a cluster, and unlike them there is nothing to `describe` — you get an error string and a filesystem, which is exactly what you get in production when a certificate goes wrong at three in the morning.
 
+**One prerequisite, and it is the same one the lessons had.** These drills use `openssl` flags that
+Apple's `/usr/bin/openssl` does not have — it is LibreSSL, and `-not_before` / `-not_after` are
+OpenSSL 3.x. `openssl version` must say **OpenSSL 3.x**, not LibreSSL; `brew install openssl@3` and
+put its `bin` ahead of `/usr/bin` on your `PATH` if it does not. Drill 5 additionally needs Python's
+`cryptography` module (`pip3 install cryptography`).
+
 Set up a small PKI once and all six run against it:
 
 ```bash
@@ -25,6 +31,27 @@ openssl x509 -req -in leaf.csr -CA int.crt -CAkey int.key -out leaf.crt \
 
 That is a two-level hierarchy: a root that signs an intermediate, and an intermediate that signs the leaf. Real PKI is always shaped this way, and the reason is worth knowing before you start — the root's private key can then be kept offline, in a safe, powered down, because it only ever signs one thing every few years.
 
+## The clock
+
+Every drill below carries a **target time**, and this is the one thing these drills do that the
+lessons deliberately do not. The course is built to make you understand; a certification is scored on
+whether you can act inside a budget, and those are different skills that look identical from the
+inside. So: Five rather than seven, because each of these drills has a narrower surface than an exam task — one machine, or two, and a handful of files.
+
+Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
+
+1. **Start the clock when the symptom appears**, not when you start the reproduce block. Building the
+   broken state is setup, and on the exam somebody else has already done it.
+2. **At the target, say your best hypothesis out loud** even if you are not confident. Naming a wrong
+   hypothesis at 5 minutes is worth more than a right one at twenty, because the wrong one is
+   falsifiable in one command and the exam pays for closed tasks.
+3. **At 10 minutes, stop and open the reveal.** That is not giving up, it is the exam's own rule —
+   *"the moment a task passes 10 minutes, flag it and move on"* — and the skill it builds is the
+   costly one. A task that eats 25 minutes has cost you three others worth the same marks.
+
+Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
+notice that the second number is the one that predicts anything.
+
 ## The method for this act
 
 Act V's five questions walked a network path. Act VI descended a dependency stack. Act VII asked which loop was reading which field. This act needs something different again, because a cryptographic failure gives you almost no telemetry — just a verdict.
@@ -34,6 +61,8 @@ Act V's five questions walked a network path. Act VI descended a dependency stac
 ---
 
 ## Drill 1 — the same error, two unrelated causes
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 ```bash
 cd "${TMPDIR:-/tmp}/drills"
@@ -84,6 +113,8 @@ This is the single most common TLS misconfiguration in existence, and it has a s
 
 ## Drill 2 — a certificate that will work, later
 
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 ```bash
 cd "${TMPDIR:-/tmp}/drills"
 openssl x509 -req -in leaf.csr -CA int.crt -CAkey int.key -out future.crt \
@@ -117,6 +148,8 @@ Note the shape, which is the act's second question: **the verifier checks the cl
 ---
 
 ## Drill 3 — trusted, valid, signed, and refused
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 ```bash
 cd "${TMPDIR:-/tmp}/drills"
@@ -171,6 +204,8 @@ And keep the general form, because it outlives certificates entirely: **an error
 ---
 
 ## Drill 4 — the failure that reports success
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 ```bash
 cd "${TMPDIR:-/tmp}/drills"
@@ -230,6 +265,8 @@ Identical client output — and the server now names who it is talking to. So th
 ---
 
 ## Drill 5 — a tag that verifies for the wrong reason
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 This one is a service rather than a certificate, and its code is *correct*: AES-GCM, a fresh random nonce every write, tags checked on read, a proper key. No nonce is ever reused and nothing is forged.
 
@@ -298,6 +335,8 @@ cryptography.exceptions.InvalidTag
 ---
 
 ## Drill 6 — the intermediate that tries to be a root
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 ```bash
 cd "${TMPDIR:-/tmp}/drills"

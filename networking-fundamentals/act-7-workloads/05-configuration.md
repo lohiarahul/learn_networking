@@ -116,7 +116,7 @@ There is one way to mount a ConfigMap that silently gives up the hot reload:
 
 ```bash
 kubectl set volumes deploy/watcher --add --name=sub -t configmap \
-  --configmap-name=appconf --sub-path=LOG_LEVEL --mount-path=/etc/app/LOG_LEVEL
+  --configmap-name=app-config --sub-path=LOG_LEVEL --mount-path=/etc/app/LOG_LEVEL
 kubectl rollout status deploy/watcher --timeout=90s
 kubectl exec deploy/watcher -- ls -la /etc/app/ /etc/config/
 ```
@@ -131,7 +131,7 @@ kubectl exec deploy/watcher -- ls -la /etc/app/ /etc/config/
 So change the value and wait well past the interval that worked a moment ago:
 
 ```bash
-kubectl patch configmap appconf -p '{"data":{"LOG_LEVEL":"trace"}}'
+kubectl patch configmap app-config -p '{"data":{"LOG_LEVEL":"trace"}}'
 sleep 90
 kubectl exec deploy/watcher -- cat /etc/config/LOG_LEVEL       # trace
 kubectl exec deploy/watcher -- cat /etc/app/LOG_LEVEL          # still debug

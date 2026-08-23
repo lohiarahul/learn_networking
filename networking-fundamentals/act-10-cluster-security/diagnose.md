@@ -1,6 +1,6 @@
 # Diagnose it — Act X
 
-Seven drills. Nothing in this act breaks a cluster, which is precisely what makes it hard: in every drill below, **every component is healthy and every command succeeds.** There is no crash to find, no `CrashLoopBackOff`, no failing probe. The failures are all cases where a control is present, reports itself working, and is not doing the thing somebody believes it is doing.
+Nine drills. Nothing in this act breaks a cluster, which is precisely what makes it hard: in every drill below, **every component is healthy and every command succeeds.** There is no crash to find, no `CrashLoopBackOff`, no failing probe. The failures are all cases where a control is present, reports itself working, and is not doing the thing somebody believes it is doing.
 
 Act V walked a network path. Act VI descended a dependency stack. Act VII asked which loop read which field. Act VIII had only a verdict. Act IX asked what moment an answer was about. This act's method is four questions, and the order matters:
 
@@ -12,6 +12,27 @@ Act V walked a network path. Act VI descended a dependency stack. Act VII asked 
 Question 4 is the one nobody asks, and it is the whole act.
 
 ---
+
+## The clock
+
+Every drill below carries a **target time**, and this is the one thing these drills do that the
+lessons deliberately do not. The course is built to make you understand; a certification is scored on
+whether you can act inside a budget, and those are different skills that look identical from the
+inside. So: Seven, because that is the number: **17 tasks in 120 minutes** is about seven minutes each, and these drills are the closest thing in the course to a task.
+
+Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
+
+1. **Start the clock when the symptom appears**, not when you start the reproduce block. Building the
+   broken state is setup, and on the exam somebody else has already done it.
+2. **At the target, say your best hypothesis out loud** even if you are not confident. Naming a wrong
+   hypothesis at 7 minutes is worth more than a right one at twenty, because the wrong one is
+   falsifiable in one command and the exam pays for closed tasks.
+3. **At 10 minutes, stop and open the reveal.** That is not giving up, it is the exam's own rule —
+   *"the moment a task passes 10 minutes, flag it and move on"* — and the skill it builds is the
+   costly one. A task that eats 25 minutes has cost you three others worth the same marks.
+
+Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
+notice that the second number is the one that predicts anything.
 
 ## Bench A — a registry you control
 
@@ -46,6 +67,8 @@ kubectl create ns drill
 ```
 
 ## Drill 1 — the rollback that changed nothing
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 A team ships `app:v1`. A bad build goes out. They re-push the previous, known-good image to `app:v1` and restart the Deployment. Half the replicas are still broken. Reproduce the shape:
 
@@ -108,6 +131,8 @@ That `crane digest` line is not decoration, and it is there because this drill w
 
 ## Drill 2 — nothing is wrong and nothing will start
 
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 You take drill 1's advice and turn on `AlwaysPullImages`. A week later, during a network incident, a scale-up produces no Pods.
 
 ```bash
@@ -160,6 +185,21 @@ for i in $(seq 1 40); do sleep 4; kubectl get --raw /healthz >/dev/null 2>&1 && 
 
 ## Drill 3 — the signature gate that refuses everything
 
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+**This one is on paper, and it says so.** Lesson 08 uninstalls Kyverno on its last page, so unless you
+skipped that step there is no policy engine in your cluster to reproduce this against. The error string
+below is the real one that lesson's bench produced, and diagnosing from a message alone is the drill.
+If you would rather run it, put the engine back first — it needs **Kyverno 1.15 or newer**, because
+that is where `ImageValidatingPolicy` arrived in `policies.kyverno.io/v1`:
+
+```bash
+kubectl apply --server-side \
+  -f https://github.com/kyverno/kyverno/releases/download/v1.19.0/install.yaml
+kubectl wait --for=condition=Available deploy --all -n kyverno --timeout=300s
+kubectl api-resources --api-group=policies.kyverno.io | grep -i image   # ivpol must be listed
+```
+
 A team ships image signing. The policy denies every Pod in scope, including images they know they signed. The message mentions signatures, so they are re-signing, rotating keys, and checking the public key by eye. Give them the real diagnosis:
 
 ```
@@ -184,6 +224,7 @@ Read the message rather than the policy name. `failed to update digest` — it n
 **The fix** is to give the CA to the engine's Deployment, as a mounted ConfigMap plus `SSL_CERT_FILE` (which every Go program honours):
 
 ```bash
+# Runnable only if you reinstalled Kyverno above; $REGTLS comes from bench A.
 kubectl -n kyverno create configmap registry-ca --from-file=ca.crt="$REGTLS/tls.crt"
 kubectl -n kyverno patch deploy kyverno-admission-controller --type=strategic -p '{
  "spec":{"template":{"spec":{
@@ -192,6 +233,7 @@ kubectl -n kyverno patch deploy kyverno-admission-controller --type=strategic -p
      "env":[{"name":"SSL_CERT_FILE","value":"/etc/registry-ca/ca.crt"}],
      "volumeMounts":[{"name":"registry-ca","mountPath":"/etc/registry-ca","readOnly":true}]}]
  }}}}'
+kubectl -n kyverno rollout status deploy/kyverno-admission-controller --timeout=180s
 ```
 
 **The general lessons, and there are two.** First: **read the message, not the flag name** — twice in this drill the words in a name pointed away from the mechanism. Second, and more useful: when a control fails, establish *how far it got* before deciding what failed. "Denied by the signature policy" and "the signature did not verify" are different events with the same user-visible shape, and one of them is not a cryptography problem at all.
@@ -202,6 +244,9 @@ kubectl -n kyverno patch deploy kyverno-admission-controller --type=strategic -p
 
 ```bash
 kubectl delete ns drill --ignore-not-found
+# only if you reinstalled Kyverno for drill 3 — put the cluster back as lesson 08 left it
+kubectl delete -f https://github.com/kyverno/kyverno/releases/download/v1.19.0/install.yaml \
+  --ignore-not-found 2>/dev/null
 docker rm -f registry
 for n in netlab-control-plane netlab-worker; do
   docker exec $n rm -rf "/etc/containerd/certs.d/registry:5000"
@@ -218,6 +263,9 @@ rm -rf "$REGTLS"
 Drills 4 and 5 need lesson 10's audit setup. Build it with the policy as it would be found in a real cluster:
 
 ```bash
+export KUBECONFIG="${TMPDIR:-/tmp}/act10.kubeconfig"      # same discipline as bench A
+kind get kubeconfig --name netlab > "$KUBECONFIG"
+
 CP=netlab-control-plane
 docker exec $CP cp /etc/kubernetes/manifests/kube-apiserver.yaml /root/ka-audit.bak
 docker exec $CP mkdir -p /etc/kubernetes/audit /var/log/kubernetes
@@ -232,35 +280,63 @@ rules:
 EOF
 docker exec $CP cat /etc/kubernetes/manifests/kube-apiserver.yaml > /tmp/kad.yaml
 python3 - <<'PY'
+import sys
 p="/tmp/kad.yaml"; t=open(p).read()
-t = t.replace("    - --allow-privileged=true",
+
+def sub(text, anchor, replacement):
+    """Replace once, or refuse to write the file at all."""
+    if anchor not in text:
+        sys.exit("ANCHOR NOT FOUND, manifest NOT patched:\n  " + anchor.replace("\n", "\\n"))
+    return text.replace(anchor, replacement, 1)
+
+t = sub(t, "    - --allow-privileged=true",
   "    - --allow-privileged=true"
   "\n    - --audit-policy-file=/etc/kubernetes/audit/policy.yaml"
-  "\n    - --audit-log-path=/var/log/kubernetes/audit.log", 1)
-t = t.replace("    volumeMounts:\n    - mountPath: /etc/ssl/certs",
+  "\n    - --audit-log-path=/var/log/kubernetes/audit.log")
+t = sub(t, "    volumeMounts:\n    - mountPath: /etc/ssl/certs",
   "    volumeMounts:"
   "\n    - mountPath: /etc/kubernetes/audit\n      name: ap\n      readOnly: true"
   "\n    - mountPath: /var/log/kubernetes\n      name: al\n      readOnly: false"
-  "\n    - mountPath: /etc/ssl/certs", 1)
-t = t.replace("  volumes:\n  - hostPath:",
+  "\n    - mountPath: /etc/ssl/certs")
+t = sub(t, "  volumes:\n  - hostPath:",
   "  volumes:"
   "\n  - hostPath:\n      path: /etc/kubernetes/audit\n      type: DirectoryOrCreate\n    name: ap"
   "\n  - hostPath:\n      path: /var/log/kubernetes\n      type: DirectoryOrCreate\n    name: al"
-  "\n  - hostPath:", 1)
-open(p,"w").write(t); print("patched")
+  "\n  - hostPath:")
+
+for flag in ("--audit-policy-file=", "--audit-log-path="):
+    assert flag in t, flag
+open(p,"w").write(t); print("patched: all three anchors matched")
 PY
 docker exec -i $CP sh -c \
   'cat > /etc/kubernetes/manifests/.ka.tmp && mv /etc/kubernetes/manifests/.ka.tmp /etc/kubernetes/manifests/kube-apiserver.yaml' \
   < /tmp/kad.yaml
 for i in $(seq 1 40); do sleep 4; kubectl get --raw /healthz >/dev/null 2>&1 && break; done
+
+# The bench is only built if the log actually exists. Prove it before going further.
+kubectl get ns >/dev/null                                     # generate one auditable request
+docker exec $CP sh -c 'test -s /var/log/kubernetes/audit.log' \
+  && echo "bench B ready: audit.log exists and is non-empty" \
+  || { echo "BENCH B NOT READY — no audit log. Do not start drills 4 or 5."; }
+
 kubectl create ns drill2
 kubectl label ns drill2 pod-security.kubernetes.io/enforce=restricted
 kubectl -n drill2 wait --for=create serviceaccount/default --timeout=60s
 ```
 
-That last line matters and is worth a sentence, because without it this drill lies to you. A namespace's `default` ServiceAccount is created by a *controller* after the namespace exists, so for a second or two a brand-new namespace has none — and a Pod created in that window is refused with `error looking up service account drill2/default: serviceaccount "default" not found`. That is a `Forbidden`, from the API server, about a Pod you expected to be refused, for entirely the wrong reason. Act VI's reconciliation loop again: the namespace is not finished when `create` returns.
+**Read that `bench B ready` line before you go on, and do not skip it.** Drills 4 and 5 are both
+answered by grepping the audit log, so a bench that came up without one does not fail — it produces
+*empty greps*, and an empty grep in a drill about finding things reads exactly like a finding. This is
+drill 1's own rule turned on the bench that hosts drills 4 and 5: a bench that can fail quietly needs a
+check that fails loudly. The `sub()` helper in the Python above is the other half of it — if a future
+`kubeadm` orders those flags differently, no anchor matches, the script exits without writing, and the
+API server is left exactly as it was rather than restarting perfectly with no audit configuration.
+
+That `wait --for=create` line matters and is worth a sentence, because without it this drill lies to you. A namespace's `default` ServiceAccount is created by a *controller* after the namespace exists, so for a second or two a brand-new namespace has none — and a Pod created in that window is refused with `error looking up service account drill2/default: serviceaccount "default" not found`. That is a `Forbidden`, from the API server, about a Pod you expected to be refused, for entirely the wrong reason. Act VI's reconciliation loop again: the namespace is not finished when `create` returns.
 
 ## Drill 4 — the namespace that stopped being protected
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
 A namespace that has enforced `restricted` for a year now runs privileged Pods. No alert fired. Reproduce it and then find it using only the log:
 
@@ -325,6 +401,8 @@ and keep Secrets pinned at `Metadata` above it, because `RequestResponse` on Sec
 
 ## Drill 5 — what happened inside the shell
 
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 An alert says someone exec'd into a production Pod nine hours ago. You have the audit log.
 
 ```bash
@@ -381,6 +459,8 @@ That `ls` is deliberate. Auditing is off, the flags are gone, and the file — i
 
 ## Drill 6 — a claim to refuse to sign
 
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 No cluster needed. A team submits this for sign-off against "all data in transit must be encrypted":
 
 > Cilium with WireGuard encryption is enabled cluster-wide and verified (`cilium-dbg status` reports `Encryption: Wireguard`, peers established on all nodes). A default-deny `NetworkPolicy` is applied in every namespace. TLS terminates at the Ingress with a certificate from our CA. Therefore all traffic is encrypted in transit.
@@ -412,6 +492,8 @@ The reflex: **"encrypted in transit" is a property of a path, not of a system.**
 
 ## Drill 7 — the deleted credential that came back
 
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
 No cluster needed, though lesson 11 measured every step. An incident: a database credential is believed leaked. The runbook says *delete the Kubernetes Secret to revoke access, then rotate*. An engineer runs `kubectl delete secret db-creds -n payments`, confirms it is gone, and reports containment. Twenty minutes later the leaked credential still works.
 
 **Explain, and rewrite the runbook step. Then say what this changes about the team's disaster-recovery assumptions.**
@@ -435,6 +517,232 @@ This is Act VI's reconciliation loop doing exactly its job — compare desired t
 That is the sibling of lesson 06's finding that an etcd snapshot is no longer a backup once you encrypt — both are cases where **a control that improved confidentiality created an availability dependency that nobody added to the runbook.** Fifth time in the act.
 
 </details>
+
+## Bench C — a cluster that encrypts its Secrets, allegedly
+
+Drills 8 and 9 need lesson 06's encryption bench, with one difference you are not being told about. Build it exactly as written and do **not** read the `enc.yaml` closely — that is the drill:
+
+```bash
+export KUBECONFIG="${TMPDIR:-/tmp}/act10.kubeconfig"
+kind get kubeconfig --name netlab > "$KUBECONFIG"
+CP=netlab-control-plane
+
+etcd() {
+  kubectl -n kube-system exec etcd-$CP -- etcdctl \
+    --cacert /etc/kubernetes/pki/etcd/ca.crt \
+    --cert   /etc/kubernetes/pki/etcd/server.crt \
+    --key    /etc/kubernetes/pki/etcd/server.key "$@"
+}
+
+kubectl create ns drill8
+kubectl create secret generic legacy-creds -n drill8 --from-literal=password=hunter2
+
+docker exec $CP cp /etc/kubernetes/manifests/kube-apiserver.yaml /root/ka-enc.bak
+docker exec $CP mkdir -p /etc/kubernetes/enc
+docker exec -i $CP sh -c 'cat > /etc/kubernetes/enc/enc.yaml' <<'EOF'
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+- resources: ["secrets"]
+  providers:
+  - identity: {}
+  - aescbc:
+      keys:
+      - name: key1
+        secret: 8IUDo6/WHRUZiqB9edQrNWWNs11hKjZd0cKifziajkc=
+EOF
+
+docker exec $CP cat /etc/kubernetes/manifests/kube-apiserver.yaml > /tmp/ka-enc.yaml
+python3 - <<'PYEDIT'
+import sys
+p="/tmp/ka-enc.yaml"; t=open(p).read()
+def sub(text, anchor, replacement):
+    if anchor not in text:
+        sys.exit("ANCHOR NOT FOUND, manifest NOT patched")
+    return text.replace(anchor, replacement, 1)
+t = sub(t, "    - --allow-privileged=true",
+    "    - --allow-privileged=true"
+    "\n    - --encryption-provider-config=/etc/kubernetes/enc/enc.yaml")
+t = sub(t, "    volumeMounts:\n    - mountPath: /etc/ssl/certs",
+    "    volumeMounts:"
+    "\n    - mountPath: /etc/kubernetes/enc\n      name: enc\n      readOnly: true"
+    "\n    - mountPath: /etc/ssl/certs")
+t = sub(t, "  volumes:\n  - hostPath:",
+    "  volumes:"
+    "\n  - hostPath:\n      path: /etc/kubernetes/enc\n      type: DirectoryOrCreate"
+    "\n    name: enc"
+    "\n  - hostPath:")
+assert "--encryption-provider-config=" in t
+open(p,"w").write(t); print("patched: all three anchors matched")
+PYEDIT
+docker exec -i $CP sh -c \
+  'cat > /etc/kubernetes/manifests/.ka.tmp && mv /etc/kubernetes/manifests/.ka.tmp /etc/kubernetes/manifests/kube-apiserver.yaml' \
+  < /tmp/ka-enc.yaml
+for i in $(seq 1 40); do sleep 4; kubectl get --raw /healthz >/dev/null 2>&1 && break; done
+
+# The bench is only built if the API server came back with the flag. Prove it loudly.
+docker exec $CP grep -q -- '--encryption-provider-config=' /etc/kubernetes/manifests/kube-apiserver.yaml \
+  && kubectl get --raw /healthz >/dev/null 2>&1 \
+  && echo "bench C ready: flag present, API server healthy" \
+  || echo "BENCH C NOT READY — do not start drills 8 or 9."
+```
+
+## Drill 8 — encryption at rest, configured and signed off
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+A compliance finding said *Secrets must be encrypted at rest*. An engineer generated a 32-byte key, wrote an `EncryptionConfiguration`, mounted it, added `--encryption-provider-config`, restarted the API server cleanly, and closed the ticket with the diff attached. Every one of those steps is correct and the ticket is wrong.
+
+Create a Secret **after** the change — the way anyone verifying would — and look:
+
+```bash
+kubectl create secret generic new-creds -n drill8 --from-literal=password=hunter3
+etcd get /registry/secrets/drill8/new-creds | grep -ao 'password.*' | head -1
+```
+
+**Say what is wrong, why nothing anywhere reported it, and what the fix is in full — including the part that is not the config file.**
+
+<details>
+<summary>Answer</summary>
+
+```
+password"hunter3
+```
+
+Plaintext, in etcd, on a cluster with a valid encryption key and a healthy API server. `kubectl get secret` looks perfect, the flag is present, the file parses, the key is real, and the API server logged nothing.
+
+**The fault is one line of ordering: `identity` is first in `providers`.** Go back and read bench C's `enc.yaml`. `providers` is an ordered list and the order *is* the semantics: **the first provider encrypts; all of them are tried for decryption.** `identity` is the no-op provider — "store as-is" — so putting it first configures a cluster to write everything in plaintext while holding a perfectly good key it will never use to write anything. Lesson 06 measured this exact swap deliberately; here it arrives as somebody's mistake.
+
+Nothing reported it because there is nothing to report. Every component did what it was told. This is the act's fourth question — *if it stopped working, what would be different?* — and the answer for the key is **nothing observable**, which is why the reviewer signing off the diff had no way to catch it from the diff.
+
+**The fix is three things, and only the first is the config file.**
+
+1. **Reverse the providers** so `aescbc` is first and `identity` is last:
+
+```bash
+docker exec -i $CP sh -c 'cat > /etc/kubernetes/enc/enc.yaml' <<'EOF'
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+- resources: ["secrets"]
+  providers:
+  - aescbc:
+      keys:
+      - name: key1
+        secret: 8IUDo6/WHRUZiqB9edQrNWWNs11hKjZd0cKifziajkc=
+  - identity: {}
+EOF
+docker exec $CP sh -c 'touch /etc/kubernetes/manifests/kube-apiserver.yaml'
+for i in $(seq 1 40); do sleep 4; kubectl get --raw /healthz >/dev/null 2>&1 && break; done
+```
+
+`identity` stays, at the end. Removing it would be the tempting tidy-up and it is wrong: it is the provider that decrypts everything written *before* the fix, and there is a lot of that.
+
+2. **Re-encrypt what already exists.** This is the step people omit, and it is why the fix is not just a restart. Changing the config changes what happens to *future* writes; every existing Secret is still exactly as it was on disk. Force a rewrite of all of them, then prove both:
+
+```bash
+kubectl get secrets -A -o json | kubectl replace -f - >/dev/null
+etcd get /registry/secrets/drill8/new-creds    | grep -c 'k8s:enc:aescbc:v1:key1'
+etcd get /registry/secrets/drill8/legacy-creds | grep -c 'k8s:enc:aescbc:v1:key1'
+```
+
+```
+1
+1
+```
+
+Both — including `legacy-creds`, which predates the whole exercise. The prefix is self-describing, so the check is exact rather than a vibe.
+
+3. **Compact and defragment**, because etcd is a versioned store and the plaintext revisions are still in it. Until you compact, `etcdctl get --rev=<old>` returns the plaintext you just "fixed", and so does any snapshot taken in between. Lesson 06 does this step and explains why a snapshot older than the fix is a copy of the problem.
+
+**And the finding worth carrying past the exam:** every check that would have caught this is a check on the *data*, not on the configuration. The flag, the file, the key, the mount and the restart were all verifiable and all fine. `etcd get` is the only thing that answers the actual question. When somebody tells you a control is enabled, the useful reply is not "show me the config" — it is **"show me the stored bytes."**
+
+</details>
+
+## Drill 9 — the namespace that never enforced anything
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+*(Drill 4 handed you the misconfiguration in its reproduce block. This one does not.)*
+
+Three namespaces are handed over from another team as "hardened to `restricted`". You have five minutes and no documentation. Set them up as you received them, then audit them:
+
+```bash
+for n in tenant-a tenant-b tenant-c; do kubectl create ns $n >/dev/null; done
+kubectl label ns tenant-a pod-security.kubernetes.io/enforce=restricted
+kubectl label ns tenant-b pod-security.kubernetes.io/warn=restricted \
+                          pod-security.kubernetes.io/audit=restricted
+kubectl label ns tenant-c pod-security.kubernetes.io/enforce=restricted \
+                          pod-security.kubernetes.io/enforce-version=v1.24
+for n in tenant-a tenant-b tenant-c; do
+  kubectl -n $n wait --for=create serviceaccount/default --timeout=60s >/dev/null
+done
+```
+
+**Exactly one of those three namespaces will refuse a privileged Pod. Say which, say what each of the other two does instead, and name the audit that would have missed all of this.**
+
+<details>
+<summary>Answer</summary>
+
+Prove it before reading further — one loop, and the answer is in the output:
+
+```bash
+for n in tenant-a tenant-b tenant-c; do
+  printf '%-10s ' "$n"
+  kubectl -n $n run t --image=busybox:1.36 --restart=Never --privileged \
+    --command -- true >/dev/null 2>&1 && echo "ADMITTED" || echo "refused"
+done
+```
+
+```
+tenant-a   refused
+tenant-b   ADMITTED
+tenant-c   ADMITTED
+```
+
+**`tenant-a` is the only one enforcing anything.**
+
+**`tenant-b` has `warn` and `audit` and no `enforce`.** It is not a hardened namespace, it is a *reporting* namespace. Every violating Pod is admitted, a warning goes to whoever ran the command — where it scrolls past in CI and no human reads it — and an annotation lands in the audit log. This is the correct **first** step of a rollout and a catastrophe as an end state, and it is the most common real PSA misconfiguration there is: somebody turned on the safe mode to measure the blast radius and nobody came back.
+
+**`tenant-c` has `enforce` *and* a version pin of `v1.24`.** `enforce-version` pins which revision of the `restricted` standard is applied, and it is a legitimate field — it is how you stop a cluster upgrade from silently tightening admission under a running workload. It is also how you freeze a policy at a definition that predates every check added since. So the namespace is genuinely enforcing, genuinely reports `restricted`, and enforces a *weaker* `restricted` than the cluster's current one. A pin with no expiry date is a decision nobody revisits.
+
+**The audit that misses all three.** Listing the label:
+
+```bash
+kubectl get ns -L pod-security.kubernetes.io/enforce
+```
+
+`tenant-a` and `tenant-c` both print `restricted` and look identical; `tenant-b` prints nothing, in a column that is empty for most namespaces anyway. So the enumeration that *feels* like an audit — which namespaces are labelled restricted? — gets one of three right and gives you no signal at all on the other two. Lesson 03 established the deeper version: a namespace can be **exempted** cluster-wide in the `AdmissionConfiguration`, in which case it carries a perfect `enforce=restricted` label and enforces nothing, and no amount of label reading will ever show you that.
+
+**What to check instead, and it is three things rather than one:**
+
+```bash
+kubectl get ns -o json | python3 -c "
+import json,sys
+for n in json.load(sys.stdin)['items']:
+    L = n['metadata'].get('labels', {})
+    e = L.get('pod-security.kubernetes.io/enforce')
+    v = L.get('pod-security.kubernetes.io/enforce-version')
+    if e is None or e == 'privileged' or v:
+        print(n['metadata']['name'], '-> enforce=%s version=%s' % (e, v))
+"
+```
+
+...then read the API server's `--admission-control-config-file` for exemptions, and then — the only check that is about behaviour rather than configuration — **try to create a violating Pod**, which is the loop at the top of this answer. Same finding as drill 8, one layer up: the configuration is not the control, and only the attempt tells you what the control does.
+
+</details>
+
+**Tear down bench C:**
+
+```bash
+kubectl delete ns drill8 tenant-a tenant-b tenant-c --ignore-not-found
+docker exec $CP sh -c \
+  'cp /root/ka-enc.bak /etc/kubernetes/manifests/.ka.tmp \
+   && mv /etc/kubernetes/manifests/.ka.tmp /etc/kubernetes/manifests/kube-apiserver.yaml'
+for i in $(seq 1 40); do sleep 4; kubectl get --raw /healthz >/dev/null 2>&1 && break; done
+docker exec $CP rm -rf /etc/kubernetes/enc /root/ka-enc.bak
+docker exec $CP ls /etc/kubernetes/manifests/     # all four, every time
+```
 
 ---
 

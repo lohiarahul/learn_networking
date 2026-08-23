@@ -92,7 +92,7 @@ kubectl get networkpolicy -A             the declared policies
 kubectl get pods --show-labels           the labels policies actually select on
 ```
 
-For Cilium, there are no iptables chains to read — the enforcement is in eBPF, inspected with `cilium endpoint list` and `cilium monitor` instead, which is the "no chains, programs in the kernel" point from the CNI file made concrete.
+For Cilium, there are no iptables chains to read — the enforcement is in eBPF, inspected with `cilium endpoint list` and `cilium monitor` instead, which is the "no chains, programs in the kernel" point from [the CNI lesson](05-cni.md) made concrete. Those two commands need a Cilium node, which this act does not build; [Act X](../act-10-cluster-security/09-encryption-between-pods.md) does.
 
 ### Can you watch a label flip a port open?
 
@@ -121,8 +121,10 @@ nmap -p 5432,8080,9090 <database-pod-ip>      # AFTER, from a non-api Pod
 
 The word `nmap` reports is the tell. Before the policy, reachable ports read `open`. After, from a Pod that the policy does *not* permit, they read `filtered` — nmap's word for "the SYN went out and nothing, not even a rejection, came back," which is exactly the silent kernel drop. Run the same `nmap` from a Pod labeled `app=api` and `5432` is `open` again: identical packet, different source label, opposite result — because the rule keys on identity, not address.
 
+That is the model, and the model is the part most material never gets right. What it is not is practice: every policy on this page has one `podSelector` and one port, and the exam's tasks do not. [The next lesson](07b-policy-shapes.md) writes the other four shapes — cross-namespace peers and the one hyphen that turns an AND into an OR, `ipBlock`, and egress — and proves each one against a four-client bench rather than asserting it.
+
 > **You understand this when you can** explain why a NetworkPolicy denial shows up as a connection *timeout* rather than an HTTP 403 — the packet is dropped in the kernel at the node before it reaches the app — and why the rule survives Pods restarting with new IPs: it selects on labels, and the CNI keeps the label-to-IP mapping current as it rewrites the underlying iptables (or eBPF) rules.
 
 ---
 
-← Prev: **[Gateway API](06b-gateway-api.md)** · ↑ **[Act V overview](README.md)** · Next: **[The debugging method](08-debugging.md)** →
+← Prev: **[Gateway API](06b-gateway-api.md)** · ↑ **[Act V overview](README.md)** · Next: **[The four shapes of a NetworkPolicy](07b-policy-shapes.md)** →
