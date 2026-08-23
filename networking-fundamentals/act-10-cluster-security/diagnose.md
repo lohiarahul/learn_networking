@@ -673,18 +673,18 @@ kubectl label ns tenant-a pod-security.kubernetes.io/enforce=restricted
 kubectl label ns tenant-b pod-security.kubernetes.io/warn=restricted \
                           pod-security.kubernetes.io/audit=restricted
 kubectl label ns tenant-c pod-security.kubernetes.io/enforce=restricted \
-                          pod-security.kubernetes.io/enforce-version=v1.24
+                          pod-security.kubernetes.io/enforce-version=v1.21
 for n in tenant-a tenant-b tenant-c; do
   kubectl -n $n wait --for=create serviceaccount/default --timeout=60s >/dev/null
 done
 ```
 
-**Exactly one of those three namespaces will refuse a privileged Pod. Say which, say what each of the other two does instead, and name the audit that would have missed all of this.**
+**Two of those three namespaces refuse a privileged Pod, and only one of the two is hardened. Say which is which, say what the third does instead, and name the audit that would have missed all of it.**
 
 <details>
 <summary>Answer</summary>
 
-Prove it before reading further — one loop, and the answer is in the output:
+Prove it before reading further. Start with the probe everyone reaches for:
 
 ```bash
 for n in tenant-a tenant-b tenant-c; do
@@ -697,14 +697,61 @@ done
 ```
 tenant-a   refused
 tenant-b   ADMITTED
+tenant-c   refused
+```
+
+**That probe found one problem and cleared one namespace it should not have.** `tenant-b` is caught. `tenant-c` refused, so it looks like `tenant-a`, and if this were the whole audit you would sign it off.
+
+The reason it cleared `tenant-c` is that a privileged container is the *wrong instrument*. `privileged` is forbidden by Baseline and carries **no version annotation at all** — it has been part of the standard since the standard existed, so no `enforce-version` you can write will ever admit it. A version pin can only weaken the controls that were *added* after the pinned version, so the probe has to be a Pod that violates one of those and nothing else.
+
+Two controls became Restricted requirements after PSA first shipped: dropping every capability, in **v1.22**, and refusing an explicit `runAsUser: 0`, in **v1.23**. So build a Pod that satisfies the whole `restricted` standard *except* the capability drop, and ask the same three namespaces again:
+
+```bash
+cat > probe.yaml <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: probe }
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile: { type: RuntimeDefault }
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["true"]
+      securityContext:
+        allowPrivilegeEscalation: false
+EOF
+
+for n in tenant-a tenant-b tenant-c; do
+  printf '%-10s ' "$n"
+  kubectl -n $n apply -f probe.yaml >/dev/null 2>&1 && echo "ADMITTED" || echo "refused"
+done
+```
+
+```
+tenant-a   refused
+tenant-b   ADMITTED
 tenant-c   ADMITTED
 ```
 
-**`tenant-a` is the only one enforcing anything.**
+`tenant-a`'s refusal names the single violation, which is how you know the Pod is compliant in every other respect:
+
+```
+Error from server (Forbidden): pods "probe" is forbidden: violates PodSecurity
+"restricted:latest": unrestricted capabilities (container "c" must set
+securityContext.capabilities.drop=["ALL"])
+```
+
+**`tenant-a` is the only one enforcing the standard it claims.**
 
 **`tenant-b` has `warn` and `audit` and no `enforce`.** It is not a hardened namespace, it is a *reporting* namespace. Every violating Pod is admitted, a warning goes to whoever ran the command — where it scrolls past in CI and no human reads it — and an annotation lands in the audit log. This is the correct **first** step of a rollout and a catastrophe as an end state, and it is the most common real PSA misconfiguration there is: somebody turned on the safe mode to measure the blast radius and nobody came back.
 
-**`tenant-c` has `enforce` *and* a version pin of `v1.24`.** `enforce-version` pins which revision of the `restricted` standard is applied, and it is a legitimate field — it is how you stop a cluster upgrade from silently tightening admission under a running workload. It is also how you freeze a policy at a definition that predates every check added since. So the namespace is genuinely enforcing, genuinely reports `restricted`, and enforces a *weaker* `restricted` than the cluster's current one. A pin with no expiry date is a decision nobody revisits.
+**`tenant-c` has `enforce` *and* a version pin of `v1.21`.** `enforce-version` pins which revision of the `restricted` standard is applied, and it is a legitimate field — it is how you stop a cluster upgrade from silently tightening admission under a running workload. It is also how you freeze a policy at a definition that predates every check added since. So the namespace is genuinely enforcing, genuinely reports `restricted`, refuses the probe everybody tries, and enforces a *weaker* `restricted` than the cluster's current one. A pin with no expiry date is a decision nobody revisits.
+
+The two probes are the whole lesson of the drill and they are worth separating. Both were real measurements, both ran against a live admission controller, and the first one produced a **false negative** — not because it was executed badly but because the fault it was looking for was in the one part of the standard that never changes. `restricted:latest` and `restricted:v1.21` agree about `privileged`, about `runAsNonRoot`, about `allowPrivilegeEscalation`, and about `seccompProfile` (a v1.19 addition, so already inside a v1.21 pin). They disagree about exactly two fields, and unless your probe violates one of those two, a pinned namespace is indistinguishable from a current one. **A test that cannot fail is not a test**, which is the same sentence as drill 8's, arriving through a different door.
 
 **The audit that misses all three.** Listing the label:
 
