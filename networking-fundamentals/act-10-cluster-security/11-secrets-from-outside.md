@@ -31,7 +31,7 @@ export KUBECONFIG="${TMPDIR:-/tmp}/act10.kubeconfig"
 kind get kubeconfig --name netlab > "$KUBECONFIG"
 
 helm repo add external-secrets https://charts.external-secrets.io
-helm install external-secrets external-secrets/external-secrets \
+helm install external-secrets external-secrets/external-secrets --version 2.6.0 \
   -n external-secrets --create-namespace
 kubectl -n external-secrets rollout status deploy --timeout=360s
 kubectl get pods -n external-secrets

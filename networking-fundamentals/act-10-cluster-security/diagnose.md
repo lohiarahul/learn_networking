@@ -61,7 +61,7 @@ server = "https://registry:5000"
 EOF
 done
 crane() { docker run --rm --network kind -v "$REGTLS/tls.crt":/ca.crt:ro \
-            -e SSL_CERT_FILE=/ca.crt gcr.io/go-containerregistry/crane "$@"; }
+            -e SSL_CERT_FILE=/ca.crt gcr.io/go-containerregistry/crane:v0.21.9 "$@"; }
 crane copy busybox:1.36 registry:5000/app:v1 2>&1 | tail -1
 kubectl create ns drill
 ```

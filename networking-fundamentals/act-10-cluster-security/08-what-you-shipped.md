@@ -64,10 +64,24 @@ Finally, the tools. Three of them, and none needs installing, because each ships
 
 ```bash
 crane()  { docker run --rm --network kind -v "$REGTLS/tls.crt":/ca.crt:ro \
-             -e SSL_CERT_FILE=/ca.crt gcr.io/go-containerregistry/crane "$@"; }
+             -e SSL_CERT_FILE=/ca.crt gcr.io/go-containerregistry/crane:v0.21.9 "$@"; }
 trivy()  { docker run --rm --network kind -v trivycache:/root/.cache \
-             -v "${TMPDIR:-/tmp}":/out aquasec/trivy:latest "$@"; }
+             -v "${TMPDIR:-/tmp}":/out aquasec/trivy:0.74.0 "$@"; }
 ```
+
+**Both are pinned, and this lesson would be dishonest if they were not.** Two hundred lines from here you
+will watch this same `trivy`, at this version, against a frozen database, give two different answers to
+one question — and the habit that argument earns is *pin the tool, the version, the database and the
+entry point, and treat a change in any of the four as a change in the finding.* A helper that said
+`:latest` would be that argument's first counterexample. Use whatever versions are current when you read
+this; pin them, and write down which ones you used.
+
+The numbers printed in this lesson came from these two versions against the vulnerability database as it
+stood when it was written. If yours are different, nothing has gone wrong — that difference **is** the
+lesson. What must not differ is the two halves of a *comparison*, which is what `--skip-db-update` is for.
+
+(A small joke at the pin's expense: `crane version` prints a git commit rather than its own tag, so the
+image tag is the only place the version is legible. Pinning is not always the same as being told.)
 
 `SSL_CERT_FILE` is Go's environment variable for "use this file as the trust store instead of the system one." Every tool in this lesson is written in Go, which is why one variable configures all of them — and worth filing away, because in about two hundred lines you will meet a component that ignores containerd's trust entirely and has to be told separately.
 
