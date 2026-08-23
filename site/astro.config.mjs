@@ -46,8 +46,8 @@ export default defineConfig({
       title: 'learn_networking',
       description:
         'A hands-on networking course built around one question: how does write() on one machine '
-        + 'become read() on another? Five acts, run in a throwaway Linux container and a real '
-        + 'Kubernetes cluster — from the file-descriptor table to CNI.',
+        + 'become read() on another? Ten acts, run in a throwaway Linux container and a real '
+        + 'Kubernetes cluster — from the file-descriptor table to cluster security.',
       // The design system is now a maintained, reading-optimised theme rather than a hand-rolled one.
       // Flexoki is Steph Ango's ink-on-paper palette, packaged by Starlight's own lead maintainer.
       // Swap the accent with: 'red' | 'orange' | 'yellow' | 'green' | 'cyan' | 'blue' | 'purple' | 'magenta'.
@@ -121,8 +121,38 @@ export default defineConfig({
           items: [{ autogenerate: { directory: 'act-5' } }],
         },
         {
+          label: 'Act VI — The cluster that runs itself',
+          collapsed: true,
+          items: [{ autogenerate: { directory: 'act-6' } }],
+        },
+        {
+          label: 'Act VII — Describing the work',
+          collapsed: true,
+          items: [{ autogenerate: { directory: 'act-7' } }],
+        },
+        {
+          label: 'Act VIII — Trust on an untrusted wire',
+          collapsed: true,
+          items: [{ autogenerate: { directory: 'act-8' } }],
+        },
+        {
+          label: 'Act IX — Identity and access',
+          collapsed: true,
+          items: [{ autogenerate: { directory: 'act-9' } }],
+        },
+        {
+          label: 'Act X — Securing the cluster',
+          collapsed: true,
+          items: [{ autogenerate: { directory: 'act-10' } }],
+        },
+        {
           label: 'Capstone',
           items: [{ autogenerate: { directory: 'capstone' } }],
+        },
+        {
+          label: 'Exam prep',
+          collapsed: true,
+          items: [{ autogenerate: { directory: 'exam-prep' } }],
         },
         {
           label: 'Reference',
