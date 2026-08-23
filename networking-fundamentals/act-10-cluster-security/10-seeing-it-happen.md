@@ -160,7 +160,7 @@ docker exec netlab-control-plane sh -c \
 
 `hunter2` is not in there, which is the `Metadata` level working: **who read which Secret, not what was in it.** But go through the rest of it slowly, because three fields are payoffs of earlier acts and one of them is the single most useful field in Kubernetes security.
 
-`user.username` and `groups` are Act IX's authentication result — the *outcome* of the process you took apart by hand, recorded. And `extra` names the specific credential: `X509SHA256=d6b667f1…` is the SHA-256 of the client certificate that authenticated. Not "an admin" — *that* certificate, distinguishable from every other certificate issued to the same subject. Act VIII made you compute fingerprints; this is where they earn their keep, because "rotate the compromised credential" requires knowing which one it was.
+`user.username` and `groups` are Act IX's authentication result — the *outcome* of the process you took apart by hand, recorded. And `extra` names the specific credential: `X509SHA256=d6b667f1…` is the SHA-256 of the client certificate that authenticated. Not "an admin" — *that* certificate, distinguishable from every other certificate issued to the same subject. Act VIII had you compute SHA-256 digests of files by hand with `openssl dgst`; this is the same function over a certificate instead, and it is where that habit earns its keep — because "rotate the compromised credential" is only an actionable sentence once you know *which* credential.
 
 Then `annotations`, and specifically `authorization.k8s.io/reason`:
 
@@ -449,7 +449,7 @@ daemon set "falco" successfully rolled out
 Loaded event sources: syscall
 ```
 
-`driver.kind=modern_ebpf` is the choice worth understanding. Falco needs to observe every syscall on the node, and it has historically done that with a kernel module you compile against your running kernel — which is exactly as fragile as it sounds. The modern driver is a **CO-RE eBPF** program: it relies on `/sys/kernel/btf/vmlinux`, the kernel's own description of its own data structures, so one binary works across kernels. Act I met eBPF as the thing that rescued you from `strace` stopping the world; this is the same mechanism at cluster scale, and `Loaded event sources: syscall` is it declaring what it is attached to.
+`driver.kind=modern_ebpf` is the choice worth understanding. Falco needs to observe every syscall on the node, and it has historically done that with a kernel module you compile against your running kernel — which is exactly as fragile as it sounds. The modern driver is a **CO-RE eBPF** program: it relies on `/sys/kernel/btf/vmlinux`, the kernel's own description of its own data structures, so one binary works across kernels. And this is a promise being paid. Act I introduced `strace`, measured that it works by *stopping* the program at every syscall, and named eBPF as the near-free alternative — then explicitly declined to use it, on the grounds that a program loaded into the kernel only makes sense once you understand kernel hooks: *"we earn it in the Kubernetes stage, not here."* This is that stage, and `Loaded event sources: syscall` is the thing Act I deferred, declaring what it is attached to.
 
 Now repeat the act the audit log could not see:
 

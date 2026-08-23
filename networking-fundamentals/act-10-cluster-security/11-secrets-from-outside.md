@@ -129,7 +129,7 @@ NAME       TYPE     DATA   AGE
 db-creds   Opaque   1      20s
 ```
 
-**A Secret you cannot delete.** Twenty seconds old — it came back. That is Act VI's reconciliation loop, which by now you should expect: a controller compares desired state to actual state and fixes the difference, and it does not care that the difference was your `kubectl delete`. Act VII made the same point with a Deployment's Pods.
+**A Secret you cannot delete.** Twenty seconds old — it came back. That is Act VI's reconciliation loop, which by now you should expect: a controller compares desired state to actual state and fixes the difference, and it does not care that the difference was your `kubectl delete`. Act VII taught the same idea through ownership: `kubectl drain` refused to delete a Pod that nothing owned, and was willing to delete the ones a ReplicaSet would replace. The deciding fact there was an `ownerReference`, and it is the deciding fact here.
 
 The consequence for an incident is worth stating plainly, because it is a reflex people get wrong under pressure: **deleting the Secret is no longer revocation.** It is a twenty-second outage followed by the same credential.
 
@@ -238,7 +238,7 @@ iat    : 1787456562
 k8s.io : {"namespace": "outside", "serviceaccount": {"name": "app", "uid": "074e5cbf-3589-4aad-bdb2-d76e509b450f"}}
 ```
 
-Read `aud` and `sub` together, because between them they are the entire mechanism. The subject is a workload — namespace, ServiceAccount, and the ServiceAccount's UID, so a deleted-and-recreated ServiceAccount of the same name is a *different* subject. And the audience is a service that is not this cluster, which means this token is useless anywhere else: lesson 07 measured that the API server rejects a token whose audience is not its own, and that same check is what stops the secret store replaying it against the cluster.
+Read `aud` and `sub` together, because between them they are the entire mechanism. The subject is a workload — namespace, ServiceAccount, and the ServiceAccount's UID, so a deleted-and-recreated ServiceAccount of the same name is a *different* subject. And the audience is a service that is not this cluster, which means this token is useless anywhere else: Act IX's diagnose drill measured a `vault`-scoped token getting a `401` from the API server, and lesson 07 read the `aud` claim that explains it. That same check, run by the secret store, is what stops it replaying your token back against the cluster.
 
 And the last piece is the one Act IX made you do by hand:
 
@@ -347,7 +347,7 @@ The reflex worth keeping: **"the secret lives outside now" is a claim about the 
 
      PREDICTION (b): kubectl delete secret -> IT IS BACK IN 20s
        Act VI's reconciliation loop; it does not care that the
-       difference was your delete. (Act VII said the same re: Pods.)
+       difference was your delete. (Act VII: drain deletes what is OWNED.)
        => DELETING THE SECRET IS NO LONGER REVOCATION. it is a
           20-second outage followed by THE SAME CREDENTIAL.
           if that is in a runbook, it is now wrong, and an INCIDENT

@@ -66,6 +66,7 @@ EOF
 }
 mk d1a Always
 crane copy busybox:1.37 registry:5000/app:v1 2>&1 | tail -1
+crane digest registry:5000/app:v1     # must now be ...9db7b599, not ...73aaf090
 mk d1b IfNotPresent
 mk d1c Always
 kubectl get pods -n drill --sort-by=.metadata.name \
@@ -79,14 +80,19 @@ for p in d1a d1b d1c; do printf "%-5s " $p; kubectl logs $p -n drill; done
 <summary>Answer</summary>
 
 ```
-POD    SPEC                   POLICY
-d1a    registry:5000/app:v1   Always
-d1b    registry:5000/app:v1   IfNotPresent
-d1c    registry:5000/app:v1   Always
-d1a  BusyBox v1.36.1 ...
-d1b  BusyBox v1.36.1 ...
-d1c  BusyBox v1.37.0 ...
+registry:5000/app:v1: digest: sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+
+POD   SPEC                   POLICY
+d1a   registry:5000/app:v1   Always
+d1b   registry:5000/app:v1   IfNotPresent
+d1c   registry:5000/app:v1   Always
+d1a   BusyBox v1.36.1 (2023-05-18 22:34:17 UTC) multi-call binary.
+d1b   BusyBox v1.36.1 (2023-05-18 22:34:17 UTC) multi-call binary.
+d1c   BusyBox v1.37.0 (2024-09-26 21:31:42 UTC) multi-call binary.
 ```
+
+That `crane digest` line is not decoration, and it is there because this drill was written after the failure it prevents. If the re-push silently fails — a stale CA in `SSL_CERT_FILE`, a registry that restarted with a new certificate — then all three Pods print `1.36.1`, the drill appears to disprove its own point, and nothing tells you why. **A bench that can fail quietly needs a check that fails loudly**, which is this act's whole subject pointed at the lab.
 
 `d1b` ran the *old* bytes because `IfNotPresent` means "do not ask the registry if you already have something under this name", and the node did. Three Pods, one spec string, two programs.
 
@@ -249,7 +255,10 @@ docker exec -i $CP sh -c \
 for i in $(seq 1 40); do sleep 4; kubectl get --raw /healthz >/dev/null 2>&1 && break; done
 kubectl create ns drill2
 kubectl label ns drill2 pod-security.kubernetes.io/enforce=restricted
+kubectl -n drill2 wait --for=create serviceaccount/default --timeout=60s
 ```
+
+That last line matters and is worth a sentence, because without it this drill lies to you. A namespace's `default` ServiceAccount is created by a *controller* after the namespace exists, so for a second or two a brand-new namespace has none — and a Pod created in that window is refused with `error looking up service account drill2/default: serviceaccount "default" not found`. That is a `Forbidden`, from the API server, about a Pod you expected to be refused, for entirely the wrong reason. Act VI's reconciliation loop again: the namespace is not finished when `create` returns.
 
 ## Drill 4 — the namespace that stopped being protected
 
@@ -261,7 +270,7 @@ kubectl label ns drill2 pod-security.kubernetes.io/enforce=privileged --overwrit
 sleep 3
 kubectl run after -n drill2 --image=busybox:1.36 --restart=Never --command -- true 2>&1 | tail -1
 kubectl get ns drill2 -o jsonpath='{.metadata.labels}{"\n"}'
-kubectl get events -n drill2 --no-headers | wc -l
+kubectl get events -n drill2 -o custom-columns='REASON:.reason,MSG:.message' --no-headers
 ```
 
 **Nothing refused the change and nothing recorded it as a problem. Find who did it and what they set, from the audit log — then say why the level in bench B's policy is a problem, and what you would change.**
@@ -269,7 +278,19 @@ kubectl get events -n drill2 --no-headers | wc -l
 <details>
 <summary>Answer</summary>
 
-The `before` Pod is refused with PSA's four-field message; the `after` Pod is created. The label now reads `privileged`, there are no events, and nothing in the cluster is unhealthy.
+The `before` Pod is refused with PSA's four-field message; the `after` Pod is created. The label now reads `privileged`, and nothing in the cluster is unhealthy.
+
+Look at what the events say, because it is worse than an empty list:
+
+```
+Scheduled   Successfully assigned drill2/after to netlab-worker
+Pulling     Pulling image "busybox:1.36"
+Pulled      Successfully pulled image "busybox:1.36" in 1.828s
+Created     Container created
+Started     Container started
+```
+
+Five events, all of them reporting the healthy, successful start of the Pod that should have been refused. **Not one event anywhere in the cluster mentions that a control was switched off.** An empty list would at least look like nothing happened; this looks like everything worked.
 
 Finding it:
 
@@ -373,7 +394,7 @@ The headline word is `all`, and it is false three times over.
 
 **Same-node traffic is plaintext.** Measured in lesson 09 at eight occurrences with encryption confirmed active. What WireGuard encrypts is the link *between* nodes; two co-scheduled Pods have no such link, so there is nothing to encrypt and it correctly encrypts nothing. This is the biggest hole and the one their evidence cannot see, because `cilium-dbg status` is a statement about the node's tunnel, not about a path.
 
-**The gap is non-deterministic**, which is worse than its size. The same Deployment is covered or not depending on where the scheduler put the replicas this morning, so the attestation is not stable across a rollout. `podAntiAffinity` is the missing control, and nobody writes it down as a security requirement.
+**The gap is non-deterministic**, which is worse than its size. The same Deployment is covered or not depending on where the scheduler put the replicas this morning, so the attestation is not stable across a rollout. `podAntiAffinity` — Act VII's `nodeAffinity` inverted, keeping selected Pods off one node — is the missing control, and nobody writes it down as a security requirement.
 
 **Host-network traffic is not covered.** `NodeEncryption` is a separate setting and was `Disabled` by default; anything on `hostNetwork: true` is outside the scheme.
 
@@ -400,7 +421,7 @@ No cluster needed, though lesson 11 measured every step. An incident: a database
 
 That Secret is managed by an `ExternalSecret`, so it has an `ownerReference` and a controller reconciling it. Deleting it is **a twenty-second outage followed by the same credential.** Lesson 11 measured it returning at 20 seconds old.
 
-This is Act VI's reconciliation loop doing exactly its job — compare desired to actual, fix the difference — and it does not care that the difference was a human's `kubectl delete`. Act VII made the identical point with a Deployment's Pods; the reason it is dangerous here is that the object *looks* like the credential.
+This is Act VI's reconciliation loop doing exactly its job — compare desired to actual, fix the difference — and it does not care that the difference was a human's `kubectl delete`. Act VII taught it through ownership — `drain` would delete a Pod something owned and refused to delete one nothing did — and the deciding field was the same `ownerReference`. The reason it is dangerous here is that the object *looks* like the credential.
 
 **The rewritten step, in order:**
 

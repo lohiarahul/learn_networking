@@ -274,7 +274,7 @@ No. Measured: the password appeared four times in a twenty-five packet capture w
 
 The explanation is the mechanism: what is encrypted is the *link between nodes*. Two Pods on one node have no such link; the packet crosses two veths inside one kernel and never reaches a wire. There is nothing for a transport encryption scheme to encrypt, so it correctly encrypts nothing.
 
-Two consequences worth stating. The protection is **non-deterministic** — the same Deployment is covered or not depending on where the scheduler placed the replicas this morning — which makes `podAntiAffinity` a security control nobody writes down as one. And the defended adversary is one *between* your nodes, never one *on* one.
+Two consequences worth stating. The protection is **non-deterministic** — the same Deployment is covered or not depending on where the scheduler placed the replicas this morning — which makes `podAntiAffinity` — Act VII's `nodeAffinity` inverted, keeping selected Pods off the same node — a security control nobody writes down as one. And the defended adversary is one *between* your nodes, never one *on* one.
 
 </details>
 

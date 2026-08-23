@@ -4,7 +4,7 @@ Act VIII spent six lessons building the machinery that makes bytes trustworthy, 
 
 The other half was about bytes **in flight**, and it stopped at the cluster's edge. Act V terminated TLS at an Ingress and then handed plaintext to a Pod. Act VI found the cluster running an entire certificate authority — `ca.crt`, `ca.key`, a serving certificate for every component — and used it to explain why the kubelet can talk to the API server at all. Ten acts, and not one packet between two of *your* Pods has ever been encrypted.
 
-Act V did put a `tcpdump` on Pod-to-Pod traffic. It was looking at routing at the time, and nobody went back to read the payload.
+Act V did put a `tcpdump` on Pod-to-Pod traffic — `tcpdump -i any host 10.244.2.3 and port 8080 -nn`, in the debugging lesson. But it was hunting a handshake: SYN out, SYN-ACK back, or a RST. Flags, addresses and ports, which is what `-nn` with no `-A` gives you. Nobody ever asked it to print the bytes.
 
 > **Predict first —** four commitments. **(a)** Two of your Pods on different nodes, talking HTTP. A third Pod, with no credentials, no relationship to either, and no permission to connect to anything. Can it read the conversation? Say what it would need in order to. **(b)** You apply a `NetworkPolicy` that permits exactly one client and denies everything else, on a CNI that really enforces it. Does that change your answer to (a)? **(c)** You turn on the CNI's transparent encryption and confirm it is working. Name a pair of Pods whose traffic is *still* plaintext afterwards. **(d)** That encryption needs both ends to agree on keys. Nobody typed a key. So where did the keys come from, what distributed them, and — the real question — what would someone have to compromise to read the traffic anyway?
 
@@ -17,6 +17,7 @@ export KUBECONFIG="${TMPDIR:-/tmp}/act10.kubeconfig"
 kind get kubeconfig --name netlab > "$KUBECONFIG"
 
 kubectl create ns wire
+kubectl -n wire wait --for=create serviceaccount/default --timeout=60s
 cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
 kind: Pod
@@ -171,6 +172,8 @@ Recreate the three Pods on this cluster — same manifests, `netenc-worker` in p
 kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg status \
   | grep -E "^Routing|^Encryption"
 ```
+
+Two names for one thing, and it is worth clearing up because there are genuinely three programs called some form of "cilium" here. **`cilium-dbg`** is the debug CLI *inside the agent* — Act V's CNI lesson called it `cilium service list` and `cilium monitor`, which still work, because `/usr/bin/cilium` in that image is a symlink to `cilium-dbg`. Separately there is a **`cilium` CLI you install on your laptop**, which manages the installation rather than inspecting the datapath. And `cilium-agent` is the daemon itself. This lesson only needs the first.
 
 ```
 Routing:                 Network: Tunnel [vxlan]   Host: Legacy
@@ -399,7 +402,9 @@ You now have enough measurements to rank the options honestly, and the useful ax
 | **In the CNI** (measured above) | the kernel, per node pair | **the node** | **plaintext** | one flag; no app changes |
 | **In a mesh** (sidecar or ambient proxy) | a proxy beside your Pod | **the workload** — a SPIFFE identity per ServiceAccount | encrypted | a proxy per Pod, a control plane, real latency and real operational weight |
 
-Read the identity column, because it is the whole difference and it is where Act IX walks back in. CNI encryption lets you prove *this traffic came from that machine*. A mesh's mTLS lets you prove *this traffic came from that workload* — and a workload identity is a thing you can write authorisation rules about, which is why meshes end up shipping their own policy layer that looks a great deal like Act IX's RBAC with the subject changed.
+One word in that table needs unpacking, and Act IX's [in-the-wild page](../act-9-identity/in-the-wild.md) is where it was named. **SPIFFE** is a convention for giving a workload a *structured* identity — `spiffe://cluster/ns/default/sa/probe`, a string that says which namespace and which ServiceAccount — and handing it out as a short-lived X.509 certificate. So it is not a new mechanism at all: it is Act VIII's certificates carrying Act IX's ServiceAccount name, issued for minutes rather than months.
+
+Now read the identity column, because it is the whole difference and it is where Act IX walks back in. CNI encryption lets you prove *this traffic came from that machine*. A mesh's mTLS lets you prove *this traffic came from that workload* — and a workload identity is a thing you can write authorisation rules about, which is why meshes end up shipping their own policy layer that looks a great deal like Act IX's RBAC with the subject changed.
 
 That is also the honest answer to "should we run a mesh". The encryption is the cheapest thing a mesh gives you and the usual reason people install one; the identity is the expensive thing and the actual reason to. If the requirement is "traffic between our nodes must not be readable on the network", one flag does it and this lesson measured it working. If the requirement is "service A may call service B and service C may not, cryptographically, regardless of network position", nothing below the mesh row can express it — and note that `NetworkPolicy` cannot either, because it selects on labels which are an attribute of an object, not a credential the sender proves.
 
@@ -418,7 +423,7 @@ The claim is false as stated, and the fastest way to show it is a Pod count rath
 
 **The Ingress terminates TLS and forwards plaintext.** Act V measured that. Encryption at the edge is often quoted as the answer to in-transit requirements, and it protects the leg you least control while leaving the leg inside the trust boundary open.
 
-**The evidence to gather first:** for the top few workloads that handle regulated data, the actual co-location. `kubectl get pods -A -o wide` and check whether any pair that talks to each other is on one node right now. One such pair is a counterexample to "all", takes thirty seconds to find, and is far more persuasive than a description of the mechanism. Then ask what stops it happening tomorrow — because unless there is anti-affinity, nothing does, and the honest control is `podAntiAffinity` plus this feature, which nobody has ever written down as a security requirement.
+**The evidence to gather first:** for the top few workloads that handle regulated data, the actual co-location. `kubectl get pods -A -o wide` and check whether any pair that talks to each other is on one node right now. One such pair is a counterexample to "all", takes thirty seconds to find, and is far more persuasive than a description of the mechanism. Then ask what stops it happening tomorrow — because unless there is anti-affinity, nothing does. The honest control is this feature *plus* `podAntiAffinity`: the scheduling rule that keeps selected Pods **off** the same node, which is the mirror of the `nodeAffinity` Act VII used to pull them onto one. Nobody has ever written that down as a security requirement.
 
 **And the thing to volunteer:** the `CiliumNode` RBAC finding. The requirement says encrypted; the interesting question is *against whom*, and the answer here is "anyone who cannot get a Pod onto a node and cannot write a `CiliumNode` object". Both of those are permissions, both are grantable, and neither appears in any document about encryption.
 

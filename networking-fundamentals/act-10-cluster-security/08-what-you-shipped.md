@@ -10,7 +10,7 @@ Lesson 07 handed you the question in three pieces. Lesson 04 built an image allo
 
 > **What does an image tag actually point at, who can change it after you have approved it, and what would it take to state — and have the cluster check — that the thing running is the thing you built?**
 
-> **Predict first —** four commitments, and (b) is the one that decides whether the rest of this lesson surprises you. **(a)** You approve `ourregistry/app:v1` after reviewing it. Somebody with push access to that registry later pushes different content under the same tag. Is there any field in your Pod spec, as written, that would now read differently? **(b)** Two Pods, byte-identical specs except `imagePullPolicy`, same namespace, same node, created a minute apart. Can they run **different programs**? Commit to yes or no. **(c)** You sign an image. Where does the signature go — name the place, and say who can write to it. **(d)** A scanner reports zero vulnerabilities. Name two distinct things that could mean, only one of which is "this image has no known vulnerabilities."
+> **Predict first —** four commitments, and (b) is the one that decides whether the rest of this lesson surprises you. **(a)** You approve `ourregistry/app:v1` after reviewing it. Somebody with push access to that registry later pushes different content under the same tag. Is there any field in your Pod spec, as written, that would now read differently? **(b)** Two Pods, byte-identical specs except `imagePullPolicy` — the field that decides whether the kubelet asks the registry for the image every time (`Always`) or is content with a copy the node already holds (`IfNotPresent`); `Never` is the third value and means exactly that. Same namespace, same node, created a minute apart. Can they run **different programs**? Commit to yes or no. **(c)** You sign an image. Where does the signature go — name the place, and say who can write to it. **(d)** A scanner reports zero vulnerabilities. Name two distinct things that could mean, only one of which is "this image has no known vulnerabilities."
 
 ### The bench
 
@@ -56,7 +56,9 @@ docker exec netlab-worker grep -A2 'cri".registry\]' /etc/containerd/config.toml
   config_path = "/etc/containerd/certs.d"
 ```
 
-That last line is why the directory works at all: containerd looks up per-registry configuration under `config_path`, and `kind` sets it for you. The self-signed certificate is its own CA, so `tls.crt` serves as both — Act VIII's "a root is a certificate that signed itself."
+That last line is why the directory works at all: containerd looks up per-registry configuration under `config_path`, and `kind` sets it for you.
+
+And notice what you just did, because Act VIII spent a section on it. That certificate is self-signed — subject and issuer are the same string — which Act VIII was blunt about: it proves *nothing*, anybody can make one saying anything, in one command. It is not trusted because it signed itself. It is trusted because **you put it in a file that containerd reads.** Act VIII's finding about the 195 root certificates on your laptop was exactly this: every one of them is self-signed too, and *their authority comes entirely from being in the file*. You have just become a trust anchor for two nodes, by copying a file.
 
 Finally, the tools. Three of them, and none needs installing, because each ships as a single-binary container image and this way they run **on the same Docker network as the registry**, which is the only place its name resolves:
 
@@ -87,6 +89,7 @@ Run it. `busybox` with no arguments prints its own version banner, which makes "
 
 ```bash
 kubectl create ns supply
+kubectl -n supply wait --for=create serviceaccount/default --timeout=60s
 cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
 kind: Pod
@@ -105,6 +108,8 @@ kubectl logs a1 -n supply
 kubectl get pod a1 -n supply \
   -o jsonpath='status.image: {.status.containerStatuses[0].image}{"\n"}imageID:      {.status.containerStatuses[0].imageID}{"\n"}'
 ```
+
+That `wait` is not ceremony. A namespace's `default` ServiceAccount is created by a controller *after* the namespace exists, and lesson 04 measured that every Pod gets that ServiceAccount attached by mutating admission — so a Pod created in the second before the controller catches up is refused with `serviceaccount "default" not found`. Act VI's reconciliation loop, in the smallest place it will ever bite you: `kubectl create ns` returning does not mean the namespace is finished.
 
 ```
 pod/a1 condition met
@@ -315,7 +320,7 @@ dial tcp: lookup registry on 192.168.65.254:53: no such host
 
 The image is **on the node** and the Pod cannot start. You have made every container start in the cluster depend on the registry being reachable, which is the same trade as lesson 04's `failurePolicy: Fail` and lesson 06's KMS dependency, in a third place: *freshness costs availability*, and this act has now shown you that in the admission path, the decryption path and the image path.
 
-The second is subtler, and it is why the CIS benchmark cares. Look again at what that message proves: with `IfNotPresent`, a container can start from bytes on the node **without the registry being consulted at all**. A registry that is not consulted does not get to apply its access control either. On a shared node, any Pod that can name an image already pulled by some other Pod — in another namespace, belonging to another team, from a registry it holds no credentials for — gets to run it, and the `imagePullSecrets` it does not have are never missed. `AlwaysPullImages` exists to make the registry's authorisation apply to every start, not to make the bytes fresher. The freshness is a side effect of asking.
+The second is subtler, and it is why the CIS benchmark cares. Look again at what that message proves: with `IfNotPresent`, a container can start from bytes on the node **without the registry being consulted at all**. A registry that is not consulted does not get to apply its access control either. On a shared node, any Pod that can name an image already pulled by some other Pod — in another namespace, belonging to another team, from a registry it holds no credentials for — gets to run it, and the `imagePullSecrets` it does not have (the field naming the Secret a Pod uses to authenticate to a private registry) are never missed. `AlwaysPullImages` exists to make the registry's authorisation apply to every start, not to make the bytes fresher. The freshness is a side effect of asking.
 
 Put the flag back before continuing; the rest of the lesson wants an unmutated pull policy:
 
@@ -631,7 +636,7 @@ So the sentence "the image is signed" carries no information at all. What carrie
 Which is why the industry moved off long-lived keys, and where Act IX walks back in. A key in a file has the problems Act IX catalogued for every credential: somebody has to hold it, rotate it, and not paste it into a CI log. **Keyless signing** replaces it with an identity:
 
 - the signer authenticates to an OIDC provider — Act IX's flow, exactly, and in CI the token is the workflow's own identity, not a person's
-- a CA called **Fulcio** issues a short-lived certificate binding that verified identity to a fresh key, which is Act VIII lesson 05's "be a certificate authority for ten minutes", run as a service
+- a CA called **Fulcio** issues a short-lived certificate binding that verified identity to a fresh key, which is [Act VIII lesson 05](../act-8-trust/05-certificates.md) — where you signed a certificate as your own CA — run as a service
 - the signature and certificate are recorded in **Rekor**, an append-only transparency log, so a signature that exists can be shown to have existed and cannot be quietly withdrawn
 
 And the verification changes shape. There is no key to name, so you name **who** and **which issuer** — `--certificate-identity` and `--certificate-oidc-issuer`. Get those wrong and you have rebuilt the bug above with more machinery: a verifier that accepts any Fulcio certificate accepts anybody who can log in to GitHub, which is everybody.
