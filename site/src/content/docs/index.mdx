@@ -1,6 +1,6 @@
 ---
 title: Understand the network your code runs on
-description: A hands-on networking course built around one question — how does write() on one machine become read() on another? Five acts you run yourself, from the file-descriptor table to CNI.
+description: A hands-on networking course built around one question — how does write() on one machine become read() on another? Ten acts you run yourself, from the file-descriptor table to a cluster that refuses.
 template: splash
 editUrl: false
 # A splash page has no single source lesson behind it, so a "last updated" line here would date the
@@ -8,7 +8,7 @@ editUrl: false
 lastUpdated: false
 hero:
   tagline: |
-    Five acts of experiments you run yourself, not diagrams you're asked to believe. Everything here answers one question: <strong>how does <code>write()</code> on one machine become <code>read()</code> on another?</strong>
+    Ten acts of experiments you run yourself, not diagrams you're asked to believe. Everything here answers one question: <strong>how does <code>write()</code> on one machine become <code>read()</code> on another?</strong>
   actions:
     - text: Start the course
       link: /course/
@@ -25,6 +25,12 @@ import Waypoints from 'lucide-astro/Waypoints';
 import Terminal from 'lucide-astro/Terminal';
 import CircleHelp from 'lucide-astro/CircleHelp';
 import ScanSearch from 'lucide-astro/ScanSearch';
+import RefreshCw from 'lucide-astro/RefreshCw';
+import FileCode from 'lucide-astro/FileCode';
+import KeyRound from 'lucide-astro/KeyRound';
+import Fingerprint from 'lucide-astro/Fingerprint';
+import ShieldCheck from 'lucide-astro/ShieldCheck';
+import GraduationCap from 'lucide-astro/GraduationCap';
 import BrandIcon from '../../components/BrandIcon.astro';
 import JourneyStrip from '../../components/JourneyStrip.astro';
 
@@ -46,13 +52,16 @@ import JourneyStrip from '../../components/JourneyStrip.astro';
       is auto-closed by the parser — which rendered .kz-note as an empty box with the text loose
       underneath it. */}
   <div class="kz-note" style="margin-block-start:var(--s-4)">
-    Acts I–IV run inside that container. Act V swaps it for a real Kubernetes cluster on your laptop, built with <code>kind</code>.
+    Acts I–IV run inside that container. Acts V–VII, IX and X swap it for a real Kubernetes cluster on your laptop, built with <code>kind</code>. Act VIII needs neither — just the <code>openssl</code> already on your machine.
   </div>
 </div>
 
+{/* Two sections, not one list of ten. The split is the course's own: Acts I–V answer the question in
+    the tagline, and Acts VI–X are what that answer becomes once a file in one kernel is an object in
+    a fleet's document store. Numbering the cards would only repeat the act numerals already in them. */}
 <div class="kz-section">
-  <div class="kz-eyebrow" style="margin-block-end:var(--s-2)">The path</div>
-  <h2 class="kz-section__title">Five acts, in order</h2>
+  <div class="kz-eyebrow" style="margin-block-end:var(--s-2)">The path · Acts I–V</div>
+  <h2 class="kz-section__title">How <code>write()</code> becomes <code>read()</code></h2>
   {/* Acts I, IV and V are about a named technology, so they carry its mark. Acts II and III keep a
       Lucide glyph — a protocol has no vendor, and giving ARP a logo would be a lie. */}
   <div class="kz-grid kz-grid--3">
@@ -96,7 +105,50 @@ import JourneyStrip from '../../components/JourneyStrip.astro';
       <span class="kz-card__icon kz-card__icon--brand"><BrandIcon name="kubernetes" /></span>
       <span class="kz-card__title">Kubernetes networking</span>
       <p class="kz-card__desc">One host is a ceiling. Who wires up a fleet, declaratively — and how do you debug it when the wiring breaks?</p>
-      <span class="kz-card__meta">Act V · 13 pages</span>
+      <span class="kz-card__meta">Act V · 16 pages</span>
+    </a>
+
+  </div>
+</div>
+
+<div class="kz-section">
+  <div class="kz-eyebrow" style="margin-block-end:var(--s-2)">The path · Acts VI–X</div>
+  <h2 class="kz-section__title">When the file becomes an object</h2>
+  <div class="kz-grid kz-grid--3">
+
+    <a class="kz-card" href="/act-6/">
+      <span class="kz-card__icon"><RefreshCw aria-hidden="true" /></span>
+      <span class="kz-card__title">The cluster that runs itself</span>
+      <p class="kz-card__desc">Act V leaned on a machine it never opened. Open it — and find no orchestrator at all: one document store, and loops that each watch for a single discrepancy.</p>
+      <span class="kz-card__meta">Act VI · 12 pages</span>
+    </a>
+
+    <a class="kz-card" href="/act-7/">
+      <span class="kz-card__icon"><FileCode aria-hidden="true" /></span>
+      <span class="kz-card__title">Describing the work</span>
+      <p class="kz-card__desc">Two acts of Kubernetes and you've never described a workload. A Pod spec isn't a config file — it's a bundle of claims, each read by a different loop.</p>
+      <span class="kz-card__meta">Act VII · 15 pages</span>
+    </a>
+
+    <a class="kz-card kz-card--clay" href="/act-8/">
+      <span class="kz-card__icon"><KeyRound aria-hidden="true" /></span>
+      <span class="kz-card__title">Trust on an untrusted wire</span>
+      <p class="kz-card__desc">Act III handed you a lock and told you not to look inside. This opens it — and answers the only question that was ever being asked: what exactly were you trusting?</p>
+      <span class="kz-card__meta">Act VIII · 10 pages</span>
+    </a>
+
+    <a class="kz-card" href="/act-9/">
+      <span class="kz-card__icon"><Fingerprint aria-hidden="true" /></span>
+      <span class="kz-card__title">Identity and access</span>
+      <p class="kz-card__desc">A proof of identity holds a name and no opinion about what it may do. One trade-off runs through the whole act: know an answer instantly, or know it's still true.</p>
+      <span class="kz-card__meta">Act IX · 10 pages</span>
+    </a>
+
+    <a class="kz-card kz-card--terra" href="/act-10/">
+      <span class="kz-card__icon"><ShieldCheck aria-hidden="true" /></span>
+      <span class="kz-card__title">Securing the cluster</span>
+      <p class="kz-card__desc">Nine acts built something that works and nobody asked whether it was safe. Every control here refuses something; the only real difference is <em>when</em>.</p>
+      <span class="kz-card__meta">Act X · 15 pages</span>
     </a>
 
   </div>
@@ -129,22 +181,28 @@ import JourneyStrip from '../../components/JourneyStrip.astro';
 </div>
 
 <div class="kz-section">
-  <div class="kz-grid">
+  <div class="kz-grid kz-grid--3">
     <a class="kz-card" href="/capstone/the-whole-stack/">
       <span class="kz-card__title">The capstone — one packet, five acts</span>
       <p class="kz-card__desc">At the end of Act V, follow a single packet from <code>write()</code> to <code>read()</code> through every layer you built — with the file that proves each one.</p>
       <span class="kz-card__meta">Read the capstone →</span>
     </a>
+    <a class="kz-card" href="/exam-prep/">
+      <span class="kz-card__icon"><GraduationCap aria-hidden="true" /></span>
+      <span class="kz-card__title">If you came here for CKA or CKS</span>
+      <p class="kz-card__desc">Every exam competency mapped to the lesson that covers it — and marked plainly where nothing here covers it yet. Rehearsal, kept deliberately outside the acts.</p>
+      <span class="kz-card__meta">See the domain maps →</span>
+    </a>
     <a class="kz-card" href="/reference/journey-map/">
       <span class="kz-card__title">Where the road ends, for now</span>
-      <p class="kz-card__desc">Acts I–V are built and teaching, with Act V scoped to Kubernetes networking. The rest of Kubernetes, cryptography, identity, and AWS are mapped but not yet written.</p>
+      <p class="kz-card__desc">Acts I–X are built and teaching, every lesson run against a real kernel or a real cluster. AWS networking and AWS security are mapped but not yet written.</p>
       <span class="kz-card__meta">See the whole journey →</span>
     </a>
   </div>
 </div>
 
 <div class="kz-note">
-  <strong>Who this is for:</strong> anyone who can use a shell and wants to see the mechanism under the abstractions instead of memorising flags. No prior networking required. To read along you need nothing; to run the experiments you need Docker, plus the two small C programs Act I compiles — <a href="/reference/the-code/">printed in full here</a>, so cloning the repo is optional. Act V adds <code>kind</code> and <code>kubectl</code>. <a href="/orientation/">Setup takes about ten minutes →</a>
+  <strong>Who this is for:</strong> anyone who can use a shell and wants to see the mechanism under the abstractions instead of memorising flags. No prior networking required. To read along you need nothing; to run the experiments you need Docker, plus the two small C programs Act I compiles — <a href="/reference/the-code/">printed in full here</a>, so cloning the repo is optional. Acts V onward add <code>kind</code> and <code>kubectl</code>. <a href="/orientation/">Setup takes about ten minutes →</a>
 </div>
 
 </div>

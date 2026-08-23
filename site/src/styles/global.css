@@ -1303,6 +1303,22 @@ kz-diagram[data-state='ready'] > :not([data-pw]) {
 }
 
 /* ── Landing page ─────────────────────────────────────────────────────────── */
+/* Inline code, which nothing else styles here. Starlight's rule is
+   `.sl-markdown-content code:not(:where(.not-content *))` — it excludes exactly this subtree, and the
+   hero tagline is not inside `.sl-markdown-content` at all — so `write()` in the tagline and
+   `/proc/net/tcp` in a card were falling all the way back to the UA's monospace default, at the
+   smaller size browsers give it.
+
+   Face and size only, no tint. Starlight's inline-code background resolves to `--sl-color-gray-6` in
+   the light theme, which is also `.kz-card`'s own background — a chip drawn in it would be invisible
+   on exactly the elements that carry most of the code on this page. Sized in `em` rather than the
+   `--sl-text-code-*` rems because the same rule has to hold in a 14px card blurb and in a section
+   title several times that. */
+:is(.not-content, .hero .tagline) code {
+  font-family: var(--kz-font-mono);
+  font-size: 0.9em;
+}
+
 .kz-section { padding-block-end: var(--s-11); }
 
 .kz-section__title {

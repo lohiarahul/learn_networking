@@ -2,23 +2,36 @@
 /**
  * The landing page's one flourish: the course's question, drawn.
  *
- * `write()` on the left, `read()` on the right, five stops between them, and a packet crossing the
- * whole distance. It's the same travelling dot as the section motifs (`Motif.astro`), at the only
- * scale where the whole journey fits — which is the argument for it being here rather than a hero
- * image: it states the thesis instead of decorating it.
+ * `write()` on the left, `read()` on the right, one stop per act between them, and a packet crossing
+ * the whole distance. The ends are the course's *question*, not its itinerary — the question is
+ * answered around Act V and the acts after it are what the answer becomes once a file in one kernel
+ * is an object in a fleet's document store, so the rail keeps going.
+ *
+ * It's the same travelling dot as the section motifs (`Motif.astro`), at the only scale where the
+ * whole journey fits — which is the argument for it being here rather than a hero image: it states
+ * the thesis instead of decorating it.
  *
  * This one *does* loop. There's exactly one on the site, above the fold, and it's the thing that makes
  * a page of prose feel alive; the per-page motifs stay quiet precisely so this can move.
  *
  * Coordinates are a 360-unit viewBox capped at 30rem, so the type inside it never scales below the
  * ~11px it's drawn at — the mistake with a wide viewBox is that its labels turn to dust on a phone.
+ * Ten stops fit that fixed width at a 28-unit pitch, which is why the numerals are set a shade
+ * smaller and the stop circles a shade tighter than a five-stop rail would want: `VIII` is the
+ * widest numeral in the set and it has to clear its neighbours at phone scale, where one unit is
+ * one CSS pixel.
  */
 const STOPS = [
   { x: 54, numeral: 'I' },
-  { x: 117, numeral: 'II' },
-  { x: 180, numeral: 'III' },
-  { x: 243, numeral: 'IV' },
-  { x: 306, numeral: 'V' },
+  { x: 82, numeral: 'II' },
+  { x: 110, numeral: 'III' },
+  { x: 138, numeral: 'IV' },
+  { x: 166, numeral: 'V' },
+  { x: 194, numeral: 'VI' },
+  { x: 222, numeral: 'VII' },
+  { x: 250, numeral: 'VIII' },
+  { x: 278, numeral: 'IX' },
+  { x: 306, numeral: 'X' },
 ];
 
 const RAIL = 'M54 22H306';
@@ -28,7 +41,7 @@ const RAIL = 'M54 22H306';
   <svg
     viewBox="0 0 360 46"
     role="img"
-    aria-label="write() on one machine, through five acts, to read() on another"
+    aria-label="write() on one machine, through ten acts, to read() on another"
   >
     <text class="strip__end" x="0" y="26">write()</text>
     <text class="strip__end" x="360" y="26" text-anchor="end">read()</text>
@@ -38,7 +51,7 @@ const RAIL = 'M54 22H306';
     {
       STOPS.map((s) => (
         <>
-          <circle class="strip__stop" cx={s.x} cy="22" r="4.5" />
+          <circle class="strip__stop" cx={s.x} cy="22" r="3.75" />
           <text class="strip__numeral" x={s.x} y="41" text-anchor="middle">
             {s.numeral}
           </text>
@@ -85,9 +98,9 @@ const RAIL = 'M54 22H306';
   }
 
   .strip__numeral {
-    font-size: 8.5px;
+    font-size: 7.5px;
     font-weight: var(--kz-w-semibold);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
     fill: var(--sl-color-gray-3);
   }
 

@@ -61,7 +61,7 @@ this course. If that ever changes, re-read each project's brand guidelines first
 ## Drawn here, not sourced
 
 **Files:** `src/components/Motif.astro` (eight 48×20 section motifs), `src/components/JourneyStrip.astro`
-(the landing page's `write()` → five acts → `read()` strip), `src/components/Diagram.astro`.
+(the landing page's `write()` → ten acts → `read()` strip), `src/components/Diagram.astro`.
 **Licence:** none needed — original work in this repo.
 
 Path data written by hand, no icon set involved, because the point of each one is a claim about its act:

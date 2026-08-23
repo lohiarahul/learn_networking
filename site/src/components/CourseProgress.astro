@@ -3,6 +3,13 @@
  * Per-act progress bars. Totals are counted at build time from the content collection, so they can
  * never drift from the actual number of pages; the completed counts are filled in on the client from
  * localStorage (see src/lib/progress.ts).
+ *
+ * The groups are listed rather than derived, because the *set* is a judgement and the counts inside
+ * it are not. `LessonDone` puts a tick box on every non-splash page, which includes `/course/`,
+ * `/progress/` itself and `/reference/*` — pages you look things up in rather than work through. Those
+ * stay out, so a reader who has finished the course sees a full bar rather than one permanently three
+ * pages short. Everything you can be *through* is here, exam prep included: leaving it out would mean
+ * ticking one of its five pages moved nothing on this page, which reads as a bug.
  */
 import { getCollection } from 'astro:content';
 
@@ -13,7 +20,14 @@ const ACTS = [
   { prefix: 'act-3', label: 'Act III — The internet' },
   { prefix: 'act-4', label: 'Act IV — One pretends to be many' },
   { prefix: 'act-5', label: 'Act V — Kubernetes' },
+  { prefix: 'act-6', label: 'Act VI — The cluster that runs itself' },
+  { prefix: 'act-7', label: 'Act VII — Describing the work' },
+  { prefix: 'act-8', label: 'Act VIII — Trust on an untrusted wire' },
+  { prefix: 'act-9', label: 'Act IX — Identity and access' },
+  { prefix: 'act-10', label: 'Act X — Securing the cluster' },
   { prefix: 'capstone', label: 'Capstone' },
+  // Named for what it is. It is not Act XI, and the course is finished without it.
+  { prefix: 'exam-prep', label: 'Exam prep — rehearsal, not an act' },
 ];
 
 const docs = await getCollection('docs');
