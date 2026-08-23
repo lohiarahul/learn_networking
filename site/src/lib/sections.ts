@@ -17,8 +17,14 @@ export type MotifName =
   | 'act-3'
   | 'act-4'
   | 'act-5'
+  | 'act-6'
+  | 'act-7'
+  | 'act-8'
+  | 'act-9'
+  | 'act-10'
   | 'capstone'
-  | 'reference';
+  | 'reference'
+  | 'exam-prep';
 
 export interface Section {
   /** Shown as an eyebrow above the page title. */
@@ -40,8 +46,17 @@ const SECTIONS: Record<MotifName, Section> = {
   'act-3': { label: 'Act III · The internet', motif: 'act-3', href: '/act-3/' },
   'act-4': { label: 'Act IV · One pretends to be many', motif: 'act-4', href: '/act-4/' },
   'act-5': { label: 'Act V · Kubernetes', motif: 'act-5', href: '/act-5/' },
+  'act-6': { label: 'Act VI · The cluster that runs itself', motif: 'act-6', href: '/act-6/' },
+  'act-7': { label: 'Act VII · Describing the work', motif: 'act-7', href: '/act-7/' },
+  'act-8': { label: 'Act VIII · Trust on an untrusted wire', motif: 'act-8', href: '/act-8/' },
+  'act-9': { label: 'Act IX · Identity and access', motif: 'act-9', href: '/act-9/' },
+  'act-10': { label: 'Act X · Securing the cluster', motif: 'act-10', href: '/act-10/' },
   capstone: { label: 'Capstone', motif: 'capstone' },
   reference: { label: 'Reference', motif: 'reference' },
+  // Not an act, and the label says so. exam-prep is rehearsal for a timed exam, which is the one
+  // thing the course refuses to do inside a lesson — so it gets an eyebrow that never reads as
+  // "Act XI".
+  'exam-prep': { label: 'Exam prep · CKA and CKS', motif: 'exam-prep', href: '/exam-prep/' },
 };
 
 /**

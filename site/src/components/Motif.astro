@@ -2,13 +2,17 @@
 /**
  * A section motif: a 48×20 line drawing of what its act actually claims.
  *
- * These are one idea, drawn eight ways. Every act in this course is a different answer to the same
- * question — how does `write()` on one machine become `read()` on another — so every motif is the
- * same travelling dot on a different route. Act I's route leaves the box and comes straight back
- * (loopback). Act II's crosses one wire. Act III's zig-zags through routers. Act IV's is three routes
- * merging into one (NAT); Act V's is one route fanning out to three (a Service). The motif *is* the
- * thesis, which is why these are drawn rather than picked from an icon set: no stock glyph knows what
- * an act is about.
+ * These are one idea, drawn fourteen ways: every motif is the same travelling dot on a different
+ * route, because every act is a different answer to the same question. Act I's route leaves the box
+ * and comes straight back (loopback). Act II's crosses one wire. Act III's zig-zags through routers.
+ * Act IV's is three routes merging into one (NAT); Act V's is one route fanning out to three (a
+ * Service). The motif *is* the thesis, which is why these are drawn rather than picked from an icon
+ * set: no stock glyph knows what an act is about.
+ *
+ * From Act VI the dot stops being a packet without the drawing changing, which is the point Act VI
+ * itself makes: the thing that travels is now an *object* through a store and its watchers, and the
+ * same vocabulary still describes it. Two motifs deliberately refuse to animate — `reference` and
+ * `exam-prep` are not journeys, they are lists — and Act X's dot deliberately does not arrive.
  *
  * Deliberately not looping. A dot circling forever beside sixty page titles is a distraction, so each
  * runs twice on load and then rests, leaving a static diagram behind. `styles/global.css` holds the
@@ -44,6 +48,24 @@ const STACK = (x: number) =>
 
 const DOT = (cx: number, cy: number, r = 1.6) =>
   `<circle class="fill" cx="${cx}" cy="${cy}" r="${r}"/>`;
+
+/**
+ * The same mark, unfilled — a thing that is *absent*. Only `exam-prep` needs it.
+ *
+ * Larger than `DOT` on purpose. The frame stroke is 1.4 units, so a ring drawn at the filled mark's
+ * radius is a disc with a pinhole in it — the opposite of what it has to say. At 2.3 the hole is
+ * wider than the stroke around it and the mark reads as empty.
+ */
+const RING = (cx: number, cy: number, r = 2.3) => `<circle cx="${cx}" cy="${cy}" r="${r}"/>`;
+
+/**
+ * A closed circuit as an `offset-path`, centred on the store it orbits.
+ *
+ * Two half-arcs rather than an `<ellipse>`, because `offset-path` takes a path and a dot needs
+ * somewhere to start: the left-hand point is both.
+ */
+const ORBIT = (cx: number, cy: number, rx: number, ry: number) =>
+  `M${cx - rx} ${cy}A${rx} ${ry} 0 1 1 ${cx + rx} ${cy}A${rx} ${ry} 0 1 1 ${cx - rx} ${cy}`;
 
 const MOTIFS: Record<MotifName, MotifSpec> = {
   // Two processes and no channel between them yet. No wire is drawn on purpose: the dot leaves the
@@ -94,6 +116,60 @@ const MOTIFS: Record<MotifName, MotifSpec> = {
     ],
     seconds: 2,
   },
+  // No orchestrator: one document store, and loops that each watch it for one discrepancy. A circuit
+  // rather than an arrow, because a controller's route *returns* — it writes back to the same object
+  // it read — and three dots on the one circuit rather than three circuits, because the loops differ
+  // in what they watch, not in what shape they are. First attempt drew three nested orbits and they
+  // merged into a solid ring at 48x20; the stroke is 1.4 units wide, which is a tenth of the height.
+  'act-6': {
+    frame: `${BOX(1, 6, 11, 8, 2)}<path d="M12 10H14"/>`,
+    routes: [ORBIT(28, 10, 14, 7.5), ORBIT(28, 10, 14, 7.5), ORBIT(28, 10, 14, 7.5)],
+    seconds: 2.6,
+  },
+  // A spec is not a configuration file: it is a bundle of claims, and each claim is read by a
+  // different loop. Three parallel lanes out of one document, deliberately *not* Act V's fan — a fan
+  // says one thing reaching three copies of the same reader, and that is the opposite of the claim.
+  'act-7': {
+    frame: `${BOX(1, 2, 13, 16, 2)}<path d="M4 6H11M4 10H11M4 14H11"/>${DOT(45, 6, 1.5)}${DOT(45, 10, 1.5)}${DOT(45, 14, 1.5)}`,
+    routes: ['M14 6H43', 'M14 10H43', 'M14 14H43'],
+    seconds: 2,
+  },
+  // Act II's one wire, with a sealed stretch in the middle: the drawn line goes to noise inside the
+  // box while the dot crosses it whole. That gap between what the wire carries and what the
+  // endpoints have is the entire act — whose question is not "what is cryptography" but "what
+  // exactly was I trusting?", and what you were trusting is that box.
+  //
+  // Two earlier versions failed the same way, and the reason is worth keeping: at this size the
+  // stroke is 1.4 units wide, so anything drawn with less than ~2.5 units of clearance fuses. An
+  // eavesdropper above the box with a dashed tap running down to it resolved to a single dash, so
+  // the tap read as *connected* — a lollipop wired into the thing it was failing to read. A zigzag
+  // inside the box fused at its peaks into a solid glyph. Three offset ticks have the clearance.
+  //
+  // `wire: false` because the drawn line is in three pieces and the route is one.
+  'act-8': {
+    frame: `${BOX(1, 5, 10, 10)}${BOX(37, 5, 10, 10)}${BOX(19, 6.5, 10, 7, 1.5)}<path d="M11 10H19M29 10H37"/><path d="M20.9 8.2H23.1M24.1 11.8H26.3M26.5 8.8H27.9"/>`,
+    routes: ['M11 10H37'],
+    wire: false,
+    seconds: 2,
+  },
+  // The act's one inescapable trade-off, drawn as two lanes on the same wire: know an answer
+  // instantly (the top dot, believed on sight) or know it is still true (the bottom dot, which
+  // detours through the store every time). Same endpoints, same distance, different cost.
+  'act-9': {
+    frame: `${BOX(1, 5, 9, 10)}${BOX(38, 5, 9, 10)}${DOT(24, 17.5, 1.8)}`,
+    routes: ['M10 7.5H38', 'M10 12.5C17 12.5 19 17.5 24 17.5C29 17.5 31 12.5 38 12.5'],
+    seconds: 2.4,
+  },
+  // Every control in Act X is a place where something is refused; the only thing that differs is
+  // *when*. Three gates, and the dot gets through the first and not the second — so the wire is
+  // solid up to that gate and dashed after it, borrowing `orientation`'s "nowhere to go" vocabulary.
+  // `wire: false` because the route is deliberately shorter than the journey.
+  'act-10': {
+    frame: `${BOX(1, 6, 7, 8, 2)}${BOX(40, 6, 7, 8, 2)}<path d="M8 10H23"/><path d="M23 10H40" stroke-dasharray="1.5 2.2"/><path d="M15 4V16M23 4V16M31 4V16"/>`,
+    routes: ['M8 10H22.5'],
+    wire: false,
+    seconds: 1.8,
+  },
   // One packet, five acts.
   capstone: {
     frame: [2, 13, 24, 35, 46].map((x) => DOT(x, 10, 1.5)).join(''),
@@ -103,6 +179,20 @@ const MOTIFS: Record<MotifName, MotifSpec> = {
   // Not a journey — a list of them. Nothing to animate.
   reference: {
     frame: `${DOT(3, 5, 1.4)}${DOT(3, 10, 1.4)}${DOT(3, 15, 1.4)}<path d="M8 5H45M8 10H30M8 15H38"/>`,
+    routes: [],
+    seconds: 0,
+  },
+  // Also not a journey: a coverage grid. Filled where a lesson covers a competency, hollow where
+  // nothing does yet — which is the one thing the domain maps are for, and the reason the hollow
+  // marks are drawn at all rather than left out to make the row look full.
+  'exam-prep': {
+    frame:
+      [4, 11, 18, 25, 32, 39]
+        .map((x, i) => (i === 3 ? RING(x, 6) : DOT(x, 6, 1.4)))
+        .join('') +
+      [4, 11, 18, 25, 32, 39]
+        .map((x, i) => (i === 2 || i === 5 ? RING(x, 14) : DOT(x, 14, 1.4)))
+        .join(''),
     routes: [],
     seconds: 0,
   },

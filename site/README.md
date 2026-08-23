@@ -35,8 +35,25 @@ relative link can't be mapped to a page, the script lists it at the end of the r
 a dead link; `node scripts/sync-content.mjs --strict` turns that into a non-zero exit for CI.
 
 Adding a lesson needs no changes here — drop the file in the act directory with a numeric prefix and
-re-run. Adding a whole **act** means adding one entry to `ACTS` in the sync script and one sidebar group
-in `astro.config.mjs`.
+re-run. It will not get a stack rail unless you also put it in `LAYER_BY_PATH` (`src/lib/layers.ts`),
+which is a judgement call and deliberately not automatic.
+
+Adding a whole **act** touches five places, and missing any of the last three is silent — the pages
+build and read fine, they just lose their furniture:
+
+| File | What it gives the act |
+|---|---|
+| `ACTS` in `scripts/sync-content.mjs` | the pages exist at all |
+| a sidebar group in `astro.config.mjs` | somewhere to find them |
+| `SECTIONS` in `src/lib/sections.ts` | the eyebrow above each title, and the "up" link to the act overview — without which `sync-content.mjs` also keeps the source's footer nav block, because it only drops it for sections that have an overview page here |
+| a motif in `src/components/Motif.astro` | the drawn mark beside each title. This is the one entry you cannot forget *quietly*: `MOTIFS` is a `Record<MotifName, …>`, so once the act is in `SECTIONS` the build reads `MOTIFS[name].seconds` off `undefined` and dies on that act's first page |
+| a card in `scripts/gen-og.mjs` **and** its id in `SECTION_CARDS` (`src/components/Head.astro`) | the act's own social preview instead of the generic one |
+
+Acts VI–X shipped with only the first two for a while, and the failure was worse than a missing
+ornament: those sixty-odd pages had **no way up at all**. `tagLessonNav` had already dropped each
+source's footer nav line, because it decides from the routes (any section with an `index.md`) and not
+from `sections.ts` — so the act overview was reachable only from the collapsed sidebar, and on a phone
+not at all. Nothing about that is a build error. Hence the table.
 
 ## Hand-written pages (important)
 

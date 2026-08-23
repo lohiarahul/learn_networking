@@ -5,15 +5,15 @@
  * every Slack paste and every link preview of 127,000 words rendered as a bare text row. A course that
  * spreads by being shared needs the share to look like something.
  *
- * Why nine images and not seventy: an OG card is read at thumbnail size in a chat client, where a
- * lesson title is unreadable and the *act* is the useful unit — "Act III · The internet" tells someone
- * what they are being sent. Per-page cards would also mean 70 PNGs regenerated on every content edit
- * for no gain in what the reader learns from the preview.
+ * Why fifteen images and not a hundred and forty: an OG card is read at thumbnail size in a chat
+ * client, where a lesson title is unreadable and the *act* is the useful unit — "Act III · The
+ * internet" tells someone what they are being sent. Per-page cards would also mean 137 PNGs
+ * regenerated on every content edit for no gain in what the reader learns from the preview.
  *
  * Why sharp and not a rendering library: sharp is already a dependency (Astro pulls it for image
  * optimisation), and librsvg — which is what sharp rasterises SVG with — handles this card fine. The
  * alternative (`astro-og-canvas`, satori + resvg) means a new dependency and a wasm payload to draw
- * nine static images that change about twice a year.
+ * fifteen static images that change about twice a year.
  *
  * The one real constraint: librsvg resolves `font-family` against *system* fonts and will not load
  * Aspekta from `src/styles/fonts/`. So the card is set in a system stack rather than the site's own
@@ -50,8 +50,10 @@ const W = 1200;
 const H = 630;
 
 /**
- * The nine cards. `eyebrow`/`title` echo `src/lib/sections.ts` and the sidebar rather than inventing a
- * second set of names for the same things; `act` lights that stop on the journey strip.
+ * The fifteen cards. `eyebrow`/`title` echo `src/lib/sections.ts` and the sidebar rather than
+ * inventing a second set of names for the same things; `act` lights that stop on the journey strip.
+ * `act: 0` lights none, which is right for the sections that are not one act — the default card, the
+ * journey map, and the exam-prep maps, which cut across all ten.
  */
 const CARDS = [
   {
@@ -104,6 +106,41 @@ const CARDS = [
     act: 5,
   },
   {
+    id: 'act-6',
+    eyebrow: 'Act VI · The cluster that runs itself',
+    title: 'The cluster that runs itself',
+    blurb: 'No orchestrator — one document store, and loops that each watch one field.',
+    act: 6,
+  },
+  {
+    id: 'act-7',
+    eyebrow: 'Act VII · Describing the work',
+    title: 'Describing the work',
+    blurb: 'A Pod spec is not a config file. It is claims, each read by a different loop.',
+    act: 7,
+  },
+  {
+    id: 'act-8',
+    eyebrow: 'Act VIII · Trust on an untrusted wire',
+    title: 'Trust on an untrusted wire',
+    blurb: 'Act III handed you a lock and told you not to look inside. Open it.',
+    act: 8,
+  },
+  {
+    id: 'act-9',
+    eyebrow: 'Act IX · Identity and access',
+    title: 'Identity and access',
+    blurb: 'Know an answer instantly, or know that it is still true. Not both.',
+    act: 9,
+  },
+  {
+    id: 'act-10',
+    eyebrow: 'Act X · Securing the cluster',
+    title: 'Securing the cluster',
+    blurb: 'Every control refuses something. The only real difference is when.',
+    act: 10,
+  },
+  {
     id: 'capstone',
     eyebrow: 'Capstone',
     title: 'One packet, five acts',
@@ -115,6 +152,13 @@ const CARDS = [
     eyebrow: 'Reference',
     title: 'The journey map',
     blurb: 'What is built, what is planned, and where the road ends for now.',
+    act: 0,
+  },
+  {
+    id: 'exam-prep',
+    eyebrow: 'Exam prep · CKA and CKS',
+    title: 'Every competency, mapped to a lesson',
+    blurb: 'And marked plainly where nothing here covers it yet.',
     act: 0,
   },
 ];
@@ -146,24 +190,43 @@ function wrap(text, size, maxWidth) {
   return lines;
 }
 
-/** The landing page's journey strip, at card scale, with `act` lit. `act: 0` lights nothing. */
+/**
+ * The landing page's journey strip, at card scale, with `act` lit. `act: 0` lights nothing.
+ *
+ * Ten stops rather than five, so the rail keeps roughly the pitch it had at five: the right end
+ * moves out to 950 instead of squeezing twice the stops into the same 400px, which at thumbnail size
+ * would have merged the circles into a dotted line. There is room — the strip sits below the blurb on
+ * a 1200px canvas with only the `read()` label to its right, and that label's offset is wider than it
+ * was because the tenth stop, when lit, is a 9px disc and was touching it.
+ */
 function strip(act) {
   /* x0 leaves room for the right-anchored `write()` label to sit inside the 72px margin rather than
      running off the left edge of the canvas — there is no overflow to catch it here. */
   const x0 = 168;
-  const x1 = 568;
+  const x1 = 950;
   const y = 540;
-  const stops = [1, 2, 3, 4, 5].map((n) => ({
+  const stops = Array.from({ length: 10 }, (_, i) => i + 1).map((n) => ({
     n,
-    x: x0 + ((x1 - x0) / 4) * (n - 1),
+    x: x0 + ((x1 - x0) / 9) * (n - 1),
   }));
 
-  const numerals = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V' };
+  const numerals = {
+    1: 'I',
+    2: 'II',
+    3: 'III',
+    4: 'IV',
+    5: 'V',
+    6: 'VI',
+    7: 'VII',
+    8: 'VIII',
+    9: 'IX',
+    10: 'X',
+  };
 
   return `
     <text x="${x0 - 12}" y="${y + 5}" text-anchor="end" font-family="${MONO}" font-size="17" fill="${BASE_500}">write()</text>
     <path d="M${x0} ${y}H${x1}" stroke="${BASE_700}" stroke-width="2" fill="none"/>
-    <text x="${x1 + 14}" y="${y + 5}" font-family="${MONO}" font-size="17" fill="${BASE_500}">read()</text>
+    <text x="${x1 + 24}" y="${y + 5}" font-family="${MONO}" font-size="17" fill="${BASE_500}">read()</text>
     ${stops
       .map((s) => {
         const on = s.n === act;
@@ -189,6 +252,12 @@ function card({ eyebrow, title, blurb, act }) {
     eyebrow.toUpperCase(),
   )}</text>
 
+  <!-- The wordmark rides the eyebrow line rather than the bottom-right corner: at ten stops the
+       journey strip's numerals reach x=968, and the mark's ~200px right-anchored run started at 926
+       and sat on the same baseline as the numeral for Act X. Nothing is to the right of the longest
+       eyebrow, so it moves up instead of the strip shrinking. -->
+  <text x="${W - 72}" y="103" text-anchor="end" font-family="${MONO}" font-size="21" fill="${BASE_700}">learn_networking</text>
+
   <path d="M72 137H${W - 72}" stroke="${BASE_850}" stroke-width="1.5" fill="none"/>
 
   ${titleLines
@@ -210,8 +279,6 @@ function card({ eyebrow, title, blurb, act }) {
     .join('\n  ')}
 
   ${strip(act)}
-
-  <text x="${W - 72}" y="${H - 56}" text-anchor="end" font-family="${MONO}" font-size="21" fill="${BASE_700}">learn_networking</text>
 </svg>`;
 }
 
