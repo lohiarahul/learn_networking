@@ -211,8 +211,29 @@ release note — which is why the usual diagnosis is half an hour of confusion a
 
 That message is what every archived manifest, stale chart and copied-from-a-blog snippet produces the
 morning after somebody upgrades a control plane. So the useful question is the one asked *before* the
-upgrade: what on this cluster is still calling something that is going away? The API server has been
-counting the whole time.
+upgrade: what on this cluster is still calling something that is going away?
+
+The API server answers it twice, and the first answer is one you have probably scrolled past. Touch
+something deprecated and it says so, on every single request:
+
+```bash
+kubectl get endpoints -n kube-system
+```
+
+```
+Warning: v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice
+NAME   ENDPOINTS   AGE
+...
+```
+
+That is not `kubectl` being clever — it is a `Warning:` header the **server** attached to the response,
+which means every client gets it, including the ones in your CI that log stderr nowhere. Read the shape:
+the version that deprecated it, and the thing to use instead. Core `v1 Endpoints` is a good example to
+meet first because it is deprecated with no removal date, which is the common case and the one that
+generates warnings people learn to ignore.
+
+Learning to ignore them is the problem, so the second answer is the one you can actually audit. The API
+server has been counting the whole time.
 
 ```bash
 kubectl get --raw /metrics | grep '^apiserver_requested_deprecated_apis'
