@@ -43,9 +43,15 @@ kubectl -n other run rogue --image=nicolaka/netshoot --labels=app=rogue --comman
 
 kubectl -n polns wait --for=condition=Ready pod --all --timeout=180s
 kubectl -n other wait --for=condition=Ready pod --all --timeout=180s
+
+kubectl -n polns expose pod db --port=80    # a Service, only so shape 4 has a name to resolve
 DBIP=$(kubectl -n polns get pod db -o jsonpath='{.status.podIP}')
 echo "$DBIP"
 ```
+
+Every probe below talks to `$DBIP` directly, never to the Service — a NetworkPolicy selects Pods, and
+routing a request through a ClusterIP would put kube-proxy's rewriting between you and the thing you
+are trying to measure. The Service exists for one line at the very end of the lesson.
 
 Four clients, and they are chosen so that each one differs from `other/api` in exactly one respect: `polns/api` has the right label in the wrong namespace, `other/rogue` is in the right namespace with the wrong label, and `polns/web` is wrong in both. That is the point of the bench — with four clients, the *shape* of the answer identifies the policy, and you never have to take anybody's word for what a document means.
 
@@ -53,11 +59,11 @@ One probe, used unchanged for the rest of the lesson:
 
 ```bash
 probe() {
-  for t in "polns api" "polns web" "other api" "other rogue"; do
-    set -- $t
-    if kubectl -n "$1" exec "$2" -- curl -s -o /dev/null --max-time 4 "http://$DBIP/" 2>/dev/null
-    then echo "  $1/$2  -> ALLOWED"
-    else echo "  $1/$2  -> denied (timed out)"
+  for t in polns/api polns/web other/api other/rogue; do
+    ns=${t%/*}; pod=${t#*/}
+    if kubectl -n "$ns" exec "$pod" -- curl -s -o /dev/null --max-time 4 "http://$DBIP/" 2>/dev/null
+    then echo "  $t  -> ALLOWED"
+    else echo "  $t  -> denied (timed out)"
     fi
   done
 }
@@ -154,10 +160,22 @@ The OR would give the same four answers only if you removed the reason the extra
 
 ## Shape 3 — `ipBlock`, and the one peer that cannot share
 
-The two selectors above both key on identity, which is the whole design. `ipBlock` is the deliberate exception, for the traffic that has no Kubernetes identity to select on — anything from outside the cluster:
+The two selectors above both key on identity, which is the whole design. `ipBlock` is the deliberate exception, for the traffic that has no Kubernetes identity to select on — anything from outside the cluster.
+
+It is also the only shape whose document cannot be copied from one cluster to another, because it names addresses rather than labels, and the addresses depend on what somebody chose the Pod network to be. So read them off the cluster instead of typing them:
 
 ```bash
-kubectl apply -f - <<'EOF'
+PODNET="$(echo "$DBIP" | cut -d. -f1,2).0.0/16"
+OTHERAPI=$(kubectl -n other get pod api -o jsonpath='{.status.podIP}')
+echo "permit $PODNET  except $OTHERAPI/32"
+```
+
+Both clusters in this act use a `/16`, so the first two octets of any Pod IP name the network — a shortcut that holds here and is not a rule. `kubectl -n kube-system get pod -l component=kube-controller-manager -o yaml | grep cluster-cidr` is where a cluster states it properly, and on the Calico cluster it will read `192.168.0.0/16` rather than the `10.244.x.y` addresses the rest of this act shows.
+
+> **Predict first —** the policy below permits the entire Pod network and subtracts one address: `other/api`'s. That Pod carries the exact label shape 1 selected, in the exact namespace shape 1 named. Which of the four clients reach the database now?
+
+```bash
+kubectl apply -f - <<EOF
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: db-and, namespace: polns }
@@ -168,11 +186,23 @@ spec:
   ingress:
     - from:
         - ipBlock:
-            cidr: 10.244.0.0/16
+            cidr: $PODNET
             except:
-              - 10.244.1.0/24
+              - $OTHERAPI/32
 EOF
+probe
 ```
+
+```
+  polns/api  -> ALLOWED
+  polns/web  -> ALLOWED
+  other/api  -> denied (timed out)
+  other/rogue  -> ALLOWED
+```
+
+**The one Pod that both earlier shapes were written to admit is the only one now refused, and the three that neither shape could name are all through.** Nothing about identity changed — `other/api` still carries `app=api` and still lives in a `tier=frontend` namespace. The policy simply cannot see any of that: an `ipBlock` peer resolves a source address, and this Pod's address is in a hole. Labels and addresses are two different coordinate systems over the same Pod, and `ipBlock` is the only peer that uses the second one.
+
+Notice also that the heredoc lost its quotes — `<<EOF` rather than `<<'EOF'`, so the shell fills the two values in. That is the working cost of `ipBlock`: it is the one peer you cannot finish writing until you know where you are.
 
 `cidr` is what is permitted and `except` is subtracted from it, so this is the one place in NetworkPolicy where something that reads like a deny rule exists — and it is not one. It is a hole in an allow, which is why it can only ever narrow the `cidr` above it and can never reference an address outside it.
 
@@ -196,8 +226,8 @@ EOF
 ```
 
 ```
-The NetworkPolicy "db-mixed" is invalid: spec.ingress[0].from[0]: Invalid value:
-... may not specify both ipBlock and another peer
+The NetworkPolicy "db-mixed" is invalid: spec.ingress[0].from[0]: Forbidden:
+may not specify both ipBlock and another peer
 ```
 
 **`ipBlock` cannot share a peer with a selector**, and the reason is the same substitution rule again from a third angle: a selector-based peer is resolved against Pod identity, an `ipBlock` peer is resolved against a source address, and there is no coherent meaning for "both" — the two describe different things about the same packet. If you want either, use two list elements, which by shape 2 means OR.
@@ -206,7 +236,14 @@ One practical warning that follows directly. `ipBlock` matches the source addres
 
 ## Shape 4 — egress, and the outage everybody causes once
 
-Everything so far has been `Ingress`. Egress is the same grammar pointed the other way, with one field renamed — `to:` instead of `from:` — and one consequence nobody predicts. Deny all outbound traffic from the `polns` clients:
+Everything so far has been `Ingress`. Egress is the same grammar pointed the other way, with one field renamed — `to:` instead of `from:` — and one consequence nobody predicts. Clear the ingress policy first, so that whatever fails next has exactly one possible cause:
+
+```bash
+kubectl -n polns delete networkpolicy db-and
+probe                                    # four for four again, back to the flat network
+```
+
+Now deny all outbound traffic from the `polns` clients:
 
 ```bash
 kubectl apply -f - <<'EOF'
@@ -228,7 +265,7 @@ kubectl -n polns exec api -- nslookup db.polns.svc.cluster.local 2>&1 | tail -2
 
 ```
 by IP: exit 28
-;; connection timed out; no servers could be reached
+;; no servers could be reached
 ```
 
 Two failures, and only the first one is the one you asked for. The second is DNS, and it is the trap: **CoreDNS is an ordinary Pod in an ordinary namespace, so a query to it is ordinary egress**, and a default-deny egress policy blocks it along with everything else. The symptom is not "connection refused" and not "policy denied" — it is name resolution timing out, several layers away from the document you just wrote, in an application that has never heard of NetworkPolicy. People spend an afternoon on CoreDNS.
