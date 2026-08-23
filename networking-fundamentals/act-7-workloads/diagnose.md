@@ -12,7 +12,8 @@
 Unlike Act VI, nothing here can break your cluster. These drills break *workloads*, which is what you will actually be paged about. The cost of abandoning one halfway is some leftover objects, and this catches all of it:
 
 ```bash
-kubectl delete deploy,sts,ds,job,cronjob,hpa,svc,cm,secret -l drill --ignore-not-found
+kubectl delete deploy,sts,ds,job,cronjob,hpa,svc,cm,secret,pvc -l drill --ignore-not-found
+kubectl delete pv -l drill --ignore-not-found
 kubectl get pvc                 # should be empty
 kubectl get nodes               # both Ready, neither SchedulingDisabled
 ```
@@ -467,9 +468,222 @@ kubectl get pvc      # empty
 
 ---
 
-## What these six have in common
 
-Five of the six drills had **nothing wrong with the cluster and nothing wrong with the container image**. In every case an object was accepted, stored, and read by exactly the loop that was supposed to read it — and that loop then did precisely what the field said.
+## Drill 7 — "the scheduler says we are out of nodes"
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+**Reproduce it:**
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: reports-data, labels: { drill: "7" } }
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: fast-ssd
+  resources: { requests: { storage: 2Gi } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: reports, labels: { drill: "7" } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: reports } }
+  template:
+    metadata: { labels: { app: reports } }
+    spec:
+      containers:
+        - name: c
+          image: nginx:1.27-alpine
+          volumeMounts: [ { name: d, mountPath: /data } ]
+      volumes:
+        - name: d
+          persistentVolumeClaim: { claimName: reports-data }
+EOF
+sleep 15
+kubectl get pods -l app=reports
+kubectl describe pod -l app=reports | grep -A4 Events:
+```
+
+**The symptom:** one replica, `Pending`, and the only event in the cluster is the scheduler's:
+
+```
+Warning  FailedScheduling  default-scheduler
+  0/2 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found
+```
+
+Someone has read "0/2 nodes are available" and opened a ticket to add a node. Drill 3 taught you to
+distrust that sentence once. **Distrust it again, and say what the scheduler is actually telling you.**
+
+<details>
+<summary>Reveal</summary>
+
+Row 3 of the table at the top — *does the Pod have a node?* — and this is the case where the row hands
+you a component that is not at fault. Read the message as a sentence rather than a number: the
+scheduler is not saying it ran out of room, it is saying **it will not place this Pod at all**, because
+one of its inputs has not resolved yet. `0/2` is a count of nodes it declined to even consider.
+
+So follow the claim, not the node:
+
+```bash
+kubectl get pvc reports-data
+kubectl describe pvc reports-data | tail -4
+```
+
+```
+NAME           STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS
+reports-data   Pending                                      fast-ssd
+
+  Warning  ProvisioningFailed  persistentvolume-controller
+    storageclass.storage.k8s.io "fast-ssd" not found
+```
+
+```bash
+kubectl get storageclass
+```
+
+```
+NAME                 PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE
+standard (default)   rancher.io/local-path   Delete          WaitForFirstConsumer
+```
+
+**There is no `fast-ssd` on this cluster, and naming a class that does not exist is not an error.** The
+PVC was accepted — row 1 always says yes — and then sat there, because a claim names a class the same
+way a Pod names an image: as a string that something else is expected to resolve. Nothing validates it
+at admission, and the object that suffers is two hops downstream.
+
+Now the part worth the drill, because "the class was misspelled" is one of four reasons and the other
+three look the same from the outside. Put all four side by side against one hand-made 1Gi RWO volume:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: PersistentVolume
+metadata: { name: drill7-pv, labels: { drill: "7" } }
+spec:
+  capacity: { storage: 1Gi }
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: ""
+  hostPath: { path: /tmp/drill7 }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: too-big, labels: { drill: "7" } }
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: ""
+  resources: { requests: { storage: 5Gi } }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: wrong-mode, labels: { drill: "7" } }
+spec:
+  accessModes: [ ReadWriteMany ]
+  storageClassName: ""
+  resources: { requests: { storage: 1Gi } }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: waiting, labels: { drill: "7" } }
+spec:
+  accessModes: [ ReadWriteOnce ]
+  resources: { requests: { storage: 1Gi } }
+EOF
+sleep 12
+kubectl get pvc -l drill=7
+for c in too-big wrong-mode reports-data waiting; do
+  printf '%-14s ' "$c"
+  kubectl describe pvc $c | grep -E '^\s+(Normal|Warning)' | tail -1
+done
+```
+
+```
+too-big        Normal   FailedBinding         no persistent volumes available for this
+                                              claim and no storage class is set
+wrong-mode     Normal   FailedBinding         no persistent volumes available for this
+                                              claim and no storage class is set
+reports-data   Warning  ProvisioningFailed    storageclass.storage.k8s.io "fast-ssd" not found
+waiting        Normal   WaitForFirstConsumer  waiting for first consumer to be created
+                                              before binding
+```
+
+Four `Pending` claims, and read what the events did and did not do for you.
+
+**`too-big` and `wrong-mode` produce the identical message**, and it is the least useful one in
+Kubernetes: *no persistent volumes available for this claim.* There is a volume available — it is sitting
+in `kubectl get pv` marked `Available` — and the controller means "none that satisfy this claim" without
+saying which field failed. One of these asks for 5Gi against a 1Gi volume; the other asks for
+`ReadWriteMany` against a `ReadWriteOnce` one. **Nothing in the cluster will tell you which**, so the
+comparison is yours to do: capacity, access modes, `storageClassName`, and any `selector` — all four have
+to be satisfied by the same PV, and a claim is never given a volume that is smaller or less capable than
+it asked for, only one that is equal or better.
+
+**And `waiting` is not broken at all.** `standard` is `WaitForFirstConsumer`, so its claims are *supposed*
+to sit `Pending` until a Pod that mounts them is scheduled — the provisioner wants to know which node
+before it creates a local volume. Prove it rather than believe it:
+
+```bash
+kubectl run consumer --image=busybox:1.36 --restart=Never --labels=drill=7 \
+  --overrides='{"spec":{"containers":[{"name":"c","image":"busybox:1.36","command":["sh","-c","sleep 300"],"volumeMounts":[{"name":"v","mountPath":"/d"}]}],"volumes":[{"name":"v","persistentVolumeClaim":{"claimName":"waiting"}}]}}'
+sleep 15
+kubectl get pvc waiting
+```
+
+```
+NAME      STATUS   VOLUME                                     CAPACITY   STORAGECLASS
+waiting   Bound    pvc-2aaa5392-6247-42be-9de4-10891b6bb426   1Gi        standard
+```
+
+That is the trap in the pair, and it runs both ways: a `Pending` claim on a `WaitForFirstConsumer` class
+is healthy and looks broken, and it means **`Pending` is not a diagnosis.** Read the class's
+`VOLUMEBINDINGMODE` before you conclude anything, because on an `Immediate` class the same status is a
+real fault and on this one it is the design.
+
+**Fix it:**
+
+```bash
+kubectl delete pvc reports-data
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: reports-data, labels: { drill: "7" } }
+spec:
+  accessModes: [ ReadWriteOnce ]
+  resources: { requests: { storage: 2Gi } }
+EOF
+kubectl rollout status deployment/reports --timeout=120s
+kubectl get pvc reports-data
+```
+
+Dropping `storageClassName` entirely is the fix, not renaming it to `standard`: an omitted class means
+*use the default*, which survives somebody else changing what the default is. Note also what had to
+happen for the Deployment to recover — nothing. No rollout, no restart, no edit to the Pod template. The
+scheduler retries, the claim binds, the Pod places. Row 3 was never the problem and it was never going
+to need fixing.
+
+**The habit:** `FailedScheduling` names the scheduler, and the scheduler is the component least likely to
+be wrong — it is a pure function of things other controllers wrote down. When it declines, read *which
+input it says is unresolved* and go there. And when you get there, if the status is `Pending` on storage,
+the first command is `kubectl get storageclass`, because it answers both of the two questions that
+matter: does the class exist, and is `Pending` supposed to be happening.
+
+**Clean up:**
+
+```bash
+kubectl delete pod consumer --ignore-not-found
+kubectl delete deploy,pvc -l drill --ignore-not-found
+kubectl delete pv drill7-pv --ignore-not-found
+```
+
+</details>
+
+---
+
+## What these seven have in common
+
+Six of the seven drills had **nothing wrong with the cluster and nothing wrong with the container image**. In every case an object was accepted, stored, and read by exactly the loop that was supposed to read it — and that loop then did precisely what the field said.
 
 Which is the diagnostic value of this act's spine. A workload failure is almost never "Kubernetes is broken"; it is a claim being kept faithfully that you did not mean to make. So the productive question is never "what is wrong with it" but **which loop is keeping which promise, and is that the promise I wrote?**
 

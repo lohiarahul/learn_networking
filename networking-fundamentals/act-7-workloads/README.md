@@ -58,7 +58,7 @@ kubectl get pvc -A        # empty, unless a lesson explicitly told you to keep o
 Then three pages to consolidate, in this order:
 
 - **[Test yourself](test-yourself.md)** — twenty questions on the derivations rather than the flags.
-- **[Diagnose it](diagnose.md)** — six workload failures, symptom first. In five of the six there is nothing wrong with the cluster and nothing wrong with the image.
+- **[Diagnose it](diagnose.md)** — seven workload failures, symptom first. In six of the seven there is nothing wrong with the cluster and nothing wrong with the image.
 - **[In the wild](in-the-wild.md)** — what changes on a managed cluster, and the three findings here that are line items on an invoice.
 
 ## What breaks here
