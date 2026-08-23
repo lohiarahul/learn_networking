@@ -211,7 +211,7 @@ editor worth using to check your intuition.
 | Use ConfigMaps and Secrets to configure applications | ✅ **above exam depth** | [configuration](../networking-fundamentals/act-7-workloads/05-configuration.md) — env vs mounted file, the `..data` swap, `subPath` silently never reloading, and the three plaintext locations | `-` |
 | **Configure workload autoscaling** | ✅ covered | [choosing the number](../networking-fundamentals/act-7-workloads/10-choosing-the-number.md) — HPA, and the reason a Deployment made by a one-liner can never scale | `-` |
 | Understand the primitives used to create robust, self-healing, application deployments | ✅ covered | [probes](../networking-fundamentals/act-7-workloads/03-probes.md) — readiness, liveness and startup, with the outage each one causes when swapped · [the other workload kinds](../networking-fundamentals/act-7-workloads/07-the-other-workload-kinds.md) | `-` |
-| **Configure Pod admission and scheduling (limits, node affinity, etc.)** | 🟡 **partial — scheduling above depth, admission absent** | [scheduling](../networking-fundamentals/act-7-workloads/04-scheduling.md) is above exam depth on the scheduling half: `requests` vs `limits` and their different enforcers, QoS, `nodeSelector`/affinity, taints and tolerations, `topologySpreadConstraints`, the auto-added `tolerationSeconds: 300`. The **admission** half is not covered: **`ResourceQuota` and `PriorityClass` appear nowhere in the course**, and `LimitRange` is created once, in [configuration](../networking-fundamentals/act-7-workloads/05-configuration.md), not here. Namespace-scoped quota is a common task — practise `create quota` and `create priorityclass` | `-` |
+| **Configure Pod admission and scheduling (limits, node affinity, etc.)** | 🟡 **partial — scheduling above depth, admission absent** | [scheduling](../networking-fundamentals/act-7-workloads/04-scheduling.md) is above exam depth on the scheduling half: `requests` vs `limits` and their different enforcers, QoS, `nodeSelector`/affinity, taints and tolerations, `topologySpreadConstraints`, the auto-added `tolerationSeconds: 300`. The **admission** half is now half-covered: `ResourceQuota` arrives in [Act VI drill 8](../networking-fundamentals/act-6-control-plane/diagnose.md), which is the more instructive way to meet it — a `pods: "1"` cap in a namespace you do not own, and a `kubectl scale` that reports `scaled` while the ReplicaSet's events carry the `exceeded quota` refusal, because the loop that was refused is not the one you typed at. `LimitRange` is created once, in [configuration](../networking-fundamentals/act-7-workloads/05-configuration.md). **`PriorityClass` still appears nowhere.** Namespace-scoped quota is a common task — practise `create quota` and `create priorityclass` as *authoring* rather than reading | `-` |
 
 **Small-detail losses candidates report**, and where the course already addresses each:
 
@@ -255,7 +255,7 @@ Counting a 🟡 as a half, and stating the arithmetic so you can check it:
 | Troubleshooting | 30% | **4½ of 5** — two above exam depth | 4 | 1 | 0 |
 | Cluster Architecture | 25% | **5 of 8** — the gaps are bare-metal install, and half of upgrade, Helm and HA | 3 | 4 | 1 |
 | Servicing and Networking | 20% | **5 of 6** — Gateway-with-TLS and CoreDNS-the-server are the shortfalls | 4 | 2 | 0 |
-| Workloads and Scheduling | 15% | **4½ of 5** — admission (quota, PriorityClass) is the shortfall | 4 | 1 | 0 |
+| Workloads and Scheduling | 15% | **4½ of 5** — `PriorityClass` and authoring a quota are the shortfall | 4 | 1 | 0 |
 | Storage | 10% | **2½ of 3** — the `StorageClass` is still never authored | 2 | 1 | 0 |
 
 That is **21½ of 27 bullets** counted this way, so roughly **80% of the CKA syllabus** — down from the
@@ -275,7 +275,7 @@ What remains is concentrated and nameable:
 | **Helm's read-only commands** (`repo update`, `search repo`, `show values`, `history`) | ~1% | Act X adds repos and installs three real charts; what is missing is the inspection half, which changes nothing and is therefore easy to skip and easy to be asked. |
 | **Gateway API with TLS** (`certificateRefs`, `tls.mode`) | ~2% | The lesson's only listener is plain HTTP. |
 | **CoreDNS as a server** (the `Corefile`, the ConfigMap) | ~2% | Taught entirely from the resolver-client side. |
-| **`ResourceQuota` and `PriorityClass`** | ~2% | Neither appears anywhere in the course. |
+| **`PriorityClass`, and authoring a `ResourceQuota`** | ~1% | `ResourceQuota` is now met as a fault to diagnose (Act VI drill 8) but never written; `PriorityClass` and preemption appear nowhere. |
 | **RBAC under a clock** | ~2% | Understood well, and the manifest shape is now taught — see the note in Cluster Architecture. What is left is typing speed, which only a timed simulator gives you. |
 | **`kubectl logs` as a subject** | ~1% | Used constantly, never taught deliberately. |
 

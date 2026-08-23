@@ -511,6 +511,200 @@ rm -f /tmp/node-backup.yaml
 
 ---
 
+
+## Drill 8 — "the fix that worked last month is refused too"
+
+**Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+*(This one has no command at the end of it. That is the drill.)*
+
+> **Ticket:** *"Same node, same maintenance window as drill 6. The drain is refused again, and this time
+> the Pod belongs to `team-b`, who are not us. So we did what worked last month and scaled their
+> Deployment up — `kubectl scale` said `scaled`, and nothing happened. No error. The window closes in
+> forty minutes and the node still has not been patched. What do we do?"*
+
+**Reproduce it** (run; don't read):
+
+```bash
+kubectl create namespace team-b
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: ResourceQuota
+metadata: { name: tenant-cap, namespace: team-b }
+spec:
+  hard: { pods: "1" }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: ledger, namespace: team-b }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: ledger } }
+  template:
+    metadata: { labels: { app: ledger } }
+    spec:
+      containers:
+        - name: c
+          image: hashicorp/http-echo
+          args: [ "-text=ledger", "-listen=:5678" ]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: ledger-pdb, namespace: team-b }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: ledger } }
+EOF
+kubectl -n team-b rollout status deployment/ledger --timeout=120s
+
+kubectl drain netlab-worker --ignore-daemonsets --delete-emptydir-data --timeout=20s
+kubectl -n team-b scale deployment/ledger --replicas=2
+sleep 8
+kubectl -n team-b get deployment ledger
+```
+
+**Your symptoms**, and there are three of them:
+
+```
+error when evicting pods/"ledger-..." -n "team-b" (will retry after 5s):
+Cannot evict pod as it would violate the pod's disruption budget.
+
+deployment.apps/ledger scaled
+
+NAME     READY   UP-TO-DATE   AVAILABLE   AGE
+ledger   1/2     1            1           1m
+```
+
+The drain is refused. The scale is **accepted**. And one replica exists where two were asked for, with
+no error anywhere near the command that asked.
+
+**Your move, and it is not a command.** Find why the second replica does not exist, then enumerate every
+way you *could* get this node drained in the next forty minutes — and for each one, say what it does to
+somebody who is not in this ticket. One of them is right and it is not the fastest.
+
+<details>
+<summary>Reveal</summary>
+
+**Where the missing replica went.** `kubectl scale` edited a Deployment and that is all it claims to have
+done; the thing that creates a Pod is the ReplicaSet controller, and the thing that refuses one is
+admission. So the refusal is in a controller's event stream, not yours:
+
+```bash
+kubectl -n team-b describe rs -l app=ledger | grep -i forbidden
+```
+
+```
+Error creating: pods "ledger-..." is forbidden: exceeded quota: tenant-cap,
+requested: pods=1, used: pods=1, limited: pods=1
+```
+
+`team-b` has a **ResourceQuota** capped at one Pod. Which is Act VII's spine arriving in a maintenance
+window: *every field is a claim read by a different loop*, and when the loop that reads yours is refused
+by an admission controller, your terminal is not on the path the error takes. `kubectl get deployment`
+showing `1/2` with a successful `scale` behind it is the whole signature — and it is the reason this drill
+gives you no error message to search for.
+
+**And the blocker is not in your namespace, which is why one habit matters.** Drill 6's `kubectl get pdb`
+lists the current namespace and would have shown nothing here:
+
+```bash
+kubectl get pdb -A
+```
+
+```
+NAMESPACE   NAME         MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   AGE
+team-b      ledger-pdb   1               N/A               0                     2m
+```
+
+**`-A` before a maintenance window, every time.** A node hosts whoever the scheduler put there, so the
+set of people who can block your drain is not the set of people you know about.
+
+Now the options, which is what the drill is for. Four of them work and three of them are somebody else's
+decision to make:
+
+| Option | Drains the node? | What it does to `team-b` |
+|---|---|---|
+| `drain --force --disable-eviction` | yes, immediately | Deletes their only Pod, bypassing the eviction API entirely. Their service goes to zero for as long as a reschedule takes. **The PDB existed to prevent exactly this**, and the flag's purpose is to override it. |
+| `kubectl -n team-b delete pdb ledger-pdb` | yes | Same outage, and the protection is now gone permanently. Nobody will notice until the next incident, when it does not stop that one either. |
+| Raise `tenant-cap` to `pods: 2` | yes, cleanly | No outage at all — but you have changed another team's capacity and cost envelope to unblock your own maintenance, and there is no record that says why. |
+| Fix the PDB to `maxUnavailable: 1` | yes, cleanly | No outage, and it is the *correct* object — but it is their object. |
+
+Notice what the table does not contain: an option that is fast, safe, and yours. That is not a gap in the
+drill, it is the finding. **A cluster is one machine and a namespace is not a boundary against
+maintenance** — the node is shared, so a decision about the node is a decision about every tenant on it,
+and the only question is whether you make it deliberately or by reaching for `--force`.
+
+**So the right move is to arrive at the conversation with the answer already worked out**, which takes
+about two minutes and is the actual professional skill:
+
+> *Node `netlab-worker` needs patching in the window. Your `ledger` Pod is on it. `ledger-pdb` says
+> `minAvailable: 1` on a 1-replica Deployment, so `ALLOWED DISRUPTIONS` is 0 and no eviction can ever be
+> permitted — the budget currently forbids the maintenance it was meant to survive. Two ways out: raise
+> `tenant-cap` to 2 for twenty minutes and we drain with no downtime, or change the PDB to
+> `maxUnavailable: 1`, which is what "one at a time" is actually spelled as. Your call; I need it by 14:40.*
+
+Then prove the second option, because it is the one worth remembering:
+
+```bash
+kubectl -n team-b delete pdb ledger-pdb
+kubectl -n team-b apply -f - <<'EOF'
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: ledger-pdb, namespace: team-b }
+spec:
+  maxUnavailable: 1
+  selector: { matchLabels: { app: ledger } }
+EOF
+kubectl get pdb -A
+kubectl uncordon netlab-worker
+kubectl drain netlab-worker --ignore-daemonsets --delete-emptydir-data --timeout=60s | tail -2
+```
+
+```
+NAMESPACE   NAME         MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   AGE
+team-b      ledger-pdb   N/A             1                 1                     5s
+
+pod/ledger-... evicted
+node/netlab-worker drained
+```
+
+**Same workload, same one replica, same protection against a bad rollout — and now the node can be
+drained.** `minAvailable: 1` on a single-replica Deployment is not a strict policy, it is a
+**misconfiguration that reads as one**: it says "this may never be disrupted", which no cluster can
+honour and no maintenance can work around. `maxUnavailable: 1` says "one at a time", which is what
+whoever wrote it meant. The general check is arithmetic: **if a PDB's selector matches exactly as many
+Pods as `minAvailable` requires, `ALLOWED DISRUPTIONS` is 0 forever.** That is a linting rule, and it is
+worth running over every PDB you own before somebody else's maintenance window finds it for you.
+
+**One last thing, and it is the blast radius of merely trying.** Look at the node:
+
+```bash
+kubectl get node netlab-worker
+```
+
+```
+netlab-worker   Ready,SchedulingDisabled
+```
+
+A drain that **failed** still cordoned. `drain` cordons first and does not roll it back on failure, so
+every unsuccessful attempt above left the cluster one node smaller for scheduling — silently, for
+everybody, including tenants who were never in the ticket. Nothing is broken and nothing will report it;
+new Pods simply stop being placed there, and on a two-node cluster that is half your capacity. `kubectl
+get nodes` after any drain, successful or not, and `uncordon` before you walk away.
+
+</details>
+
+**Fix it:**
+
+```bash
+kubectl uncordon netlab-worker
+kubectl delete namespace team-b
+kubectl get nodes                                  # both Ready, neither SchedulingDisabled
+docker exec $CP ls /etc/kubernetes/manifests/      # all four
+```
+
+---
+
 ## When you can do these without the reveals
 
 You can operate a cluster below `kubectl` — which is the thing this act existed to give you, and the thing that separates knowing Kubernetes from being able to fix it. Notice what every drill had in common: **the fix was never in the manifest the ticket was about.** Six of these seven were solved by asking *which process should have done this, and did it* — and the seventh by asking *which of authentication and authorisation actually failed*.
