@@ -178,6 +178,94 @@ docker exec netlab-control-plane sh -c 'ls /etc/apt/sources.list.d/'
 
 That is a fact about `kind` specifically, and it is exactly the fact that makes a real in-place upgrade the one thing in this act your lab cannot honestly show you.
 
+
+### The other upgrade failure, and the table above cannot show it
+
+Everything so far is about components disagreeing about *their own* version, and the skew policy is the
+whole answer to that. There is a second kind of upgrade failure that no version number in that table
+predicts, and it is the one that actually stops upgrades: a release does not only renumber components,
+it **removes APIs**. Find out what that looks like before somebody finds out for you.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata: { name: old-pdb }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: x } }
+EOF
+```
+
+```
+error: resource mapping not found for name: "old-pdb" namespace: "" from "STDIN":
+no matches for kind "PodDisruptionBudget" in version "policy/v1beta1"
+ensure CRDs are installed first
+```
+
+`policy/v1beta1` is what you would have written for a PodDisruptionBudget on a v1.20 cluster. It was
+removed in v1.25, and that is what a removal looks like from outside: **the same error as a typo, plus a
+second line telling you to install a CRD that has nothing to do with it.** The kind is real. The version
+is gone. Nothing in the message contains the word *removed*, and nothing in it suggests looking at a
+release note — which is why the usual diagnosis is half an hour of confusion about CRDs.
+
+That message is what every archived manifest, stale chart and copied-from-a-blog snippet produces the
+morning after somebody upgrades a control plane. So the useful question is the one asked *before* the
+upgrade: what on this cluster is still calling something that is going away? The API server has been
+counting the whole time.
+
+```bash
+kubectl get --raw /metrics | grep '^apiserver_requested_deprecated_apis'
+```
+
+```
+apiserver_requested_deprecated_apis{group="",removed_release="",resource="endpoints",subresource="",version="v1"} 1
+```
+
+**That is not a list of deprecated APIs — it is a list of deprecated APIs somebody on this cluster has
+actually requested**, which is a much shorter and much more actionable thing. It is populated by use, so
+a line appearing means something is doing it now, and the label to read is `removed_release`. Here the
+only line is `endpoints`, deprecated in favour of `EndpointSlice` with `removed_release=""` — deprecated
+with no removal scheduled, so there is nothing to do about it. A line with a version in that label is a
+dated deadline, and the release it names is the release you must not upgrade to until the caller stops.
+
+Two commands finish the habit. `kubectl api-resources` is the ground truth for what *this* server serves,
+which makes it the after-check as well as the before-check; and `kubectl explain <kind>
+--api-version=<group/version>` answers "does this exact version still exist here" for one kind without
+applying anything:
+
+```bash
+kubectl api-resources --api-group=policy
+kubectl explain poddisruptionbudget --api-version=policy/v1 | head -3
+```
+
+```
+NAME                   SHORTNAMES   APIVERSION   NAMESPACED   KIND
+poddisruptionbudgets   pdb          policy/v1    true         PodDisruptionBudget
+
+GROUP:      policy
+KIND:       PodDisruptionBudget
+VERSION:    v1
+```
+
+**And one honest note about the tool everybody names for this.** `kubectl convert` rewrites a manifest
+from one API version to another, and it is **not part of `kubectl`**:
+
+```bash
+kubectl convert --help
+```
+
+```
+error: unknown command "convert" for "kubectl"
+```
+
+It ships as a separate `kubectl-convert` binary you download per release, so it is exactly as available
+as somebody happened to install it — do not plan a migration around it, and do not assume it on a
+machine you did not set up. What it does is usually not much: for most removals the schema is unchanged
+and the fix is the version string, so `policy/v1beta1` → `policy/v1` on a PodDisruptionBudget is a
+one-word edit. The work in an API migration was never the conversion. It was **finding every caller**,
+which is the metric above, plus a `grep` over whatever repository holds your manifests.
+
 > **Check yourself —** You inherit a cluster. The API server is `v1.30`. Half the nodes run kubelet `v1.27` and half run `v1.30`. Your laptop's `kubectl` is `v1.33`. What is out of policy, in what order would you fix it, and which of these is *dangerous* as opposed to merely unsupported?
 
 <details>
@@ -213,6 +301,18 @@ As for danger: none of it is *dangerous* in the sense of losing data. The kubele
                               (everywhere, needs a drain per node)
 
      3 older ~= a year, at one minor release every 4 months.
+
+   THE FAILURE THE SKEW TABLE DOES NOT PREDICT: a release REMOVES APIs.
+     removal looks like a typo:  no matches for kind "X" in version "Y"
+       + "ensure CRDs are installed first", which is a red herring.
+     BEFORE you upgrade:
+       kubectl get --raw /metrics | grep apiserver_requested_deprecated_apis
+       -> deprecated APIs SOMEBODY ACTUALLY CALLED, with removed_release.
+          populated by use, so a line = a live caller. empty label = no deadline.
+       kubectl api-resources        what THIS server serves (before and after)
+       kubectl explain K --api-version=g/v   one kind, no apply
+     kubectl convert is NOT part of kubectl. separate binary, per release.
+       and the edit is usually one word. FINDING THE CALLERS is the job.
      the window is a DEADLINE, not a resting place.
 
    WHERE A VERSION LIVES
