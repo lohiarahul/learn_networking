@@ -1,6 +1,6 @@
 # Diagnose it — Act X
 
-Nine drills. Nothing in this act breaks a cluster, which is precisely what makes it hard: in every drill below, **every component is healthy and every command succeeds.** There is no crash to find, no `CrashLoopBackOff`, no failing probe. The failures are all cases where a control is present, reports itself working, and is not doing the thing somebody believes it is doing.
+Eleven drills. Nothing in this act breaks a cluster, which is precisely what makes it hard: in every drill below, **every component is healthy and every command succeeds.** There is no crash to find, no `CrashLoopBackOff`, no failing probe. The failures are all cases where a control is present, reports itself working, and is not doing the thing somebody believes it is doing.
 
 Act V walked a network path. Act VI descended a dependency stack. Act VII asked which loop read which field. Act VIII had only a verdict. Act IX asked what moment an answer was about. This act's method is four questions, and the order matters:
 
@@ -789,6 +789,281 @@ docker exec $CP sh -c \
 for i in $(seq 1 40); do sleep 4; kubectl get --raw /healthz >/dev/null 2>&1 && break; done
 docker exec $CP rm -rf /etc/kubernetes/enc /root/ka-enc.bak
 docker exec $CP ls /etc/kubernetes/manifests/     # all four, every time
+```
+
+
+## Drills 10–11 — System Hardening
+
+Nothing to build. Both run on the two-node `netlab` cluster, and both reach a node with `docker exec`,
+because that is where the thing they are about lives.
+
+## Drill 10 — the hardening line that is not there
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"We rolled the standard hardened Pod template out across the estate last quarter. It
+> passed review, the admission policy accepts it, and every scanner we own calls it compliant. Since
+> Tuesday a job that has to `chown` the files it creates fails with `Operation not permitted`. Nobody
+> has touched the template. The app team says it is a cluster problem. The platform team says the
+> manifest is right — and the manifest is right. Which of them is wrong?"*
+
+**Reproduce it** (run; don't read):
+
+```bash
+kubectl create namespace drill10
+kubectl -n drill10 apply -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: chowner }
+spec:
+  restartPolicy: Never
+  containers:
+    - name: c
+      image: busybox:1.36
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
+          add: ["CAP_CHOWN"]
+      volumeMounts:
+        - { name: work, mountPath: /work }
+      command: ["sh","-c","touch /work/f && chown 1000 /work/f && echo CHOWN-OK || echo CHOWN-DENIED"]
+  volumes:
+    - { name: work, emptyDir: {} }
+EOF
+sleep 8
+kubectl -n drill10 logs chowner
+```
+
+```
+chown: /work/f: Operation not permitted
+CHOWN-DENIED
+```
+
+**Your move.** Both teams are describing the same manifest and both descriptions are accurate: the
+template asks for exactly one capability and that capability is exactly the one the job needs. The Pod
+was accepted with no error, no warning and no event. Start at question 1 of this act's method — *what
+does this control take as input?* — and find the one command that shows you what the kernel actually
+handed the process, as opposed to what the manifest asked for.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+The mask, and nothing else, settles it. Two Pods differing in exactly one respect:
+
+```bash
+for cap in CAP_CHOWN CHOWN; do
+  kubectl -n drill10 apply -f - >/dev/null <<EOF
+apiVersion: v1
+kind: Pod
+metadata: { name: m-$(echo $cap | tr 'A-Z_' 'a-z-') }
+spec:
+  restartPolicy: Never
+  containers:
+    - name: c
+      image: busybox:1.36
+      securityContext:
+        capabilities: { drop: ["ALL"], add: ["$cap"] }
+      command: ["sh","-c","grep ^CapEff /proc/self/status; touch /f && chown 1000 /f && echo CHOWN-OK || echo CHOWN-DENIED"]
+EOF
+done
+sleep 9
+echo "as written:      $(kubectl -n drill10 logs m-cap-chown | tr '\n' ' ')"
+echo "prefix removed:  $(kubectl -n drill10 logs m-chown     | tr '\n' ' ')"
+```
+
+```
+as written:      CapEff:	0000000000000000 chown: /f: Operation not permitted CHOWN-DENIED
+prefix removed:  CapEff:	0000000000000001 CHOWN-OK
+```
+
+**`CAP_CHOWN` is not a capability name that Kubernetes knows.** The manifest field takes the name
+without the prefix — `CHOWN` — and the kernel and `capsh` are the ones that write it as `cap_chown`.
+Put the kernel's spelling in the manifest and the string matches nothing the runtime recognises, so it
+adds nothing. Bit 0 of `CapEff` is `CAP_CHOWN`; `...0001` is the capability present and `...0000` is the
+whole `add:` list evaporating.
+
+Neither team was wrong about anything they said. The platform team's manifest **is** right in the sense
+they meant — it names the capability the job needs, in a stanza that drops everything else — and it is a
+no-op. That is the entire failure: the field validated, the value did not, and **nothing validates a
+capability name.** There is no schema for the contents of that list, so a typo is not a broken Pod, it
+is a Pod that reviews as hardened, scans as hardened, and is missing the one permission it was designed
+around. You find out when the workload does.
+
+Which is why the answer to *"which of them is wrong?"* is neither, and why that is the uncomfortable
+part. Question 4 of this act's method — *if this control stopped working, what would be different?* —
+returns **nothing observable** for every `add:` entry in every manifest you own, until something needs
+the capability. The only check is the mask:
+
+```bash
+kubectl -n <ns> exec <pod> -- grep ^Cap /proc/self/status
+```
+
+Four lines, and the one to read is `CapEff`. `getpcaps 1` and `capsh --decode=<hex>` are the friendlier
+forms when the container has them; `busybox` does not, and `/proc` always does.
+
+> **Check yourself —** the same template carries a second line whose effect is not where you would look
+> for it. `readOnlyRootFilesystem: true` is in that stanza and this Pod never noticed. Which Pods will,
+> and what is the fix?
+
+<details>
+<summary>Answer</summary>
+
+Any Pod whose process writes outside a mounted volume — and almost every real image does, because
+`/tmp` is on the root filesystem. This Pod escaped only because everything it wrote went to `/work`,
+which is an `emptyDir` and therefore not part of the read-only root.
+
+```bash
+kubectl -n drill10 run rofs --image=busybox:1.36 --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"c","image":"busybox:1.36","securityContext":{"readOnlyRootFilesystem":true},"command":["sh","-c","echo hi > /tmp/x && echo WROTE || echo FAILED"]}]}}'
+sleep 8
+kubectl -n drill10 logs rofs
+```
+
+```
+sh: can't create /tmp/x: Read-only file system
+FAILED
+```
+
+The fix is not to relax the field, it is to give the writable paths somewhere to be: an `emptyDir`
+mounted at `/tmp` — and at `/var/run`, `/var/cache` or wherever the image actually writes, which you
+find by running it and reading the errors. Note the message, because it is the distinction lesson 01
+drew: `Read-only file system` is the mount, `Operation not permitted` is the capability. Two different
+controls, two different words, and the word tells you which one you are fighting.
+
+</details>
+
+</details>
+
+**Tear down:**
+
+```bash
+kubectl delete namespace drill10
+```
+
+## Drill 11 — the profile that enforces on one node and not the other
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"Audit asked us to prove that our seccomp profile is blocking what it says it blocks. We
+> ran their test on a Pod, it blocked, we sent the screenshot. They ran it themselves on a different
+> Pod of the same Deployment and it did not block. Both Pods are Running. Same Deployment, same image,
+> same `securityContext` — `kubectl get -o yaml` on the two of them differs in nothing but the name and
+> the node. We cannot reproduce their result and they cannot reproduce ours."*
+
+**Reproduce it** (run; don't read):
+
+```bash
+kubectl create namespace drill11
+
+docker exec netlab-control-plane sh -c 'mkdir -p /var/lib/kubelet/seccomp/profiles && cat > /var/lib/kubelet/seccomp/profiles/no-mkdir.json <<JSON
+{"defaultAction":"SCMP_ACT_ALLOW","syscalls":[{"names":["mkdir","mkdirat"],"action":"SCMP_ACT_ERRNO"}]}
+JSON'
+
+docker exec netlab-worker sh -c 'mkdir -p /var/lib/kubelet/seccomp/profiles && cat > /var/lib/kubelet/seccomp/profiles/no-mkdir.json <<JSON
+{"defaultAction":"SCMP_ACT_ALLOW"}
+JSON'
+
+for node in netlab-control-plane netlab-worker; do
+  kubectl -n drill11 apply -f - >/dev/null <<EOF
+apiVersion: v1
+kind: Pod
+metadata: { name: p-${node#netlab-} }
+spec:
+  nodeName: $node
+  restartPolicy: Never
+  securityContext:
+    seccompProfile: { type: Localhost, localhostProfile: profiles/no-mkdir.json }
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","mkdir /x 2>&1 && echo MKDIR-OK || echo MKDIR-BLOCKED"]
+EOF
+done
+sleep 10
+
+kubectl -n drill11 get pod -o custom-columns='NAME:.metadata.name,PHASE:.status.phase,NODE:.spec.nodeName,PROFILE:.spec.securityContext.seccompProfile.localhostProfile'
+kubectl -n drill11 logs p-control-plane
+kubectl -n drill11 logs p-worker
+```
+
+```
+NAME              PHASE       NODE                   PROFILE
+p-control-plane   Succeeded   netlab-control-plane   profiles/no-mkdir.json
+p-worker          Succeeded   netlab-worker          profiles/no-mkdir.json
+
+mkdir: can't create directory '/x': Operation not permitted
+MKDIR-BLOCKED
+MKDIR-OK
+```
+
+**Your move.** Both Pods succeeded. Both name the same profile at the same path. Every field the API
+server has ever seen about these two Pods is identical. So the difference is not in anything the API
+server has, which narrows it to one place — and question 2 of this act's method is the one that gets
+you there: *what is outside this control's domain?*
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+`localhostProfile` is **a path on a node's filesystem**, and nothing else. It is not a name that
+resolves to an object, there is no `kubectl get seccompprofile` for it, and the API server never reads
+the file — it stores the string and the kubelet on whichever node wins the scheduling hands the path to
+the container runtime. So the value is identical on both Pods and the *thing it points at* is not:
+
+```bash
+for n in netlab-control-plane netlab-worker; do
+  printf '%-22s ' "$n"
+  docker exec $n cat /var/lib/kubelet/seccomp/profiles/no-mkdir.json
+done
+```
+
+```
+netlab-control-plane   {"defaultAction":"SCMP_ACT_ALLOW","syscalls":[{"names":["mkdir","mkdirat"],"action":"SCMP_ACT_ERRNO"}]}
+netlab-worker          {"defaultAction":"SCMP_ACT_ALLOW"}
+```
+
+One node has the profile. The other has a file of the same name that allows everything. Both Pods are
+"running with a Localhost seccomp profile" and one of them is running with a profile that forbids
+nothing — and **there is no field, event, condition or annotation anywhere in the cluster that
+distinguishes them.** Everybody in the ticket was telling the truth.
+
+Two things follow, and the second is the one worth carrying.
+
+**The scope of a `Localhost` profile is a node, so the state you are trusting is per-node state**, in a
+directory somebody has to have populated. Hand-copying it is how the two nodes diverge; the file
+missing altogether is the visible version of the same bug, and it fails much more usefully —
+
+```
+CreateContainerError: cannot load seccomp profile
+"/var/lib/kubelet/seccomp/profiles/audit.json": no such file or directory
+```
+
+— because a Pod that will not start gets found. A Pod that starts against the wrong profile does not.
+Which is the asymmetry this whole act keeps arriving at: **the loud failure is the safe one.** So ship
+profiles with something that reconciles them onto every node — a DaemonSet that writes the directory,
+or the Security Profiles Operator, which exists for exactly this and makes the profile a cluster object
+with a status you can read.
+
+**And `RuntimeDefault` has none of this problem**, because it names no file. It is the container
+runtime's own profile, it is present wherever the runtime is, and it is what `restricted` Pod Security
+is satisfied by. `Localhost` is what you reach for when `RuntimeDefault` is too permissive for one
+workload — and the moment you reach for it you have taken on a node-state problem that Kubernetes will
+not manage for you and will not warn you about.
+
+> **The check, in one line.** For any Pod claiming a `Localhost` profile, the only honest verification
+> is to make the container attempt the syscall the profile is supposed to block, **on the node it is
+> actually running on.** Reading `spec.securityContext` tells you what was asked for. It has never told
+> anybody what happened.
+
+</details>
+
+**Tear down:**
+
+```bash
+kubectl delete namespace drill11
+docker exec netlab-control-plane rm -f /var/lib/kubelet/seccomp/profiles/no-mkdir.json
+docker exec netlab-worker rm -f /var/lib/kubelet/seccomp/profiles/no-mkdir.json
 ```
 
 ---
