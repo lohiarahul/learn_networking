@@ -6,6 +6,21 @@ The last file ended on an uncomfortable thought. ARP works by shouting onto a wi
 
 But the wire grows: hundreds of machines, every broadcast flooded to all of them, and any host free to claim it's the gateway. The shared wire that made addressing simple becomes both a noise problem and a trust problem the bigger it gets. So here's the question this file answers: how do you cut one physical wire into several smaller, isolated wires — without laying a single new cable? The answer, like the MAC and the IP before it, turns out to be just a number written into the frame.
 
+## What lesson 01 skipped — how a switch actually forwards a frame
+
+Lesson 01's whole picture of "the wire" was Metcalfe's original coax: one shared cable, and every card electrically receives every frame, filtering by destination MAC in its own hardware. That's a **hub** — it just repeats a frame out of every other port, blind to what's plugged in where.
+
+A **switch** is a different machine, and by the mid-1990s it had replaced the hub everywhere that mattered. Each port is its own point-to-point link — no shared electricity, no collisions — and the switch makes an actual forwarding decision per frame instead of a blind repeat:
+
+1. It watches the **source MAC** of every frame that arrives and remembers which port it came in on, building a MAC-address-to-port table as traffic flows. (Same shape as ARP's cache from lesson 01 — learn by watching, keep what you learn — just Layer 2 → port instead of Layer 3 → Layer 2.)
+2. For the next frame, it looks up the **destination MAC** in that table:
+   - Known → forward out **that one port, and no other**. Every other device on the switch never sees the frame — the one thing a shared coax cable structurally cannot do.
+   - Broadcast (`ff:ff:ff:ff:ff:ff`), multicast, or a destination it hasn't learned yet → **flood** out every port except the one the frame arrived on.
+
+Flooding is the only case left that still behaves like the old shared cable — and it's the case ARP depends on: "who has this IP?" is a broadcast, so it still reaches everyone even though nothing is electrically shared anymore. That's why a switched network, despite having no shared wire at all, is still *one broadcast domain* end to end: not because the electricity is shared, but because the switch chooses to flood.
+
+Hold that word — **flood** — because it's the exact knob a VLAN turns. Nothing below changes how a switch learns a MAC or forwards a known unicast frame; it just gives the switch a second thing to check, alongside the destination MAC, before it decides who gets to see a frame.
+
 ## The problem: one shared wire neither scales nor isolates
 
 By the mid-1990s a switched Ethernet had become a victim of its own success. Every machine plugged into the building's switches shared one **broadcast domain**: one ARP request, one stray broadcast, was flooded to every port. With hundreds of hosts the broadcast traffic alone taxed every card, and a single misbehaving machine could drown the network — a *broadcast storm*. And there was no isolation at all: accounting, engineering, and the jack in the public lobby were electrically the same wire, so anything one machine could broadcast or ARP-spoof, every machine received.
