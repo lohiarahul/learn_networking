@@ -108,9 +108,19 @@ const SINGLES = [
   [`${COURSE_DIR}/README.md`, 'course.md', 1],
   [`${COURSE_DIR}/the-whole-stack.md`, 'capstone/the-whole-stack.md', 1],
   [`${COURSE_DIR}/your-own-machine.md`, 'capstone/your-own-machine.md', 2],
-  [`${COURSE_DIR}/code/README.md`, 'reference/build-the-lab-image.md', 1],
-  ['JOURNEY-MAP.md', 'reference/journey-map.md', 3],
-  ['Toolbelt.md', 'reference/toolbelt.md', 4],
+  // The reference wing leads its own section, because its first page is the one that makes the rest
+  // shrink: the naming grammar that lets a reader derive a command instead of looking one up. The
+  // pages that were already here (the lab image, the code, the journey map, the toolbelt) follow it.
+  ['reference/README.md', 'reference/index.md', 1],
+  ['reference/01-the-grammar.md', 'reference/the-grammar.md', 2],
+  ['reference/02-the-state-map.md', 'reference/the-state-map.md', 3],
+  ['reference/03-the-index.md', 'reference/the-index.md', 4],
+  ['reference/04-by-question.md', 'reference/by-question.md', 5],
+  ['reference/05-per-act-commands.md', 'reference/per-act-commands.md', 6],
+  ['reference/06-derive-it.md', 'reference/derive-it.md', 7],
+  [`${COURSE_DIR}/code/README.md`, 'reference/build-the-lab-image.md', 8],
+  ['JOURNEY-MAP.md', 'reference/journey-map.md', 10],
+  ['Toolbelt.md', 'reference/toolbelt.md', 11],
   // exam-prep is deliberately NOT a course act — it is rehearsal for a timed exam, which is the
   // banking the course refuses to do. It publishes under its own section so a reader can find it
   // without it ever appearing beside the lessons.
@@ -171,20 +181,18 @@ const CODE_FILES = [
 ];
 
 /** Where `reference/the-code.md` is written, and the order it takes in the Reference sidebar. */
-const CODE_PAGE = { dest: 'reference/the-code.md', order: 2 };
+const CODE_PAGE = { dest: 'reference/the-code.md', order: 9 };
 
 /** Supporting pages sort after the numbered lessons, in the order each act's README recommends. */
 const SUPPORTING_ORDER = {
   'test-yourself.md': 900,
   'diagnose.md': 910,
-  'commands.md': 920,
   'in-the-wild.md': 930,
 };
 
 const SUPPORTING_LABELS = {
   'test-yourself.md': 'Test yourself',
   'diagnose.md': 'Diagnose it',
-  'commands.md': 'Command reference',
   'in-the-wild.md': 'In the wild',
 };
 
@@ -423,6 +431,9 @@ bpftrace nmap python3 python make gcc cc bash sh sudo kind helm openssl base64 x
 awk sed grep cut sort uniq head tail wc tr tee seq watch dhclient resolvectl systemctl modprobe sysctl
 traceroute mtr nslookup lsof prlimit ulimit chmod chown id whoami uname hostname date env true
 eza bat fd rg jq yq cilium hubble crictl getent
+iptables-save iptables-restore etcdctl etcdutl kubeadm runc capsh getpcaps apparmor_parser trivy cosign crane kube-bench falco kyverno
+kustomize wg nstat bpftool devlink ipvsadm ipset scapy tracepath pkill timeout xargs readlink
+pwru retis tshark iperf3 pgrep ifconfig nettop scutil dscacheutil pfctl lsns
 `.trim().split(/\s+/));
 
 /** Box-drawing and arrow glyphs: a sure sign the block is a diagram, not a command. */

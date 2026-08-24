@@ -52,7 +52,10 @@ const SECTIONS: Record<MotifName, Section> = {
   'act-9': { label: 'Act IX · Identity and access', motif: 'act-9', href: '/act-9/' },
   'act-10': { label: 'Act X · Securing the cluster', motif: 'act-10', href: '/act-10/' },
   capstone: { label: 'Capstone', motif: 'capstone' },
-  reference: { label: 'Reference', motif: 'reference' },
+  // Reference gained an overview page with the instrument-panel wing, so its eyebrow links up like an
+  // act's rather than sitting as plain text. That also hands `tagLessonNav` the section, which is what
+  // makes it drop each source's footer nav line in favour of Starlight's own pagination.
+  reference: { label: 'Reference · the instrument panel', motif: 'reference', href: '/reference/' },
   // Not an act, and the label says so. exam-prep is rehearsal for a timed exam, which is the one
   // thing the course refuses to do inside a lesson — so it gets an eyebrow that never reads as
   // "Act XI".
