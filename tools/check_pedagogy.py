@@ -221,15 +221,12 @@ def check_command_table_coverage(_files):
         m = re.search(r"const SHELL_COMMANDS = new Set\(`(.*?)`", read(sync), re.DOTALL)
         if m:
             known = set(m.group(1).split())
-            # First code span of each table row is the tool name.
             named = set()
-            for line in read(index).split("\n"):
-                st = line.strip()
-                if not st.startswith("| `"):
-                    continue
-                tool = st.split("`")[1].split()[0]
-                if re.fullmatch(r"[a-z0-9_.-]+", tool):
-                    named.add(tool)
+            for row in index_tool_rows(read(index)):
+                for span in re.findall(r"`([^`]+)`", row["Tool"]):
+                    tool = span.split()[0]
+                    if re.fullmatch(r"[a-z0-9_.-]+", tool):
+                        named.add(tool)
             missing = sorted(named - known)
             if missing:
                 issues.append(("WARN", "command-table-coverage: in reference/03-the-index.md but not in "
@@ -237,8 +234,114 @@ def check_command_table_coverage(_files):
                                        f"plaintext): {', '.join(missing)}"))
     return issues
 
+# ── The index's two facets ──────────────────────────────────────────────────
+# `reference/03-the-index.md` classifies every tool by the kernel interface it speaks and by what it can
+# do to the world. Both vocabularies are deliberately *closed*, because an open one is a taxonomy that
+# quietly stops partitioning anything. These are the values; a cell outside them is the bug.
+INTERFACES = {"netlink", "procfs", "socket", "packet", "probe", "nsapi", "httpapi", "local"}
+MODES = {"read-only", "mutate", "live"}
+
+def index_tool_rows(text):
+    """Yield the data rows of the index's *topical* tables as dicts, keyed by column header.
+
+    Table-aware on purpose. The page also carries summary tables whose first cell is a code span
+    (`| `netlink` | ip monitor · ss -E | …`), and a naive "row starts with a backtick" scan reads those
+    interface names as tool names — which is exactly the false positive this function exists to avoid.
+    A topical table is identified by having an `In the course` column; nothing else does.
+    """
+    cols, rows = None, []
+    for line in text.split("\n"):
+        st = line.strip()
+        if not st.startswith("|"):
+            cols = None
+            continue
+        cells = [c.strip() for c in st.strip("|").split("|")]
+        if "In the course" in cells:
+            cols = cells
+            continue
+        if cols is None or all(set(c) <= {"-", ":"} for c in cells) or len(cells) != len(cols):
+            continue
+        rows.append(dict(zip(cols, cells)))
+    return rows
+
+def check_index_facets(_files):
+    """Warning-only: the index's `Speaks` and `Mode` columns, and the summary tables that group by them.
+
+    Three drifts, all silent otherwise:
+
+    1. A `Speaks` or `Mode` cell using a value outside the closed vocabulary — a typo, or a new
+       interface invented in one row and nowhere else.
+    2. The `Speaks` column and the *eight interfaces* summary table disagreeing about which tools speak
+       what. This is the check that makes the taxonomy hold: a tool cannot be added without being
+       placed, which is how every tool taxonomy eventually dies.
+    3. The counts asserted in prose (`13 + 14 + … = 72`, and "22 of the 72 tools can stream") not
+       matching the columns they describe.
+    """
+    issues = []
+    index = os.path.join(REFERENCE, "03-the-index.md")
+    if not os.path.exists(index):
+        return issues
+    text = read(index)
+    rows = index_tool_rows(text)
+    if not rows or "Speaks" not in rows[0]:
+        return issues
+
+    # 1. Closed vocabularies.
+    by_iface, rows_by_iface, streams = {}, {}, set()
+    for r in rows:
+        tool = r["Tool"]
+        iface = re.split(r"[·&]", r["Speaks"], maxsplit=1)[0].strip()
+        if iface not in INTERFACES:
+            issues.append(("WARN", f"index-facets: {tool} claims interface '{iface}', "
+                                   f"not one of {sorted(INTERFACES)}"))
+            continue
+        # Two units, deliberately. The summary table names individual tools, so the set
+        # comparison counts code spans (`ulimit` / `prlimit` is two). The arithmetic the page states is
+        # over *rows*, because that is what the page says it is counting.
+        by_iface.setdefault(iface, set()).update(re.findall(r"`([^`]+)`", tool))
+        rows_by_iface[iface] = rows_by_iface.get(iface, 0) + 1
+        modes = {m.strip() for m in r["Mode"].split("·")}
+        bad = modes - MODES
+        if bad:
+            issues.append(("WARN", f"index-facets: {tool} claims mode {sorted(bad)}, "
+                                   f"not in {sorted(MODES)}"))
+        if "live" in modes:
+            streams.add(tool)
+
+    # 2. The summary table must name exactly the tools the column classifies.
+    for line in text.split("\n"):
+        m = re.match(r"\| \*\*`(\w+)`\*\* \|", line.strip())
+        if not m or m.group(1) not in INTERFACES:
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        listed = set(re.findall(r"`([^`]+)`", cells[2]))
+        actual = by_iface.get(m.group(1), set())
+        for missing in sorted(actual - listed):
+            issues.append(("WARN", f"index-facets: `{missing}` speaks {m.group(1)} in its row but is "
+                                   f"absent from the eight-interfaces summary"))
+        for extra in sorted(listed - actual):
+            issues.append(("WARN", f"index-facets: the {m.group(1)} summary names `{extra}`, "
+                                   f"which no row classifies as {m.group(1)}"))
+
+    # 3. The arithmetic the page states about itself.
+    sums = re.search(r"`((?:\d+ \+ )+\d+) = (\d+)`", text)
+    if sums:
+        parts = [int(x) for x in sums.group(1).split(" + ")]
+        want = sorted(rows_by_iface.values(), reverse=True)
+        if sorted(parts, reverse=True) != want or int(sums.group(2)) != len(rows):
+            issues.append(("WARN", f"index-facets: the page states {sums.group(0)} but the columns give "
+                                   f"{'+'.join(str(n) for n in want)} = {len(rows)}"))
+    live = re.search(r"\*\*(\d+) of the (\d+) tools can stream\*\*", text)
+    if live and (int(live.group(1)) != len(streams) or int(live.group(2)) != len(rows)):
+        issues.append(("WARN", f"index-facets: the page claims {live.group(1)} of {live.group(2)} tools "
+                               f"stream; the Mode column gives {len(streams)} of {len(rows)}"))
+    return issues
+
 HARD_CHECKS = [check_links, check_act_shape, check_prediction, check_ladder]
-WARN_CHECKS = [check_index_freshness, check_map_vs_build, check_command_table_coverage]
+WARN_CHECKS = [check_index_freshness, check_map_vs_build, check_command_table_coverage,
+               check_index_facets]
 
 # ── Runner ──────────────────────────────────────────────────────────────────
 def main(argv):

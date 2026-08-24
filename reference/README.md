@@ -30,6 +30,17 @@ verb set that repeats across all of it, those verbs turn out to *be* the kernel'
 the same trick reaches into `/proc` and `/sys`. Learn those shapes and you can work out commands and paths
 nobody taught you — which is the only skill here that survives a tool changing its flags.
 
+Then read the two summary tables at the top of **[the index](03-the-index.md)**. They are the other
+half of the same skill. The grammar page tells you how a command is *spelled*; those tables tell you
+which of eight kernel interfaces the spelling *addresses* — `netlink`, `procfs`, `socket`, `packet`,
+`probe`, `nsapi`, `httpapi`, `local` — each defined by a syscall you can see in `strace`, so the
+classification is measurable rather than a matter of opinion. That is what makes the roster stop feeling
+like a list: tools sharing an interface share a grammar and a blind spot and are often substitutable,
+and tools in different rows never substitute no matter how alike their output looks. The second table
+answers the one question nobody has memorised — which tools can stream events, and which four
+interfaces have no streaming form at all, so that reaching for them means you are polling and will miss
+things.
+
 Then read **[by question](04-by-question.md)**, which is the page you will actually reach for under
 pressure, because a real failure arrives as a symptom and not as a tool name.
 
@@ -37,7 +48,7 @@ pressure, because a real failure arrives as a symptom and not as a tool name.
 |---|---|
 | **[The grammar](01-the-grammar.md)** | Why the commands are spelled the way they are, and how to work out one you were never shown |
 | **[The state map](02-the-state-map.md)** | Where the kernel keeps a fact, and how to construct a `/proc` or `/sys` path |
-| **[The index](03-the-index.md)** | One row per tool: what its name expands to, and the one thing only it can show you |
+| **[The index](03-the-index.md)** | One row per tool: which of eight kernel interfaces it speaks, whether it can change things or stream them, and the one thing only it can show you |
 | **[By question](04-by-question.md)** | You have a symptom, not a tool name. **The one to read second** |
 | **[Command reference, by act](05-per-act-commands.md)** | Every command Acts I–IV run, broken down element by element |
 | **[Derive it](06-derive-it.md)** | Drills that make you *write* commands you were never shown |
@@ -66,6 +77,12 @@ would be incoherent.
 Link integrity still applies, and it does real work here: every "taught in" citation on
 [the index](03-the-index.md) is a relative link, so a lesson that gets renamed or deleted breaks the
 build rather than quietly leaving a lie in a table.
+
+The index's two facet columns get their own guard, `check_index_facets`. Both vocabularies are closed,
+so a value outside them is a warning; and the *eight interfaces* summary must name exactly the tools the
+`Speaks` column classifies, in both directions. That last check is the one that matters, because it makes
+it impossible to add a tool to this page without placing it — which is how every tool taxonomy
+eventually dies. The counts the page asserts about itself are checked against the columns too.
 
 The two claims this directory can't check for itself are accuracy and honesty, so both get an agent:
 `technical-accuracy-checker` runs every command block in the lab image, and each `roster only` marker is
