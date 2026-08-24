@@ -29,7 +29,7 @@ Work through these in order. Each one runs experiments in the lab container and 
 5. **[HTTP](04-http.md)** — structure imposed on the byte stream, why the protocol kept being replaced, and what a proxy in the middle can see.
 6. **[TLS](05-tls.md)** — the lock bolted onto the socket.
 
-When you've finished all six, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills.
+When you've finished all six, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills. When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
 
 ## What breaks here
 

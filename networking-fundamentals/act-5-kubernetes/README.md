@@ -35,7 +35,7 @@ Work through these in order. Each one runs experiments against the cluster and e
 11. **[The debugging method — five questions in order](08-debugging.md)** — which file to read first when it breaks.
 12. **[The method in action — a worked failure](09-debugging-walkthrough.md)** — the debugging walk end to end.
 
-When you've finished them all, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills, which break a real cluster four ways and tell you nothing but the symptom.
+When you've finished them all, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills, which break a real cluster four ways and tell you nothing but the symptom. When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
 
 ## What breaks here
 

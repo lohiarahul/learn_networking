@@ -71,6 +71,8 @@ Several lessons edit the API server's static Pod manifest. That is a real contro
 
 Then **[test yourself](test-yourself.md)**, the eleven **[on-call drills](diagnose.md)** — where every component is healthy, every command succeeds, and the control is not doing what somebody believes it is doing — and **[in the wild](in-the-wild.md)**.
 
+When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
+
 ## What breaks here
 
 More than in any previous act, and on purpose. Every lesson in this act has a failure mode where **the control appears to be working and is not**: a capability granted that is never checked, a policy label on an exempted namespace, a seccomp profile present on four nodes out of five, an admission webhook whose `failurePolicy` quietly lets everything through when it is down, a Secret encrypted in etcd and readable on a node, a signature verified against a key anybody can push to.

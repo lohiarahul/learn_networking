@@ -35,6 +35,7 @@ Then, when you have worked through all eight:
 
 - **[Test yourself](test-yourself.md)** — twenty questions, answers folded away. Attempt each before opening it.
 - **[Diagnose it](diagnose.md)** — eight on-call drills that put your cluster into a genuinely broken state and hand you only the symptom. The last one has no command at the end of it: the node is shared, the blocker belongs to a tenant you do not own, and every fix that works is somebody else's decision.
+- **[The instrument panel](../../reference/README.md)** — where to look a tool or a `/proc` path up once you have stopped meeting it for the first time, and the naming grammar that makes an unfamiliar command guessable.
 - **[Act VI in the wild](in-the-wild.md)** — why every managed Kubernetes service hides exactly the four things this act taught you to read, and which of your commands survive that.
 
 > **On verification.** All eight lessons have been run against a real cluster (`kind`, Kubernetes v1.36.1, etcd 3.6.8) and corrected against what actually happened — including several places where the cluster contradicted the text outright. The drills in `diagnose.md` reuse those verified commands but have not been walked end to end as drills, so treat their timings as the least-tested thing here. All three supporting pages linked above are written; the roadmap banner in [the journey map](../../JOURNEY-MAP.md) tracks what is real across the whole course.

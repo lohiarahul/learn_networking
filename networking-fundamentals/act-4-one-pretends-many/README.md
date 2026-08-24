@@ -22,7 +22,7 @@ Work through these in order. Each one runs experiments in the lab container and 
 
 Every lesson ends by tearing down what it built, so you can work straight through in one container without tripping over the last experiment's leftovers.
 
-When you've finished them all, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills. To find these same primitives running on your own machine — including the honest twist that none of them exist on macOS — read **[Act IV in the wild →](in-the-wild.md)**.
+When you've finished them all, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills. To find these same primitives running on your own machine — including the honest twist that none of them exist on macOS — read **[Act IV in the wild →](in-the-wild.md)**. When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
 
 ## What breaks here
 
