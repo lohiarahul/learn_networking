@@ -103,8 +103,10 @@ First find your own subnet and gateway, and pick an address in the subnet that n
 
 ```bash
 ip -4 addr show eth0                       # your address and its /prefix
-ip route show default | awk '{print $3}'   # your gateway's IP
+ip route get 8.8.8.8 | awk '{print $3}'    # your gateway's IP
 ```
+
+> **Why `ip route get` and not `ip route show default`?** The latter only reads the `main` routing table, and on some hosts — Docker Desktop's VM among them — the default route lives in a separate policy-routing table instead (check with `ip rule show`; you'll see a line like `lookup 2` alongside `lookup main`). `ip route get <dst>` asks the kernel which route it would *actually* use for that destination, so it finds the gateway regardless of which table it's sitting in. If you're curious which table it was, add `ip route show table all` to the list — it dumps every table that holds a route, labelled by name or number.
 
 > **Predict first —** the instant before a reply arrives, what will the brand-new row for that IP show in its MAC column? And for an address nobody owns, what will that row ever become?
 
@@ -119,7 +121,7 @@ ping -c 2 192.168.65.222                   # substitute an unused address from Y
 
 # shell 2 — now forget the gateway and ask about it again
 ip neigh flush dev eth0
-ping -c 2 "$(ip route show default | awk '{print $3}')"
+ping -c 2 "$(ip route get 8.8.8.8 | awk '{print $3}')"
 ```
 
 The unused address appears as an **incomplete** row — an all-zero MAC, flag `0x0` — and sits there while the kernel keeps retrying, because the shout went out and nobody answered. The gateway, flushed and re-asked, appears the same way for a fraction of a second and then flips to a real hardware address as the reply lands. Two rows, two outcomes, and between them the whole protocol: the kernel asks, and the frame waits until somebody claims the name. You just watched two separate naming systems get stitched together in real time.
