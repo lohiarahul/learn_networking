@@ -118,6 +118,7 @@ Three commands open nearly every lesson, so they are here once rather than in ev
 |---|---|
 | `df -h /proc` | `df` (*disk free*); `-h` human-readable; trailing path = report the filesystem backing it. `/proc` shows size 0 — nothing on disk backs it |
 | `stat /proc/net/dev` | print a file's metadata. procfs files report `Size: 0` and yet `cat` prints content: the contradiction the lesson is built on |
+| `cd /tmp` | change directory — the lesson works in `/tmp` because the inode experiments below create and delete real files, and a scratch filesystem is the right place for that |
 | `ls -li /tmp/a.txt` | `-i` = show the **inode number** first — the kernel's real identity for a file, independent of its name |
 | `ln <target> <newname>` | **hard link**: a second directory entry pointing at the *same inode*. Same inode number, link count `+1`. No `-s` |
 | `ln -s <target> <name>` | **symbolic link**: its own inode whose *data is the target path string*, so its size equals the string's length. The target need not exist |
@@ -147,8 +148,9 @@ Three commands open nearly every lesson, so they are here once rather than in ev
 | `cat /sys/class/net/eth0/statistics/rx_packets` | a single counter. Everything `ip -s link` prints lives as one file each under `statistics/` |
 | `ip -s link show eth0` | `-s` = statistics. opt: `-s -s` **stacks** for per-error-type detail |
 | `ip -4 addr show eth0` | your address and its prefix length, IPv4 only |
-| `ip route show default \| awk '{print $3}'` | `default` is the route matching everything; field 3 of that line is the gateway's address. The idiom for "who is my gateway" with no hardcoding |
+| `ip route get 8.8.8.8 \| awk '{print $3}'` | field 3 of `ip route get`'s answer is the gateway. Note **why this and not `ip route show default`**: `show` reads only the `main` table, and on some hosts — Docker Desktop's VM among them — the default route lives in a separate policy-routing table (`ip rule show` reveals it). `ip route get <dst>` asks which route the kernel would *actually* use, so it finds the gateway whichever table holds it |
 | `watch -n1 cat /proc/net/arp` | `watch` re-runs a command; `-n1` every second. The neighbour cache filling in, live |
+| `ping -c 2 "$(ip route get 8.8.8.8 \| awk '{print $3}')"` | the same lookup, spliced in with `$(…)` so nothing is hardcoded |
 | `ping -c 2 <unused address in your subnet>` | forces an ARP request for an address nobody owns, so you can watch the request go out and nothing come back |
 | `ip neigh flush dev eth0` | `neigh` = the neighbour object; `flush` = empty it; `dev eth0` = scoped to one device. Makes the next ping re-ARP so you can watch it happen |
 | `arp -n` | the old tool. `-n` = numeric, don't reverse-resolve |

@@ -80,8 +80,18 @@ def is_command(line: str) -> bool:
     token = token.lstrip("$(").rstrip(";|")
     if token in SHELL_COMMANDS:
         return True
-    # `FOO=bar cmd …` and `for x in …; do` are real command lines the lessons use.
-    return bool(re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", token)) or token in {"for", "while", "if"}
+    # `FOO=bar cmd …` and `for x in …; do` are real command lines the lessons use. But the course also
+    # annotates raw kernel output in column-aligned blocks (`src=10.0.0.7    the private source`), which
+    # start with the same shape — so a run of two or more spaces marks it as a label, not a command.
+    if re.search(r"\S {2,}\S", line):
+        return False
+    if token in {"for", "while", "if"}:
+        return True
+    # An assignment only opens a *command* line if a command follows it. `FOO=bar curl …` is one;
+    # `src=10.0.0.7 dst=93.184.216.34 sport=51920` is a conntrack tuple being read aloud.
+    if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", token):
+        return any(w.lstrip("$(").rstrip(";|") in SHELL_COMMANDS for w in line.split()[1:])
+    return False
 
 
 def command_lines(body: str) -> list[str]:
