@@ -18,6 +18,12 @@ of what to *earn*, in order, not a set of verdicts to memorise.
 "Expert" means: when something breaks, you instinctively drop to the fundamental tool to see the truth,
 and when you're building, you wield the modern one without ceremony.
 
+> **This file is the roster, not the reference.** It answers *"what should I be fluent in by now?"*, in
+> the order the journey introduces things. For *"what does this tool do and how do I spell it"*, the
+> [instrument panel](reference/README.md) is the place — sorted for lookup rather than for learning,
+> with [the naming grammar](reference/01-the-grammar.md) that makes an unfamiliar command guessable and
+> [an index](reference/03-the-index.md) that marks every tool **taught** or **roster only**.
+
 > ## ⚑ This is the nine-stage roster, not the built course
 >
 > The stage headings below run 0–9, because this list is pinned to the *whole* journey. Most of that
@@ -72,13 +78,13 @@ and when you're building, you wield the modern one without ceremony.
 - `ping`, `arping` — reachability at L3 and L2.
 - `traceroute` / `tracepath` — the path, hop by hop.
 - `tcpdump` — capture and read packets from the command line (learn the BPF filter syntax cold).
-- `ethtool` — NIC settings, offloads, ring buffers.
+- `ethtool` — NIC settings, offloads, ring buffers. *(roster only — no lesson runs it, though Act II raises the offload mystery it would explain.)*
 - `dig` (+`host`, `nslookup`) — DNS resolution you can read.
 - `dhclient` / `networkctl` — how a host gets its address.
 
 **Modern / production**
-- `mtr` — continuous traceroute + loss/latency per hop.
-- `Wireshark` / `tshark` / `termshark` — deep packet analysis with dissectors.
+- `mtr` — continuous traceroute + loss/latency per hop. *(roster only.)*
+- `Wireshark` / `tshark` / `termshark` — deep packet analysis with dissectors. *(named on Act II's `in-the-wild` page as tcpdump's visual rival; no lesson runs `tshark` itself.)*
 - `nmap` — host/port/service discovery (and the security shadow of scanning).
 - `drill` / `dog` / `dnsx` — friendlier, DNSSEC-aware DNS clients.
 - `gping` — ping with a live graph.
@@ -90,7 +96,7 @@ and when you're building, you wield the modern one without ceremony.
 **Fundamentals**
 - `ss -ti` — live TCP state, RTT, window, retransmits.
 - `conntrack` (conntrack-tools) — read the kernel's flow table directly.
-- `nc` (netcat) / `socat` — hand-craft TCP/UDP connections; the Swiss-army knives.
+- `nc` (netcat) / `socat` — hand-craft TCP/UDP connections; the Swiss-army knives. *(`nc` is taught throughout Act III; `socat` is roster only.)*
 - `curl -v` — every byte of an HTTP(S) exchange; the most important tool here.
 - `openssl s_client` — open a TLS connection by hand (used as a black box now, opened in Stage 4).
 
@@ -137,8 +143,8 @@ and when you're building, you wield the modern one without ceremony.
 ## Stage 6 — Containers (one machine pretends to be many)
 
 **Fundamentals**
-- `ip netns`, `nsenter`, `unshare` — build and enter namespaces by hand (containers, demystified).
-- `iptables` / `nft` — the NAT and filtering rules a container runtime writes for you.
+- `ip netns`, `nsenter`, `unshare` — build and enter namespaces by hand (containers, demystified). *(`ip netns` is taught in Act IV and `unshare` in Act X; `nsenter` is named in prose and never run — [derive it yourself](reference/06-derive-it.md#ladder-1--derive-the-command).)*
+- `iptables` / `nft` — the NAT and filtering rules a container runtime writes for you. *(`iptables` is taught in Act IV; `nft` is roster only — zero lesson uses, despite being the modern replacement.)*
 - `bridge` — manage the virtual switch (`docker0` and friends).
 - `runc` / `crun` — the OCI runtime that actually starts a container.
 
