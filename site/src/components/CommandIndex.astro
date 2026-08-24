@@ -1,0 +1,180 @@
+---
+/**
+ * Filters the tool tables on `/reference/the-index/` in place.
+ *
+ * Renders no markup of its own — like Diagram, Predict, Checkpoint and Annotate it only carries a
+ * definition and is included from Footer.astro, so it costs nothing on the pages that don't use it.
+ * Unlike those four it is not emitted by sync-content.mjs: there is no directive in the Markdown. It
+ * finds its own target by pathname, because the thing it enhances is *every* table on one page and a
+ * per-table directive would be six copies of the same instruction.
+ *
+ * The problem it solves: the index is ~100 rows across ten tables, grouped by what a tool is for. That
+ * grouping is right for reading and wrong for the moment you actually need it — you know a fragment of
+ * a name, or you know you want "the things Act IV teaches", and scrolling ten tables to find out is
+ * slower than the man page you were avoiding. Pagefind searches the whole site and lands you on the
+ * page; this narrows it once you are here.
+ *
+ * Three filters, because they match the three ways people arrive: free text (a name half-remembered),
+ * taught-vs-roster (the honesty axis — "don't show me things this course never taught me"), and
+ * grammar shape (the `obj-verb` / `verb-obj` / `flags` column, which is what makes an unfamiliar tool
+ * guessable). Row-level `hidden`, so browser find-in-page still works on what is left.
+ *
+ * Progressive enhancement: with JavaScript off the tables are exactly the tables. Nothing is hidden,
+ * nothing is reordered, and the page is fully usable — it is a plain reference document, which is what
+ * it should have been all along. The control strip is built in script rather than in markup precisely
+ * so that it cannot appear without the code that makes it work.
+ */
+---
+
+<script>
+  const PATH = /\/reference\/the-index\/?$/;
+
+  interface Row {
+    el: HTMLTableRowElement;
+    text: string;
+    taught: boolean;
+    shape: string;
+  }
+
+  /** The grammar column, normalised. Rows whose shape cell is prose fall back to "other". */
+  function shapeOf(cells: string[]): string {
+    const joined = cells.join(' ').toLowerCase();
+    for (const s of ['obj-verb', 'verb-obj']) if (joined.includes(s)) return s;
+    if (/\bflags\b/.test(joined)) return 'flags';
+    return 'other';
+  }
+
+  function collect(): Row[] {
+    const rows: Row[] = [];
+    for (const table of document.querySelectorAll('table')) {
+      for (const tr of table.querySelectorAll<HTMLTableRowElement>('tbody tr')) {
+        const cells = [...tr.cells].map((c) => c.textContent ?? '');
+        if (cells.length < 2) continue;
+        const text = cells.join(' ').toLowerCase();
+        rows.push({
+          el: tr,
+          text,
+          // "roster only" is the phrase the page itself uses, so the filter and the prose cannot drift.
+          taught: !text.includes('roster only'),
+          shape: shapeOf(cells.slice(2)),
+        });
+      }
+    }
+    return rows;
+  }
+
+  function build(rows: Row[]) {
+    const strip = document.createElement('div');
+    strip.className = 'kz-cmdindex';
+    strip.setAttribute('role', 'search');
+
+    const q = document.createElement('input');
+    q.type = 'search';
+    q.placeholder = 'Filter tools…';
+    q.setAttribute('aria-label', 'Filter tools by name or description');
+
+    const coverage = document.createElement('select');
+    coverage.setAttribute('aria-label', 'Filter by whether the course teaches it');
+    for (const [v, label] of [['all', 'Taught and roster'], ['taught', 'Taught in a lesson'], ['roster', 'Roster only']]) {
+      coverage.append(Object.assign(document.createElement('option'), { value: v, textContent: label }));
+    }
+
+    const shape = document.createElement('select');
+    shape.setAttribute('aria-label', 'Filter by command grammar');
+    for (const [v, label] of [['all', 'Any grammar'], ['obj-verb', 'object then verb'], ['verb-obj', 'verb then object'], ['flags', 'flags'], ['other', 'other']]) {
+      shape.append(Object.assign(document.createElement('option'), { value: v, textContent: label }));
+    }
+
+    const count = document.createElement('p');
+    count.className = 'kz-cmdindex__count';
+    count.setAttribute('role', 'status');
+
+    const apply = () => {
+      const needle = q.value.trim().toLowerCase();
+      let shown = 0;
+      for (const r of rows) {
+        const ok =
+          (!needle || r.text.includes(needle)) &&
+          (coverage.value === 'all' || (coverage.value === 'taught') === r.taught) &&
+          (shape.value === 'all' || shape.value === r.shape);
+        r.el.hidden = !ok;
+        if (ok) shown++;
+      }
+      // Hide a table whose every row was filtered out, so the reader isn't left scrolling past a
+      // stack of orphaned headings.
+      for (const table of document.querySelectorAll('table')) {
+        const body = table.querySelector('tbody');
+        const any = body ? [...body.rows].some((tr) => !tr.hidden) : true;
+        const section = table.closest('*');
+        table.hidden = !any;
+        if (section instanceof HTMLElement && section.tagName === 'TABLE') section.hidden = !any;
+      }
+      count.textContent =
+        shown === rows.length ? `${rows.length} tools` : `${shown} of ${rows.length} tools`;
+    };
+
+    q.addEventListener('input', apply);
+    coverage.addEventListener('change', apply);
+    shape.addEventListener('change', apply);
+
+    strip.append(q, coverage, shape, count);
+    apply();
+    return strip;
+  }
+
+  function init() {
+    if (!PATH.test(location.pathname)) return;
+    if (document.querySelector('.kz-cmdindex')) return;
+    const rows = collect();
+    if (rows.length < 10) return; // not the page we thought it was — leave it alone
+    const first = document.querySelector('table');
+    const host = document.querySelector('.sl-markdown-content') ?? first?.parentElement;
+    if (!host || !first) return;
+    host.insertBefore(build(rows), first);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  // Starlight swaps content on client-side navigation without a full load.
+  document.addEventListener('astro:page-load', init);
+</script>
+
+<style is:global>
+  .kz-cmdindex {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 1.5rem 0;
+    padding: 0.75rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-black);
+  }
+
+  .kz-cmdindex input[type='search'] {
+    flex: 1 1 14rem;
+    min-width: 0;
+    padding: 0.4rem 0.6rem;
+    font: inherit;
+    color: var(--sl-color-white);
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.3rem;
+  }
+
+  .kz-cmdindex select {
+    padding: 0.4rem 0.5rem;
+    font: inherit;
+    color: var(--sl-color-white);
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.3rem;
+  }
+
+  .kz-cmdindex__count {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+</style>

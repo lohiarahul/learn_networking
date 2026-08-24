@@ -59,9 +59,16 @@ def is_lesson(path):
     """A lesson is a numbered teaching file *inside the course*.
 
     The distinction matters because the repo also carries numbered Markdown that is
-    deliberately not a lesson — `exam-prep/` is rehearsal for a timed test, which is
-    banking by design and must never be held to the Predict-first / ladder invariants.
-    Link integrity still applies to those files; only the lesson-shape rules don't.
+    deliberately not a lesson, and there are now two such directories:
+
+    - `exam-prep/` is rehearsal for a timed test, which is banking by design.
+    - `reference/` is the instrument panel — lookup tables and naming grammar, consulted
+      after the learning rather than during it. A `/proc` path table with a "Predict
+      first" block would be incoherent.
+
+    Both must never be held to the Predict-first / ladder invariants. Link integrity still
+    applies to them, and does real work in `reference/`: every "taught in" citation there is
+    a relative link, so a renamed lesson breaks the build instead of leaving a lie in a table.
     """
     if not LESSON_RE.match(os.path.basename(path)):
         return False
@@ -174,8 +181,64 @@ def check_map_vs_build(_files):
                          "'what's built / roadmap' banner — unbuilt stages may read as built")]
     return []
 
+
+REFERENCE = os.path.join(REPO, "reference")
+
+def check_command_table_coverage(_files):
+    """Warning-only: the hand-written half of the command reference, and the site's fence classifier.
+
+    Two drifts this catches, both silent otherwise:
+
+    1. A row in `reference/05-per-act-commands.md` whose *Syntax breakdown* cell is empty. That is the
+       intended state for a freshly generated row (`tools/gen-command-tables.py` emits them blank), so
+       it is a warning rather than a gate — but an empty cell that survives a few commits is a command
+       the reference lists and does not explain.
+    2. A tool named in `reference/03-the-index.md` that `site/scripts/sync-content.mjs`'s
+       `SHELL_COMMANDS` set does not know. That set decides which bare fences render as shell on the
+       site, so a tool missing from it gets documented here as runnable and rendered there as flat
+       plaintext — the two lists have to move together.
+    """
+    issues = []
+
+    page = os.path.join(REFERENCE, "05-per-act-commands.md")
+    if os.path.exists(page):
+        blank = 0
+        for line in read(page).split("\n"):
+            st = line.strip()
+            # A data row, not the header or the `|---|---|` rule.
+            if not st.startswith("| `") or "---" in st:
+                continue
+            cells = [c.strip() for c in st.strip("|").split("|")]
+            if len(cells) >= 2 and not cells[1]:
+                blank += 1
+        if blank:
+            issues.append(("WARN", f"command-table-coverage: {blank} command row(s) in "
+                                   f"reference/05-per-act-commands.md have no syntax breakdown"))
+
+    index = os.path.join(REFERENCE, "03-the-index.md")
+    sync = os.path.join(REPO, "site", "scripts", "sync-content.mjs")
+    if os.path.exists(index) and os.path.exists(sync):
+        m = re.search(r"const SHELL_COMMANDS = new Set\(`(.*?)`", read(sync), re.DOTALL)
+        if m:
+            known = set(m.group(1).split())
+            # First code span of each table row is the tool name.
+            named = set()
+            for line in read(index).split("\n"):
+                st = line.strip()
+                if not st.startswith("| `"):
+                    continue
+                tool = st.split("`")[1].split()[0]
+                if re.fullmatch(r"[a-z0-9_.-]+", tool):
+                    named.add(tool)
+            missing = sorted(named - known)
+            if missing:
+                issues.append(("WARN", "command-table-coverage: in reference/03-the-index.md but not in "
+                                       f"sync-content.mjs SHELL_COMMANDS (fences will render as "
+                                       f"plaintext): {', '.join(missing)}"))
+    return issues
+
 HARD_CHECKS = [check_links, check_act_shape, check_prediction, check_ladder]
-WARN_CHECKS = [check_index_freshness, check_map_vs_build]
+WARN_CHECKS = [check_index_freshness, check_map_vs_build, check_command_table_coverage]
 
 # ── Runner ──────────────────────────────────────────────────────────────────
 def main(argv):

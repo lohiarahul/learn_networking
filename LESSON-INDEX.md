@@ -11,9 +11,19 @@ what happened; its `diagnose.md` drills reuse those commands but have not been w
 **8 (AWS networking) and 9 (AWS security)** —
 see the roadmap banner in `JOURNEY-MAP.md`. Fill those next; don't rewrite Acts 3–10, which are done.
 
-There is also a sibling `exam-prep/` track (CKA/CKS domain maps, kubectl speed, exam-day). It is
-deliberately **not** an act and not held to the lesson invariants — it is rehearsal for a timed
-test, which is banking by design. See `tools/README.md` on how `is_lesson()` scopes that.
+There are two sibling tracks, both deliberately **not** acts and neither held to the lesson
+invariants — see `tools/README.md` on how `is_lesson()` scopes that:
+
+- `exam-prep/` (CKA/CKS domain maps, kubectl speed, exam-day) — rehearsal for a timed test, which is
+  banking by design.
+- `reference/` — the instrument panel: the naming grammar that makes an unfamiliar command guessable,
+  the `/proc` and `/sys` state map, a tool index marked **taught** or **roster only**, a symptom→tool
+  router, the per-act command breakdowns for Acts I–IV, and generation drills. Consulted *after* the
+  learning, so a "Predict first" block there would be incoherent.
+
+Neither belongs in the per-lesson listing below, because neither teaches a lesson. Both are covered by
+link integrity, and `reference/` leans on it: every "taught in" citation there is a relative link into a
+lesson, so a rename breaks the build rather than leaving a stale claim in a table.
 
 Lab images: Act 1 = `netlab` (compiler) on bridge. Acts 2–4 = `nicolaka/netshoot --network host`.
 Acts 5–6 = the same 2-node `kind` cluster (`kubectl`, plus `docker exec` onto a node for Act 6's
