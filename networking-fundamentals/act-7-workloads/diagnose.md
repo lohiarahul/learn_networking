@@ -58,7 +58,8 @@ They also overlap deliberately at one point. Row 5 here — *is it in the Servic
 Every drill below carries a **target time**, and this is the one thing these drills do that the
 lessons deliberately do not. The course is built to make you understand; a certification is scored on
 whether you can act inside a budget, and those are different skills that look identical from the
-inside. So: Seven, because that is the number: **17 tasks in 120 minutes** is about seven minutes each, and these drills are the closest thing in the course to a task.
+inside. So the target is seven minutes, because that is what the exam allows: **17 tasks in 120 minutes**
+is about seven minutes each, and these drills are the closest thing in the course to a task.
 
 Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
 
@@ -74,7 +75,7 @@ Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/
 Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
 notice that the second number is the one that predicts anything.
 
-## Drill 1 — "the deploy finished but the site is down"1
+## Drill 1 — "the deploy finished but the site is down"
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -138,7 +139,7 @@ tools/verify-drill.sh act-7 1 "the field that broke readiness"
 
 ---
 
-## Drill 2 — "it worked in staging"2
+## Drill 2 — "it worked in staging"
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -216,7 +217,7 @@ tools/verify-drill.sh act-7 2 "the volumeMount field that froze the file"
 
 ---
 
-## Drill 3 — "half the replicas never start"3
+## Drill 3 — "half the replicas never start"
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -276,7 +277,7 @@ tools/verify-drill.sh act-7 3 "what the scheduler was short of"
 
 ---
 
-## Drill 4 — "we scaled it down but the bill didn't move"4
+## Drill 4 — "we scaled it down but the bill didn't move"
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -361,7 +362,7 @@ kubectl get pvc
 
 ---
 
-## Drill 5 — "the cron job hasn't run and nothing is wrong"5
+## Drill 5 — "the cron job hasn't run and nothing is wrong"
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -440,7 +441,7 @@ tools/verify-drill.sh act-7 5 "the CronJob field that stopped it"
 
 ---
 
-## Drill 6 — "the autoscaler is broken"6
+## Drill 6 — "the autoscaler is broken"
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -518,7 +519,7 @@ tools/verify-drill.sh act-7 6 "the missing denominator"
 ---
 
 
-## Drill 7 — "the scheduler says we are out of nodes"7
+## Drill 7 — "the scheduler says we are out of nodes"
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 

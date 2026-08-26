@@ -12,6 +12,22 @@ reading files in the order [the five questions](08-debugging.md) prescribe.
 2. **Form a hypothesis before you inspect.** Say out loud which of the five questions you are on and
    which file would prove it — *then* look.
 3. **Open the reveal only after you've tried.**
+4. **Then verify it — and say what was wrong.** Every drill ends with a `Verify it` line:
+
+   ```bash
+   tools/verify-drill.sh act-5 <n> "your one-line diagnosis"
+   ```
+
+   It exits `0` only if the Service genuinely carries traffic **and** the cause you typed is right.
+   Run it **before** the drill's `Cleanup` line — everything it checks lives inside the drill's
+   namespace and goes away with it. The checks are deliberately not `kubectl get` on the object you
+   edited: they read what the *next* controller in the chain produced, because that is the only
+   evidence your edit was acted on — a ready address in an EndpointSlice, a `KUBE-SVC` jump where a
+   `REJECT` used to be, a brand-new Pod that resolved a name it had never seen. Two of the four also
+   check that you fixed the *right* layer, because deleting the readiness probe and deleting the
+   NetworkPolicy both make the symptom go away and both ship the original bug. It will not tell you
+   the answer — see [`drills/`](../../drills/README.md) for why the expected cause is stored as a
+   hash.
 
 **Where:** your own terminal, with `kubectl` pointed at the two-node kind cluster from
 [the lab lesson](01-lab-with-kind.md). Node-level commands go through `docker exec -it
@@ -36,7 +52,8 @@ object, so a forgotten cleanup costs you a stray namespace, never a broken clust
 Every drill below carries a **target time**, and this is the one thing these drills do that the
 lessons deliberately do not. The course is built to make you understand; a certification is scored on
 whether you can act inside a budget, and those are different skills that look identical from the
-inside. So: Seven, because that is the number: **17 tasks in 120 minutes** is about seven minutes each, and these drills are the closest thing in the course to a task.
+inside. So the target is seven minutes, because that is what the exam allows: **17 tasks in 120 minutes**
+is about seven minutes each, and these drills are the closest thing in the course to a task.
 
 Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
 
@@ -163,6 +180,12 @@ kubectl delete namespace drill1
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-5 1 "the Pod-spec field that was set"
+```
+
 ---
 
 ## Drill 2 — "The Service refuses every connection, instantly"
@@ -284,6 +307,12 @@ kubectl delete namespace drill2
 ```
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-5 2 "the field that did not match"
+```
 
 ---
 
@@ -414,6 +443,12 @@ kubectl delete namespace drill3
 ```
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-5 3 "what held a healthy Pod out of its Service"
+```
 
 ---
 
@@ -552,6 +587,12 @@ kubectl delete namespace drill4
 ```
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-5 4 "what arrived with the config changes"
+```
 
 ---
 

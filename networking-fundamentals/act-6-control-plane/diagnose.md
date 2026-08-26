@@ -67,7 +67,7 @@ Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/
 Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
 notice that the second number is the one that predicts anything.
 
-## Drill 1 — "kubectl works, but nothing we deploy ever starts"1
+## Drill 1 — "kubectl works, but nothing we deploy ever starts"
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -131,7 +131,7 @@ tools/verify-drill.sh act-6 1 "the component you think was missing"
 
 ---
 
-## Drill 2 — "the dashboard says everything is healthy and it is not"2
+## Drill 2 — "the dashboard says everything is healthy and it is not"
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -205,7 +205,7 @@ tools/verify-drill.sh act-6 2 "the component you think was missing"
 
 ---
 
-## Drill 3 — "kubectl died after a config change and we cannot get in"3
+## Drill 3 — "kubectl died after a config change and we cannot get in"
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -275,7 +275,7 @@ tools/verify-drill.sh act-6 3 "the flag whose value was rejected"
 
 ---
 
-## Drill 4 — "same symptom, and this time crictl shows nothing"4
+## Drill 4 — "same symptom, and this time crictl shows nothing"
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -345,7 +345,7 @@ tools/verify-drill.sh act-6 4 "the step the kubelet never got past"
 
 ---
 
-## Drill 5 — "we are locked out of our own cluster and nothing is down"5
+## Drill 5 — "we are locked out of our own cluster and nothing is down"
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -422,7 +422,7 @@ tools/verify-drill.sh act-6 5 "the object that was deleted"
 
 ---
 
-## Drill 6 — "the drain has been running for half an hour"6
+## Drill 6 — "the drain has been running for half an hour"
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -498,7 +498,7 @@ tools/verify-drill.sh act-6 6 "the kind of object that refused the eviction"
 
 ---
 
-## Drill 7 — "the node is fine and the cluster says it does not exist"7
+## Drill 7 — "the node is fine and the cluster says it does not exist"
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -567,7 +567,7 @@ tools/verify-drill.sh act-6 7 "the process that has to re-register the node"
 ---
 
 
-## Drill 8 — "the fix that worked last month is refused too"8
+## Drill 8 — "the fix that worked last month is refused too"
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 

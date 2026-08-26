@@ -194,17 +194,61 @@ pod_runs_on() {
 # `updatedReplicas` is the field that says so, and `rollout status` is the one command that waits on it.
 rollout_complete() {
   local d="$1" want="$2" out
-  if ! out=$(kubectl rollout status "deployment/$d" --timeout=30s 2>&1); then
+  local ns=(); [ -n "${3:-}" ] && ns=(-n "$3")
+  if ! out=$(kubectl "${ns[@]}" rollout status "deployment/$d" --timeout=30s 2>&1); then
     bad "the rollout of $d completed" "$out"; return 1
   fi
   local up avail
-  up=$(kubectl get deploy "$d" -o jsonpath='{.status.updatedReplicas}' 2>/dev/null)
-  avail=$(kubectl get deploy "$d" -o jsonpath='{.status.availableReplicas}' 2>/dev/null)
+  up=$(kubectl "${ns[@]}" get deploy "$d" -o jsonpath='{.status.updatedReplicas}' 2>/dev/null)
+  avail=$(kubectl "${ns[@]}" get deploy "$d" -o jsonpath='{.status.availableReplicas}' 2>/dev/null)
   if [ "${up:-0}" = "$want" ] && [ "${avail:-0}" = "$want" ]; then
     ok "all $want replicas are running the *current* template (updated=$up, available=$avail)"
   else
     bad "all $want replicas are running the current template" \
         "updatedReplicas=${up:-0}, availableReplicas=${avail:-0} — an old ReplicaSet is still carrying the traffic"
+    return 1
+  fi
+}
+
+# The Act V discriminator, as an assertion. `kubectl get endpoints` prints `<none>` both when the
+# selector matched no Pod and when every Pod it matched is unready — two completely different bugs
+# behind one symptom. The EndpointSlice is the object that keeps them apart, because it lists the
+# address *and* its readiness condition, so this counts only addresses a Service would actually send
+# traffic to and ignores the rest.
+endpoints_ready() {
+  local ns="$1" svc="$2" want="$3" n
+  n=$(kubectl -n "$ns" get endpointslice -l "kubernetes.io/service-name=$svc" \
+        -o jsonpath='{range .items[*].endpoints[*]}{.conditions.ready}{" "}{.addresses[0]}{"\n"}{end}' \
+        2>/dev/null | grep -c '^true ')
+  if [ "${n:-0}" -eq "$want" ]; then ok "the Service has $want endpoint(s) that are present *and* ready"
+  else
+    local all; all=$(kubectl -n "$ns" get endpointslice -l "kubernetes.io/service-name=$svc" \
+        -o jsonpath='{range .items[*].endpoints[*]}{.conditions.ready}{"="}{.addresses[0]}{" "}{end}' 2>/dev/null)
+    bad "the Service has $want ready endpoint(s)" "ready-count=${n:-0}; slice says: ${all:-<no slice at all>}"
+    return 1
+  fi
+}
+
+# Does the Service carry traffic *by name*, from a Pod that did not exist when you fixed it? This is
+# the Act V claim in one probe: DNS answered, kube-proxy had somewhere to DNAT to, the filter let it
+# through and the app replied. The Pod is named `probe` so it carries `run=probe` — the same label the
+# drills' own probe Pods wear, which matters wherever a NetworkPolicy is the thing being tested.
+svc_answers() {
+  local ns="$1" svc="$2" port="${3:-80}" name=probe phase="" i
+  kubectl -n "$ns" delete pod "$name" --ignore-not-found >/dev/null 2>&1
+  kubectl -n "$ns" run "$name" --image=busybox:1.36 --restart=Never \
+          --command -- sh -c "wget -q -T 8 -O /dev/null http://$svc:$port/" >/dev/null 2>&1
+  for i in $(seq 1 40); do
+    phase=$(kubectl -n "$ns" get pod "$name" -o jsonpath='{.status.phase}' 2>/dev/null)
+    case "$phase" in Succeeded|Failed) break;; esac
+    sleep 1
+  done
+  local why; why=$(kubectl -n "$ns" logs "$name" 2>&1 | tr '\n' ' ')
+  kubectl -n "$ns" delete pod "$name" --ignore-not-found --wait=false >/dev/null 2>&1
+  if [ "$phase" = "Succeeded" ]; then
+    ok "a brand-new Pod reached http://$svc:$port/ by name"
+  else
+    bad "a brand-new Pod reached http://$svc:$port/ by name" "${why:-the probe Pod sat in '${phase:-<no phase>}'}"
     return 1
   fi
 }

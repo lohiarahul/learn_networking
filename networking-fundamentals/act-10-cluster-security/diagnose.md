@@ -18,7 +18,8 @@ Question 4 is the one nobody asks, and it is the whole act.
 Every drill below carries a **target time**, and this is the one thing these drills do that the
 lessons deliberately do not. The course is built to make you understand; a certification is scored on
 whether you can act inside a budget, and those are different skills that look identical from the
-inside. So: Seven, because that is the number: **17 tasks in 120 minutes** is about seven minutes each, and these drills are the closest thing in the course to a task.
+inside. So the target is seven minutes, because that is what the exam allows: **17 tasks in 120 minutes**
+is about seven minutes each, and these drills are the closest thing in the course to a task.
 
 Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
 
