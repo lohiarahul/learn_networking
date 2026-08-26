@@ -944,9 +944,233 @@ tools/verify-drill.sh act-6 9 "the process that stopped reporting"
 
 ---
 
+## Drill 10 — "same NotReady, and this time the kubelet is running"
+
+**Target: 6 minutes** — see [the clock](#the-clock) above.
+
+> **Ticket:** *"Another `NotReady` worker, same as this morning. We restarted the kubelet like last
+> time and it came back up and the node is still `NotReady`. Existing Pods are serving. New ones sit
+> in `ContainerCreating` and never move."*
+
+**Reproduce it** (run; don't read):
+
+```bash
+docker exec netlab-worker sh -c \
+  'mkdir -p /tmp/cni && mv /etc/cni/net.d/* /tmp/cni/ && systemctl restart kubelet'
+sleep 45
+kubectl get nodes
+docker exec netlab-worker systemctl is-active kubelet
+```
+
+```
+netlab-worker   NotReady   <none>   5d   v1.36.1
+active
+```
+
+**A `NotReady` node whose kubelet is running.** Drill 9's answer is already ruled out. Find the
+difference in one command before you look at anything else.
+
+<details>
+<summary>Reveal</summary>
+
+**The one command is the same one as drill 9, and this time it *speaks*:**
+
+```bash
+kubectl get node netlab-worker \
+  -o jsonpath='{range .status.conditions[?(@.type=="Ready")]}{.status} | {.reason} | {.message}{"\n"}{end}'
+```
+
+```
+False | KubeletNotReady | container runtime network not ready: NetworkReady=false
+  reason:NetworkPluginNotReady message:Network plugin returns error: cni plugin not initialized
+```
+
+**`False`, not `Unknown` — and that single word is the whole diagnosis.** Put the two drills side by
+side, because this is the most useful distinction in node troubleshooting and it costs one field:
+
+```
+  Unknown  +  "Kubelet stopped posting node status"   nobody is reporting.  Go and find the reporter.
+  False    +  a reason and a message                  somebody IS reporting, and telling you why.
+```
+
+`Unknown` is written *by the node controller* after a timeout, and it means the control plane gave up
+waiting. `False` is written *by the kubelet itself*, which means the kubelet is alive, has run its
+checks, and is telling you which one failed. So a `False` node never needs guessing: read the message.
+
+Here it says the CNI is not initialised. The kubelet looks for a network configuration on disk and
+refuses to admit Pods without one, because a Pod with no network is worse than no Pod:
+
+```bash
+docker exec netlab-worker ls -la /etc/cni/net.d/
+```
+
+```
+total 8
+drwx------ 1 root root 4096 Aug 26 11:43 .
+drwxr-xr-x 1 root root 4096 Jun  2 01:29 ..
+```
+
+Empty. And the new Pods that "sit in `ContainerCreating`" say the same thing from the other side:
+
+```bash
+kubectl run cnitest --image=busybox:1.36 --restart=Never \
+  --overrides='{"spec":{"nodeName":"netlab-worker","tolerations":[{"operator":"Exists"}]}}' \
+  --command -- sh -c 'sleep 120'
+sleep 20
+kubectl describe pod cnitest | grep NetworkNotReady | tail -1
+```
+
+```
+Warning  NetworkNotReady  1s (x11 over 20s)  kubelet  network is not ready: container runtime
+  network not ready: NetworkReady=false reason:NetworkPluginNotReady message:cni plugin not initialized
+```
+
+Which explains why restarting the kubelet did nothing: the kubelet was never the problem, and this
+file is not something the kubelet creates. In a `kind` cluster the CNI's own DaemonSet writes it, once,
+at startup — so the file going missing while the DaemonSet Pod keeps running produces a node that
+stays broken until somebody either restores the file or restarts the thing that writes it.
+
+**Fix it:**
+
+```bash
+kubectl delete pod cnitest --force --grace-period=0
+docker exec netlab-worker sh -c 'mv /tmp/cni/* /etc/cni/net.d/ && ls /etc/cni/net.d/'
+until [ "$(kubectl get node netlab-worker --no-headers | awk '{print $2}')" = "Ready" ]; do sleep 3; done
+kubectl get nodes
+```
+
+*(The other repair is `kubectl -n kube-system delete pod -l app=kindnet --field-selector
+spec.nodeName=netlab-worker` — let the DaemonSet write the file again. Worth knowing which of the two
+you would reach for on a cluster where you cannot see the file.)*
+
+**The reasoning worth keeping:** on a `NotReady` node, read `.status.conditions[Ready].status` before
+anything else and branch on the word. `Unknown` sends you looking for a dead reporter. `False` hands
+you a message that names the failing subsystem, and the only mistake left is not reading it.
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 10 "what was missing from the node"
+```
+
+---
+
+## Drill 11 — "the node says the runtime is down and the containers are still up"
+
+**Target: 6 minutes** — see [the clock](#the-clock) above.
+
+> **Ticket:** *"Third one this week. `NotReady`, kubelet running, and this time even `kubectl logs`
+> and `kubectl exec` fail against Pods on that node — but the service those Pods back is still
+> answering requests. We do not understand how both of those can be true."*
+
+**Reproduce it** (run; don't read):
+
+```bash
+docker exec netlab-worker systemctl stop containerd
+sleep 45
+kubectl get nodes
+docker exec netlab-worker systemctl is-active kubelet
+```
+
+**Your symptom:** identical to drill 10 from the outside. One command tells them apart.
+
+<details>
+<summary>Reveal</summary>
+
+**Read the condition first, as drill 10 taught — it is `False` again, so the kubelet will tell you:**
+
+```bash
+kubectl get node netlab-worker \
+  -o jsonpath='{range .status.conditions[?(@.type=="Ready")]}{.status} | {.reason} | {.message}{"\n"}{end}'
+```
+
+```
+False | KubeletNotReady | container runtime is down
+```
+
+Four words, and they are the whole answer. The command that separates this from drill 10 is the one
+[drill 4](#drill-4--same-symptom-and-this-time-crictl-shows-nothing) already made you reach for:
+
+```bash
+docker exec netlab-worker crictl ps
+```
+
+```
+level=fatal msg="validate service connection: validate CRI v1 runtime API for endpoint
+  \"unix:///run/containerd/containerd.sock\": ... dial unix /run/containerd/containerd.sock:
+  connect: no such file or directory"
+```
+
+**The socket is gone.** In drill 10 `crictl ps` answered perfectly — the runtime was healthy and only
+the network configuration was missing. Here `crictl` cannot connect at all, which is the same fact the
+kubelet is reporting: it talks to containerd over that socket and there is nothing on the other end.
+
+```bash
+docker exec netlab-worker systemctl is-active containerd
+```
+
+```
+inactive
+```
+
+**Now the part in the ticket that sounds impossible.** The service is still answering, and here is why:
+
+```bash
+docker exec netlab-worker sh -c 'ls /run/containerd/io.containerd.runtime.v2.task/k8s.io/ | head -4'
+docker exec netlab-worker sh -c 'pgrep -c containerd-shim'
+```
+
+```
+35ecb2d375449d8f149c1981fd297cb09dfc85d567c7421c9745548a13e0e2fe
+89d4dd0d13199e9b4a432beb1648176063fe02b726db74c9a4a14f5b43e8554c
+2
+```
+
+**Containerd is a manager, not a parent.** Each container's real parent is a `containerd-shim`
+process, deliberately, so that containerd can be restarted or upgraded without taking every workload
+on the machine down with it. So the containers keep running, keep serving, keep their network
+namespaces and their `iptables` rules — and *nobody can ask them anything*, because every question
+goes through the socket that is gone. `kubectl logs`, `kubectl exec`, `crictl`, liveness probes:
+all of them are queries, and all of them are dead. The dataplane is not.
+
+That is the shape worth carrying: this failure removes **observation and control**, not execution. It
+is the most misleading node failure there is, because everything that reports is broken and everything
+that serves is fine, and if you reboot the node to "fix" it you convert a control-plane outage into a
+real one.
+
+**Fix it:**
+
+```bash
+docker exec netlab-worker systemctl start containerd
+until [ "$(kubectl get node netlab-worker --no-headers | awk '{print $2}')" = "Ready" ]; do sleep 3; done
+kubectl get nodes
+docker exec netlab-worker crictl ps -q | wc -l        # the same containers, re-adopted
+```
+
+The shims are still there, so containerd comes back and **re-adopts** the containers it left running.
+Nothing restarted. That is what the shim design bought.
+
+**The reasoning worth keeping:** three drills, one symptom, and the branch is two fields and one
+command. `Ready=Unknown` → the kubelet is gone (drill 9). `Ready=False` → read the message, and if it
+names the network, look on disk (drill 10); if it names the runtime, `crictl ps` and then
+`systemctl is-active containerd` (this one). And in the last case, before you touch the node, work out
+what is still *serving* — because it is probably everything.
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 11 "the daemon that stopped"
+```
+
+---
+
 ## When you can do these without the reveals
 
-You can operate a cluster below `kubectl` — which is the thing this act existed to give you, and the thing that separates knowing Kubernetes from being able to fix it. Notice what every drill had in common: **the fix was never in the manifest the ticket was about.** Almost all of them were solved by asking *which process should have done this, and did it* — one by asking *which of authentication and authorisation actually failed*, and one by asking *is this node broken, or has it merely stopped talking about itself*.
+You can operate a cluster below `kubectl` — which is the thing this act existed to give you, and the thing that separates knowing Kubernetes from being able to fix it. Notice what every drill had in common: **the fix was never in the manifest the ticket was about.** Almost all of them were solved by asking *which process should have done this, and did it* — one by asking *which of authentication and authorisation actually failed*, and the last three by asking *is this node broken, or has it merely stopped talking about itself*. Those three are worth learning as a set, because they arrive as one symptom and separate on two fields and one command: `Ready=Unknown` means nobody is reporting and the reporter is what you go and find; `Ready=False` means the kubelet is alive and naming its own failing subsystem, and `crictl ps` then tells you whether the runtime is answering. Drill 11 is the one to remember on a bad night — it removes observation and control while leaving execution untouched, so everything that reports is broken and everything that serves is fine.
 
 The two questions to carry:
 
