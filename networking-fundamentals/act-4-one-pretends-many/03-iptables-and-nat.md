@@ -149,11 +149,104 @@ iptables -L FORWARD -n --line-numbers | head
 
 The first thing the `FORWARD` hook does is jump into `DOCKER-USER` and `DOCKER` — Docker inserted those jumps at the top. And that is the hook that matters, because a packet for a published port is DNAT'd in `PREROUTING` to the container's address and then **forwarded**; it is not for this machine, so it never reaches `INPUT`, which is where ufw's rules live. The port is wide open to the entire internet, and `ufw status` will keep saying `DENY` all the way through the incident. Countless production databases have been exposed exactly this way: the owner saw a green firewall and never knew what was underneath it. The insight is not "ufw is broken" — it is that *whoever writes the earliest matching rule on the hook the packet actually walks wins*, and a tool that reports on its own rules cannot report on anyone else's. Read the table, not the tool.
 
+### One backend, two grammars
+
+*Read the table, not the tool* has one more rung in it, and it is aimed at the tool you have been using
+for this entire lesson. Ask `iptables` what it is:
+
+```bash
+iptables -V
+```
+
+```
+iptables v1.8.11 (nf_tables)
+```
+
+**That parenthesis is not a build detail.** Since 1.8, `iptables` is a front-end: it parses the syntax
+you know and programs **nftables**, the netfilter subsystem that replaced the old `ip_tables` module.
+The binary is literally a translator — on this image `which iptables` resolves to `xtables-nft-multi`.
+So every rule you wrote today went into a store you have not looked at yet.
+
+> **Predict first —** you write a `MASQUERADE` rule and a `DROP` rule with `iptables`, then dump the
+> ruleset with `nft`. Will your rules be there at all? And will the five fixed tables you have been
+> taught — `filter`, `nat`, `mangle` — still be the organising unit, or does the other grammar organise
+> the same rules some other way?
+
+```bash
+iptables -t nat -A POSTROUTING -s 10.20.0.0/24 -j MASQUERADE
+iptables -A FORWARD -s 10.20.0.5 -j DROP
+nft list ruleset
+```
+
+```
+table ip nat {
+	chain POSTROUTING {
+		type nat hook postrouting priority srcnat; policy accept;
+		ip saddr 10.20.0.0/24 counter packets 0 bytes 0 xt target "MASQUERADE"
+	}
+}
+table ip filter {
+	chain FORWARD {
+		type filter hook forward priority filter; policy accept;
+		ip saddr 10.20.0.5 counter packets 0 bytes 0 drop
+	}
+}
+```
+
+Same rules, one storage layer. `nft` also prints, on stderr,
+`# Warning: table ip nat is managed by iptables-nft, do not touch!` — the two grammars can see each
+other's tables and neither can safely edit the other's, which is the whole reason the reference tells
+you to run `iptables -V` before you trust anything. Three things worth stopping on in the output
+itself.
+
+**The hook is now written down.** `type filter hook forward priority filter` — the five hooks you spent
+this lesson inferring from counters are, in this grammar, *declared*. `filter` and `nat` are not
+special any more; they are ordinary tables that happen to be named that, and a chain says out loud
+which hook it attaches to and at what priority. That is why `kindnet-network-policies` in Act V can
+invent its own table and still land in `postrouting` — it is not squatting in someone's table, it made
+one. Rule *order* stops being a global property of a table and becomes `priority`, which is how two
+programs share a hook without a merge conflict.
+
+**`drop` translated; `MASQUERADE` did not.** The verdict became a native nftables `drop`, but the NAT
+target is wrapped as `xt target "MASQUERADE"` — a compatibility shim calling back into the old xtables
+module, because that is what the translation layer emits. A rule can be half-migrated, which is worth
+knowing before you conclude a ruleset is "modern" from the version string.
+
+**And the shadow, one level deeper than `ufw`.** A program that writes a *native* nftables table is
+invisible to your `iptables` dump entirely:
+
+```bash
+nft add table inet other
+nft add chain inet other fw '{ type filter hook forward priority 0; policy accept; }'
+nft add rule inet other fw ip saddr 10.20.0.9 drop
+iptables-save | grep -c 10.20.0.9        # what iptables can see
+nft list ruleset | grep -c 10.20.0.9     # what is actually loaded
+```
+
+```
+0
+1
+```
+
+**Zero.** There is a rule in the forward hook that will drop that address, and `iptables-save` — the
+command everyone reaches for to capture "the firewall" — reports nothing. `ufw` could not see Docker's
+rules because it was looking at the wrong *hook*; `iptables` cannot see this one because it is looking
+through the wrong *interface*. Same failure, one layer down, and it is the one you will actually hit:
+kube-proxy has an nftables mode, kindnet enforces NetworkPolicy in a native table, and RHEL 10 has
+dropped the legacy backend altogether. When you go looking for a Kubernetes rule in
+[Act V](../act-5-kubernetes/07-network-policy.md#where-does-the-decision-actually-get-made) and
+`iptables -S` comes back empty, this is why — and `nft list ruleset` is the command that was never
+lying to you.
+
+> **You understand this when you can** read `(nf_tables)` in `iptables -V` and say what it implies,
+> point at the hook and priority in an `nft` chain header, and explain why `iptables-save` is not a
+> complete record of what the kernel will do to a packet.
+
 **Kubernetes sees this as** — Every rule a cluster adds to a node lands in the tables you just read, at the hooks you just traced. Nothing is hidden from you here any more; the only thing you lack is the vocabulary for what the rules are *for*.
 
 Which is enough to set up the one question worth carrying out of this lesson. A cluster gives you a single stable address to dial for a service whose real backing processes are born and destroyed constantly, on machines you did not pick. You know two ways an address can work: a device owns it, or a route leads to it. Hold on to a third possibility you have just seen the machinery for, and then, in Act V, go looking for that service address with `ip addr` on every node and see for yourself what is there. Do not let anyone tell you the answer first — including the part of you that already suspects it.
 
-**Where you are now** — You can name the five netfilter hooks and predict which of them a given packet walks, prove it from the rule counters rather than from documentation, and read the two rules that make container networking work: the `MASQUERADE` that lets a private address out and the `DNAT` that lets a knock in. You can look at any `docker run` line and say which kernel object each flag produced. And you know why a firewall that reports itself green can be lying.
+**Where you are now** — You can name the five netfilter hooks and predict which of them a given packet walks, prove it from the rule counters rather than from documentation, and read the two rules that make container networking work: the `MASQUERADE` that lets a private address out and the `DNAT` that lets a knock in. You can look at any `docker run` line and say which kernel object each flag produced. And you know why a firewall that reports itself green can be lying — including `iptables` itself, which is a front-end over nftables and cannot see a native table at all.
 
 Every one of these tricks, though, ends at the edge of this machine. Two containers on one host share a bridge; a container reaching the internet borrows the host's address on the way out. Now put the two private networks on two *different* hosts and neither trick is available: there is no shared switch to plug into, and the physical network in between would drop a `10.20.0.0/24` packet on sight. You could try NAT again and translate each private address into its host's — but then work out what the far side sees as the sender, and ask whether it could ever start a conversation in the other direction. So how do you make two software switches, on two machines, behave like one wire — without asking the network in between for permission?
 

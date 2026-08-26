@@ -17,7 +17,7 @@ Work through these in order. Each one runs experiments in the lab container and 
 1. **[Namespaces](01-namespaces.md)** — process isolation applied to the whole network stack.
 2. **[cgroups](01b-cgroups.md)** — the other half of a container: not what it can see, but how much it can use.
 3. **[veth and bridge](02-veth-and-bridge.md)** — the virtual wire and the software switch.
-4. **[iptables and NAT](03-iptables-and-nat.md)** — rewriting addresses so a private host can reach the internet.
+4. **[iptables and NAT](03-iptables-and-nat.md)** — rewriting addresses so a private host can reach the internet, and the nftables store both grammars actually write to.
 5. **[Overlay and VXLAN](04-overlay-vxlan.md)** — wrapping a packet in a packet so two private networks share one wire.
 
 Every lesson ends by tearing down what it built, so you can work straight through in one container without tripping over the last experiment's leftovers.

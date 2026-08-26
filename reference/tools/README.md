@@ -138,7 +138,7 @@ tell you.
 |---|---|---|---|
 | [`iptables`](netlink/iptables.md) | The legacy rule syntax that most of the internet's documentation, and `kube-proxy`'s default mode, still speaks. **Run `iptables -V` first:** since 1.8 the same CLI sits over two different kernel backends and prints either `(nf_tables)` or `(legacy)`. Never mix the legacy and nft tools — both subsystems become active and the evaluation order between them is undefined | netlink&nbsp;† · flags (`-t -A -m -j`) | [iptables and NAT](../../networking-fundamentals/act-4-one-pretends-many/03-iptables-and-nat.md) |
 | [`iptables-save`](netlink/iptables-save.md) | The whole ruleset in one atomic, diffable text dump — the only sane way to read a large ruleset | netlink&nbsp;† · flags | [services](../../networking-fundamentals/act-5-kubernetes/03-services.md) |
-| [`nft`](netlink/nft.md) | One tool and one grammar for IPv4, IPv6, ARP and bridge (the `inet` family), plus the sets and maps that iptables needed `ipset` for. In-kernel since 3.13; netfilter's own wiki has called the xtables tools legacy since 2018, RHEL 10 no longer ships the legacy `ip_tables` module at all, and Docker Engine 29 has an experimental native nftables backend it intends to make the default | netlink · verb-obj | **roster only** |
+| [`nft`](netlink/nft.md) | One tool and one grammar for IPv4, IPv6, ARP and bridge (the `inet` family), plus the sets and maps that iptables needed `ipset` for. In-kernel since 3.13; netfilter's own wiki has called the xtables tools legacy since 2018, RHEL 10 no longer ships the legacy `ip_tables` module at all, and Docker Engine 29 has an experimental native nftables backend it intends to make the default | netlink · verb-obj | [iptables and NAT](../../networking-fundamentals/act-4-one-pretends-many/03-iptables-and-nat.md) |
 | [`ipset`](netlink/ipset.md) | Hash sets of addresses/ports that iptables can match in one step instead of rule-by-rule. Now largely historical: nftables has native sets and maps, and `ipset` is unmaintained and slated for removal on RHEL | netlink · verb-obj | **roster only** |
 | [`tc`](netlink/tc.md) | Queueing, rate limits, and — via `netem` — deliberately injected loss, delay, reordering and duplication. **The only way to *reproduce* a bad network**, and `netem` has no eBPF equivalent. eBPF did not replace `tc`; it replaced one thing that used to hang off it, the packet classifier. Modern eBPF datapath programs attach straight to a device's ingress and egress (an interface called TCX, since kernel 6.6) instead of hanging off one of `tc`'s queueing disciplines | netlink · obj-verb (qdisc/class/filter) | **roster only** |
 | [`ipvsadm`](netlink/ipvsadm.md) | The IPVS connection and destination tables (`/proc/net/ip_vs`, `ip_vs_conn`) when `kube-proxy` runs in IPVS mode — still the right way to read a cluster that inherited it. Note the split: **IPVS in Linux is not deprecated; `kube-proxy`'s IPVS *mode* is** — deprecated in Kubernetes 1.35, with removal targeted at 1.43. `kube-proxy`'s nftables mode went GA in 1.33, though iptables remains the default | netlink · flags | **roster only** |
@@ -255,13 +255,13 @@ The one worth knowing in advance is the gap: **Linux has no OS-level DNS cache b
 
 ## The honest tally
 
-**Sixteen rows are `roster only`** — `nstat`, `ethtool`, `devlink`, `bpftool`, `nft`, `ipset`, `tc`,
+**Fifteen rows are `roster only`** — `nstat`, `ethtool`, `devlink`, `bpftool`, `ipset`, `tc`,
 `ipvsadm`, `mtr`, `socat`, `nsenter`, `bpftrace`, `iperf3`, `pwru`, `retis`, `host`. They are here with the
 gap stated rather than quietly left out, because a reference that lets you believe the course covered
 something it didn't is worse than one with holes. [`JOURNEY-MAP.md`](../../JOURNEY-MAP.md) records which
 are planned.
 
-**Six of the sixteen speak `netlink`** — `nft`, `ipset`, `tc`, `ipvsadm`, `ethtool`, `devlink` — which is
+**Five of the fifteen speak `netlink`** — `ipset`, `tc`, `ipvsadm`, `ethtool`, `devlink` — which is
 the encouraging half. They share an interface with the `ip`, `ss`, `bridge` and `conntrack` the course does
 teach, so the grammar and the failure modes transfer: a tool no lesson runs is still *derivable* once you
 know its interface.

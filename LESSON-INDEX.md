@@ -61,7 +61,7 @@ Acts 5–6 = the same 2-node `kind` cluster (`kubectl`, plus `docker exec` onto 
 - tools: `tcpdump`, `ss -ti/-tmi`, `nc`, `curl -v/--http1.1/--http2`, `conntrack`, `openssl s_client`. Deferred (roadmap): scapy SYN-craft, level-ip capstone, deepen TLS into Stage 4 crypto.
 
 ## Act 4 — containers  ⟨complete⟩
-- `01-namespaces.md` · `01b-cgroups.md` (see vs use — cgroup v2 `memory.max`/`cpu.max`/`memory.events`, OOM-kill, `free` lies) · `02-veth-and-bridge.md` · `03-iptables-and-nat.md` (`iptables`/NAT/conntrack, `docker0`/`-p` recognition) · `04-overlay-vxlan.md` (VXLAN tunnel built by hand between two netns, `dstport 4789`, MTU black hole sprung)
+- `01-namespaces.md` · `01b-cgroups.md` (see vs use — cgroup v2 `memory.max`/`cpu.max`/`memory.events`, OOM-kill, `free` lies) · `02-veth-and-bridge.md` · `03-iptables-and-nat.md` (`iptables`/NAT/conntrack, `docker0`/`-p` recognition, the `ufw` shadow — and `iptables -V` reading `(nf_tables)`: the same rules read back with `nft`, hook and priority declared, and a native nftables table `iptables-save` cannot see) · `04-overlay-vxlan.md` (VXLAN tunnel built by hand between two netns, `dstport 4789`, MTU black hole sprung)
 - supporting: `README` · `test-yourself` · `diagnose`(drills) · `in-the-wild`(Docker Desktop VM)
 - Deferred (roadmap): deepen `nsenter`, `nft` one-liner.
 

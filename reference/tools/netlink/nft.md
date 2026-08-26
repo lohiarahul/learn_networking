@@ -6,7 +6,7 @@ One tool and one grammar for IPv4, IPv6, ARP and bridge (the `inet` family), plu
 |---|---|
 | **Speaks** | [`netlink`](README.md) · verb-obj |
 | **Mode** | mutate · live |
-| **Taught in** | **roster only** — named by the roster, run by no lesson |
+| **Taught in** | [iptables and NAT](../../../networking-fundamentals/act-4-one-pretends-many/03-iptables-and-nat.md) |
 | **In the lab** | ✅ `/usr/sbin/nft` · nftables v1.1.6 (Commodore Bullmoose #7) |
 | **Supersedes** | ✅ **prefer this one** over [`iptables`](iptables.md) · [`iptables-save`](iptables-save.md) |
 | **Blind spot** | `netlink` cannot tell you what a packet *did*. It reports configured and tracked state, never a packet's path — a property of the [interface](README.md), not of this tool |
@@ -52,3 +52,15 @@ One tool and one grammar for IPv4, IPv6, ARP and bridge (the `inet` family), plu
 | Command | What it gives you |
 |---|---|
 | `nft monitor` | stream ruleset changes — see what an orchestrator is writing |
+
+## As the course runs it
+
+*5 commands this course actually runs, taken apart. The breakdowns are hand-written.*
+
+| Command | Syntax breakdown | Lesson |
+|---|---|---|
+| `nft list ruleset` | the whole store, every family and table at once. Run it after writing rules with `iptables` and your rules are in it — which is the point: since 1.8 `iptables` is a front-end and **this** is where it wrote them | Lesson 3 — iptables and NAT |
+| `nft add table inet other` | a table of your own, in the `inet` family so one table covers IPv4 and IPv6. This is what lets two programs share a hook without fighting over one global table — `kindnet` does exactly this | Lesson 3 — iptables and NAT |
+| `nft add chain inet other fw '{ type filter hook forward priority 0; policy accept; }'` | the hook and priority **declared**, not implied by which of five fixed tables you picked. Rule order stops being global and becomes `priority` | Lesson 3 — iptables and NAT |
+| `nft add rule inet other fw ip saddr 10.20.0.9 drop` | a native rule in a native table — and therefore one that `iptables-save` reports nothing about, which is the shadow this lesson ends on | Lesson 3 — iptables and NAT |
+| `nft list table inet kindnet-network-policies` | Act V cashes this in: the table `kind`'s CNI writes NetworkPolicy into, holding a `set` of Pod IPs and a `queue` verdict rather than any allow or drop rule | Lesson 7 — Network Policy |
