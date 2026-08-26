@@ -128,6 +128,25 @@ probe_controller_writes() {
   else bad "a controller wrote status on a new Deployment" "status.replicas stayed empty for 60s"; return 1; fi
 }
 
+# The cgroup directory for a Pod, on the node running it. Not guessable: the kubelet writes the UID
+# with underscores rather than dashes, and the slice path carries the QoS class, so
+# kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-burstable.slice/kubelet-kubepods-burstable-pod<uid_>.slice
+# Echoes "<node> <dir>" so callers can docker exec against the right machine.
+pod_cgroup() {
+  local ns="$1" name="$2"
+  local node uid dir
+  node=$(kubectl -n "$ns" get pod "$name" -o jsonpath='{.spec.nodeName}' 2>/dev/null)
+  uid=$(kubectl -n "$ns" get pod "$name" -o jsonpath='{.metadata.uid}' 2>/dev/null | tr '-' '_')
+  [ -n "$node" ] && [ -n "$uid" ] || return 1
+  dir=$(docker exec "$node" sh -c \
+    "find /sys/fs/cgroup -maxdepth 6 -type d -name '*${uid}*' 2>/dev/null | head -1")
+  [ -n "$dir" ] || return 1
+  printf '%s %s' "$node" "$dir"
+}
+# Exported because it is the one helper a check calls from inside `bash -c`, and a shell function is
+# not inherited by a child shell unless it is.
+export -f pod_cgroup
+
 # `status.phase` is Running for a Pod whose containers are crash-looping — the phase is about the
 # sandbox, not the processes — so a naive phase check passes on a CrashLoopBackOff. The Ready condition
 # is the claim that cannot be faked: it requires every container to have passed its checks *now*.

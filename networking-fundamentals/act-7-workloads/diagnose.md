@@ -26,7 +26,7 @@ Unlike Act VI, nothing here can break your cluster. These drills break *workload
 ```bash
 kubectl delete deploy,sts,ds,job,cronjob,hpa,svc,cm,secret,pvc -l drill --ignore-not-found
 kubectl delete pv -l drill --ignore-not-found
-kubectl delete namespace imagelab mountlab --ignore-not-found  # drills 8 and 9 use their own
+kubectl delete namespace imagelab mountlab limitlab --ignore-not-found   # drills 8-10
 kubectl get pvc                 # should be empty
 kubectl get nodes               # both Ready, neither SchedulingDisabled
 ```
@@ -1266,9 +1266,234 @@ kubectl delete namespace mountlab
 
 ---
 
-## What these nine have in common
+## Drill 10 — "the service is slow, and sometimes it just disappears"
 
-Seven of the nine drills had **nothing wrong with the cluster**. In every case an object was accepted, stored, and read by exactly the loop that was supposed to read it — and that loop then did precisely what the field said. Drills 8 and 9 are the two exceptions, and they earn their place by going *below* the object — down to where the kubelet is turning a spec into a running process. Between them they teach one thing the other seven cannot: those failures are **ordered**, and the status word tells you which step you are on. No image, an image nobody was allowed to fetch, a volume that will not resolve, an env reference that does not exist, a container that starts and disagrees. Each step is one further from your YAML and one closer to your program, and each is read with a different tool.
+**Target: 10 minutes** for all three — see [the clock](#the-clock) above.
+
+> **Ticket:** *"Three symptoms on three workloads and we think they are the same underlying problem.
+> One restarts on its own. One is just slow, and its own logs show nothing at all. One vanished
+> overnight and came back on a different node. The node graphs look fine. Nobody has deployed
+> anything."*
+
+**Reproduce it** (run; don't read):
+
+```bash
+kubectl create namespace limitlab
+kubectl apply -n limitlab -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: hungry, labels: { drill: "10" } }
+spec:
+  restartPolicy: Never
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","tail /dev/zero"]
+      resources: { limits: { memory: 128Mi }, requests: { memory: 128Mi } }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: slow, labels: { drill: "10" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","while :; do :; done"]
+      resources: { limits: { cpu: 50m }, requests: { cpu: 50m } }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: greedy, labels: { drill: "10" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","dd if=/dev/zero of=/scratch/blob bs=1M count=80; sleep 300"]
+      resources: { limits: { ephemeral-storage: 16Mi }, requests: { ephemeral-storage: 16Mi } }
+      volumeMounts: [ { name: s, mountPath: /scratch } ]
+  volumes: [ { name: s, emptyDir: {} } ]
+EOF
+sleep 60
+kubectl -n limitlab get pods
+```
+
+**Your symptom:**
+
+```
+NAME     READY   STATUS      RESTARTS
+greedy   0/1     Error       0
+hungry   0/1     OOMKilled   0
+slow     1/1     Running     0
+```
+
+**`slow` is the interesting one, and it is the one that looks fine.** Three workloads, three fates,
+and the ticket's guess is that they share a cause. Before you fix anything: **who killed each one?**
+Name a component for each, and be specific — two of these three answers are not Kubernetes.
+
+<details>
+<summary>Reveal</summary>
+
+**Start with `hungry`, because it is the only one that says what happened to it:**
+
+```bash
+kubectl -n limitlab describe pod hungry | grep -A2 'State:'
+```
+
+```
+    State:          Terminated
+      Reason:       OOMKilled
+      Exit Code:    137
+```
+
+`137` is `128 + 9`, which is the shell's way of saying *killed by signal 9*. Nobody in Kubernetes sent
+that signal. `limits.memory` becomes `memory.max` on the container's cgroup — the file you wrote by
+hand in [Act IV lesson 01b](../act-4-one-pretends-many/01b-cgroups.md) — and when a process tries to
+fault in a page past that ceiling the **kernel's OOM killer** takes it, synchronously, with no
+negotiation and no event of its own. Kubernetes then *reports* what it found. The distinction matters
+because it tells you where to look: there is no controller decision to audit here and no eviction to
+find in the API. The evidence is a cgroup counter:
+
+```bash
+kubectl -n limitlab get pod hungry -o jsonpath='{.spec.containers[0].resources.limits.memory}{"\n"}'
+```
+
+The limit is the whole cause. `tail /dev/zero` will consume any number you write there, so the fix is
+either a bigger number or a program that does not do that — and telling those two apart is the actual
+engineering.
+
+**Now `slow`, which reports nothing anywhere.** No restart, no event, no log line, `1/1 Running`, and
+a service that misses its latency budget. Kubernetes has no field for this, so you have to go to the
+node. Find its cgroup — note that the kubelet writes the UID with **underscores**, and the slice path
+carries the Pod's QoS class:
+
+```bash
+N=$(kubectl -n limitlab get pod slow -o jsonpath='{.spec.nodeName}')
+U=$(kubectl -n limitlab get pod slow -o jsonpath='{.metadata.uid}' | tr '-' '_')
+F=$(docker exec $N sh -c "find /sys/fs/cgroup -maxdepth 6 -type d -name '*${U}*' | head -1")
+echo $F
+docker exec $N sh -c "cat $F/cpu.max; grep -E 'nr_periods|nr_throttled|throttled_usec' $F/cpu.stat"
+```
+
+```
+/sys/fs/cgroup/kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-burstable.slice/
+  kubelet-kubepods-burstable-pod64943435_907a_4817_ab21_9cbd7a1835eb.slice
+5000 100000
+nr_periods 1739
+nr_throttled 1691
+throttled_usec 91239598
+```
+
+**Read `5000 100000` first: that is `limits.cpu: 50m`, in the kernel's own units** — 5,000
+microseconds of CPU time allowed in every 100,000-microsecond period. Not a share, not a priority: a
+quota with a deadline. And `nr_throttled 1691` out of `nr_periods 1739` says this container was
+stopped dead **in 97% of the periods it ran in** — every one of which is a hard stop until the next
+period begins, up to 100ms of doing nothing while the request that is waiting keeps waiting.
+
+Run it again twenty seconds later and `throttled_usec` will have climbed. That is the only signal this
+failure produces, and it exists nowhere in the Kubernetes API — which is why "the app is slow and its
+logs are clean" is a question about cgroups and not about the app. The enforcer is the kernel's **CFS
+bandwidth controller**, and again nothing in Kubernetes decided anything: it wrote a number into a
+file at container creation and walked away.
+
+Note the asymmetry, because it is the whole point of `requests` versus `limits`:
+**`limits.memory` kills you and `limits.cpu` slows you down.** Same word in the manifest, two
+completely different enforcement regimes, and only one of them is survivable.
+
+**Finally `greedy`, and this is the one Kubernetes did.** `Error` in the STATUS column is a summary;
+the reason is on the Pod itself:
+
+```bash
+kubectl -n limitlab get pod greedy -o jsonpath='{.status.reason}: {.status.message}{"\n"}'
+```
+
+```
+Evicted: Pod ephemeral local storage usage exceeds the total limit of containers 16Mi.
+```
+
+**`Evicted` is a Kubernetes verdict and the only one of the three that is.** No cgroup enforces
+ephemeral storage — there is no `disk.max` — so the **kubelet's eviction manager** measures usage on a
+housekeeping tick, compares it to the limit you declared, and *deletes the Pod*. That is a controller
+decision, taken after the fact, by a component you can read the logs of and whose thresholds you can
+configure. Which is why this is the one with a `.status.reason` at all: somebody in Kubernetes made
+this call, so somebody in Kubernetes could write it down.
+
+And it is why an evicted Pod behaves differently from a killed one. The object stays, in a terminal
+state, holding the reason — that is your audit trail. A controller then makes a replacement somewhere
+else, which is exactly the "vanished overnight and came back on a different node" in the ticket.
+
+**Three symptoms, three enforcers, and the ticket's guess was wrong:**
+
+```
+  OOMKilled   ->  the kernel's OOM killer         limits.memory -> memory.max
+  slow, silent->  the kernel's CFS bandwidth ctl  limits.cpu    -> cpu.max
+  Evicted     ->  the kubelet's eviction manager  limits.ephemeral-storage (no cgroup at all)
+```
+
+Only the third is Kubernetes' decision. The first two are numbers Kubernetes wrote into cgroup files
+and then stopped thinking about, which is why neither produces a controller event and why the middle
+one produces nothing at all.
+
+**Fix all three:**
+
+```bash
+kubectl -n limitlab delete pod hungry slow greedy
+kubectl apply -n limitlab -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: hungry, labels: { drill: "10" } }
+spec:
+  restartPolicy: Never
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","sleep 300"]            # the program was the bug, not the limit
+      resources: { limits: { memory: 128Mi }, requests: { memory: 128Mi } }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: slow, labels: { drill: "10" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","while :; do sleep 1; done"]
+      resources: { limits: { cpu: 500m }, requests: { cpu: 100m } }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: greedy, labels: { drill: "10" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","dd if=/dev/zero of=/scratch/blob bs=1M count=80; sleep 300"]
+      resources: { limits: { ephemeral-storage: 256Mi }, requests: { ephemeral-storage: 256Mi } }
+      volumeMounts: [ { name: s, mountPath: /scratch } ]
+  volumes: [ { name: s, emptyDir: {} } ]
+EOF
+kubectl -n limitlab wait --for=condition=Ready pod --all --timeout=180s
+```
+
+**The reasoning worth keeping.** When a workload misbehaves and nothing in Kubernetes says why, ask
+which enforcer would have left a trace and where. An eviction leaves a `.status.reason` because a
+controller decided it. An OOM kill leaves an exit code because the kernel decided it and Kubernetes
+noticed afterwards. Throttling leaves **nothing but a counter on the node**, which is why it is the
+one that gets misdiagnosed for weeks as a slow database. `kubectl` cannot see it; `cat cpu.stat` can.
+
+</details>
+
+**Verify it, then clean up:**
+
+```bash
+tools/verify-drill.sh act-7 10 "who made the third decision"
+kubectl delete namespace limitlab
+```
+
+---
+
+## What these ten have in common
+
+Seven of the ten drills had **nothing wrong with the cluster**. In every case an object was accepted, stored, and read by exactly the loop that was supposed to read it — and that loop then did precisely what the field said. Drills 8, 9 and 10 are the exceptions, and they earn their place by going *below* the object — down to where the kubelet is turning a spec into a running process. Between them they teach two things the other seven cannot. **Those failures are ordered**, and the status word tells you which step you are on: no image, an image nobody was allowed to fetch, a volume that will not resolve, an env reference that does not exist, a container that starts and disagrees. Each step is one further from your YAML and one closer to your program, and each is read with a different tool. And **not every enforcer is Kubernetes.** Drill 10's three casualties were taken by three different authorities — the kernel's OOM killer, the kernel's CFS bandwidth controller, and the kubelet's eviction manager — and only the third left a `.status.reason`, because only the third was a decision anyone in Kubernetes made. The middle one leaves nothing but a counter on the node, which is why it is the failure that gets misdiagnosed for weeks.
 
 Which is the diagnostic value of this act's spine. A workload failure is almost never "Kubernetes is broken"; it is a claim being kept faithfully that you did not mean to make. So the productive question is never "what is wrong with it" but **which loop is keeping which promise, and is that the promise I wrote?**
 
