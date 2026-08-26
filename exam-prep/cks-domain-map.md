@@ -262,7 +262,7 @@ kubernetes.io has an excellent tutorial and it *is* allowed.
 
 ### AppArmor — use the field, not the annotation
 
-There are **no AppArmor docs in the exam.** Fallback is `man 5 apparmor.d`. On v1.35:
+There are **no AppArmor docs in the exam.** Fallback is `man 5 apparmor.d`. On v1.35:  <!-- man-ok: the CKS exam machine has man pages; the netlab image does not -->
 
 ```yaml
 securityContext:

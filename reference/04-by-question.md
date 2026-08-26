@@ -163,7 +163,7 @@ Lessons: [ports and /proc/net/tcp](../networking-fundamentals/act-1-one-machine/
 
 The hardest class, because every binary check passes. This is where the course's toolset thins out, and
 the honest answer is that most of the instruments below are
-**[roster only](03-the-index.md#the-honest-tally)**.
+**[roster only](tools/README.md#the-honest-tally)**.
 
 | Ask | Reach for | Taught? |
 |---|---|---|

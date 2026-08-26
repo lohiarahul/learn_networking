@@ -38,3 +38,11 @@ site/public/illustrations/
 # with `python3 illustrations/_build/sheet.py <category> <out.png>`. Tracking them would rewrite every
 # sheet on any drawing tweak. Drop this line if you'd rather review them on GitHub.
 illustrations/_previews/
+
+# `local` is one of the eight kernel interfaces, so `reference/tools/local/` is a real source
+# directory — six pages, one of them hand-written. A global gitignore of `local/` (a scrap-folder
+# habit) was silently excluding all of it, which on a fresh clone means a missing interface page
+# and a generator with nothing to read. Re-include the directory first: git cannot un-ignore a
+# file whose parent directory is still excluded.
+!reference/tools/local/
+!reference/tools/local/**

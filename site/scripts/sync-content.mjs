@@ -113,8 +113,6 @@ const SINGLES = [
   // pages that were already here (the lab image, the code, the journey map, the toolbelt) follow it.
   ['reference/README.md', 'reference/index.md', 1],
   ['reference/01-the-grammar.md', 'reference/the-grammar.md', 2],
-  ['reference/02-the-state-map.md', 'reference/the-state-map.md', 3],
-  ['reference/03-the-index.md', 'reference/the-index.md', 4],
   ['reference/04-by-question.md', 'reference/by-question.md', 5],
   ['reference/05-per-act-commands.md', 'reference/per-act-commands.md', 6],
   ['reference/06-derive-it.md', 'reference/derive-it.md', 7],
@@ -338,8 +336,52 @@ function unmask(text, stash) {
 
 // -- Build the route table and the source -> URL map ---------------------------
 
+/**
+ * Generated reference wings: one page per tool, one per kernel interface. Listed as directories
+ * rather than in SINGLES because there are eighty of them and they change whenever
+ * `reference/capabilities.json` does — an explicit list would be a second place to forget.
+ *
+ * The *tool* pages are written by `tools/gen-tool-pages.py` and must never be hand-edited. The
+ * `README.md`s are the hand-written half and become each directory's landing page: the roster at
+ * `reference/tools/README.md`, and one per interface holding the grammar and path rules shared by
+ * every tool speaking it — which is why none of that is repeated on the individual tool pages.
+ *
+ * The wing takes slot 4, which is where the roster used to sit as a standalone page. It is still
+ * the page a reader wants fourth, and now the eighty it indexes hang underneath it.
+ */
+const REFERENCE_DIRS = [
+  { srcDir: 'reference/tools', slug: 'reference/tools', order: 4 },
+];
+
 async function buildRoutes() {
   const routes = SINGLES.map(([src, dest, order]) => ({ src, dest, order }));
+
+  for (const wing of REFERENCE_DIRS) {
+    const dir = path.join(REPO, wing.srcDir);
+    if (!existsSync(dir)) continue;
+    // Recursive, because `reference/tools/` is one directory per kernel interface. That nesting is
+    // the whole point: Starlight turns each directory into its own sidebar group, so the roster
+    // arrives grouped by what a tool speaks without anyone maintaining a list of eighty entries.
+    for (const rel of (await readdir(dir, { recursive: true })).sort()) {
+      if (!rel.endsWith('.md')) continue;
+      // A tool page is titled ``conntrack` — connection tracking`, which is right on the page and
+      // noise in a sidebar of eighty siblings. The sidebar wants the name you would type, so take
+      // the H1's first code span and let the expansion live on the page.
+      const h1 = (await readFile(path.join(REPO, wing.srcDir, rel), 'utf8'))
+        .match(/^#\s+`([^`]+)`/m);
+      routes.push({
+        src: `${wing.srcDir}/${rel}`,
+        // A directory's README is its landing page, the same convention the acts use: `tools/
+        // netlink/README.md` publishes at `/reference/tools/netlink/` rather than as a sibling
+        // page called "README" that a reader would have to click past the group to reach.
+        dest: `${wing.slug}/${rel.replace(/(^|\/)README\.md$/, '$1index.md')}`,
+        // There is no reading order inside a group — you arrive at `conntrack` because you typed
+        // it, not because `bridge` came first. Alphabetical is the honest default.
+        order: wing.order,
+        label: h1 ? h1[1] : undefined,
+      });
+    }
+  }
 
   for (const act of ACTS) {
     const dir = path.join(REPO, COURSE_DIR, act.srcDir);

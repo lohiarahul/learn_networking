@@ -22,68 +22,71 @@ Kubernetes and on eBPF datapaths that assume Acts V–VI, and those sections say
 
 ## The one thing to read even if you never look anything up
 
-Start with **[the grammar](01-the-grammar.md)**.
+**Start with the interface a tool speaks.** Everything else here is finite, and none of it will contain
+the flag you need at 3am; the interface is the part that scales.
 
-Every other page here is finite, and none of them will contain the flag you need at 3am. The grammar page
-is the one that scales, because the tools were not named at random: `ip` has a closed object list and one
-verb set that repeats across all of it, those verbs turn out to *be* the kernel's own netlink flags, and
-the same trick reaches into `/proc` and `/sys`. Learn those shapes and you can work out commands and paths
-nobody taught you — which is the only skill here that survives a tool changing its flags.
+Every tool in this reference is a client of one of **eight kernel interfaces**, each defined by a
+syscall you can see in `strace` — so the classification is measurable rather than a matter of opinion:
 
-Then read the two summary tables at the top of **[the index](03-the-index.md)**. They are the other
-half of the same skill. The grammar page tells you how a command is *spelled*; those tables tell you
-which of eight kernel interfaces the spelling *addresses* — `netlink`, `procfs`, `socket`, `packet`,
-`probe`, `nsapi`, `httpapi`, `local` — each defined by a syscall you can see in `strace`, so the
-classification is measurable rather than a matter of opinion. That is what makes the roster stop feeling
-like a list: tools sharing an interface share a grammar and a blind spot and are often substitutable,
-and tools in different rows never substitute no matter how alike their output looks. The second table
-answers the one question nobody has memorised — which tools can stream events, and which four
-interfaces have no streaming form at all, so that reaching for them means you are polling and will miss
-things.
+[`netlink`](tools/netlink/README.md) · [`procfs`](tools/procfs/README.md) ·
+[`socket`](tools/socket/README.md) · [`packet`](tools/packet/README.md) ·
+[`probe`](tools/probe/README.md) · [`nsapi`](tools/nsapi/README.md) ·
+[`httpapi`](tools/httpapi/README.md) · [`local`](tools/local/README.md)
 
-Then read **[by question](04-by-question.md)**, which is the page you will actually reach for under
-pressure, because a real failure arrives as a symptom and not as a tool name.
+That one fact reorganises everything. Tools sharing an interface **share a grammar, share a blind spot,
+and are often substitutable**; tools on different interfaces never substitute, however alike their
+output looks. It is also where the derivation lives: `netlink` explains why `ip addr add` fails on an
+existing address and `ip addr replace` does not — three verbs that look like synonyms are three
+netlink flag combinations with three different failure modes — and `procfs` explains how to construct
+a `/proc` or `/sys` path nobody showed you.
+
+Then go to **the tool itself**. Each of the seventy-two has a page carrying its whole capability
+surface, the commands this course runs through it, and what its interface can never tell you:
+[`ip`](tools/netlink/ip.md) · [`ss`](tools/netlink/ss.md) · [`tcpdump`](tools/packet/tcpdump.md) ·
+[`kubectl`](tools/httpapi/kubectl.md) · [`openssl`](tools/socket/openssl.md), and
+[sixty-seven more](tools/README.md).
+
+If you arrived with a broken machine rather than a question about a tool, skip all of that and go to
+**[by question](04-by-question.md)** — a real failure arrives as a symptom, not as a tool name.
 
 | Page | Answers |
 |---|---|
-| **[The grammar](01-the-grammar.md)** | Why the commands are spelled the way they are, and how to work out one you were never shown |
-| **[The state map](02-the-state-map.md)** | Where the kernel keeps a fact, and how to construct a `/proc` or `/sys` path |
-| **[The index](03-the-index.md)** | One row per tool: which of eight kernel interfaces it speaks, whether it can change things or stream them, and the one thing only it can show you |
-| **[By question](04-by-question.md)** | You have a symptom, not a tool name. **The one to read second** |
-| **[Command reference, by act](05-per-act-commands.md)** | Every command Acts I–IV run, broken down element by element |
+| **[The eight interfaces](tools/README.md#the-eight-interfaces--the-whole-roster-on-one-screen)** | Which kernel API a tool speaks — and therefore what it can possibly know, how its syntax is shaped, and what no flag will ever make it tell you. **Read this first**, then the page for the interface you landed on |
+| **[The roster](tools/README.md)** | One row per tool, for when you want the whole thing on a screen rather than one tool in depth. It is also the front door of the directory below it: each interface is a subdirectory led by its own page, and each tool is a page inside one, carrying its whole capability surface and the commands this course runs through it |
+| **[What to reach for instead](tools/README.md#six-to-stop-reaching-for-and-two-to-start)** | Which six tools are here only because other people's runbooks are full of them, which two are new enough to install deliberately, and — for each — what the swap actually costs |
+| **[By question](04-by-question.md)** | You have a symptom, not a tool name. **The one to read when something is broken** |
+| **[Conventions and names](01-the-grammar.md)** | The claims that hold across the *whole* toolchain: which flag letters mean the same thing everywhere, which name expansions are folklore, and why the filter languages do not match |
+| **[Lab and shell commands](05-per-act-commands.md)** | The non-networking commands the lessons run — `ls`, `grep`, `exec`, `cc` — taken apart |
 | **[Derive it](06-derive-it.md)** | Drills that make you *write* commands you were never shown |
-
-The numbering is the reading order for someone going through once; the sidebar order is the same. If you
-came here with a broken machine, skip to [by question](04-by-question.md) and come back.
 
 ## What this is not
 
-- **Not a cheat sheet for the exam.** [`exam-prep/kubectl-speed.md`](../exam-prep/kubectl-speed.md)
-  is that, and it is honest about being drills against a clock. This directory is about Linux and the
-  kernel's own interfaces, and it does not repeat what lives there.
-- **Not a progress tracker.** [`Toolbelt.md`](../Toolbelt.md) answers *"what should I be fluent in by
-  now?"* — a question about the journey, in the order the journey introduces things. This directory is
-  sorted for lookup, not for learning, and says nothing about what you should have earned yet.
-- **Not a claim of coverage.** Several tools in this index are named by the roster and used by no
-  lesson. Every row says which it is. A reference that lets you assume the course taught something it
-  didn't is worse than one with gaps.
+**Not the exam cheat sheet.** [`exam-prep/kubectl-speed.md`](../exam-prep/kubectl-speed.md) is that, and
+is honest about being drills against a clock; this directory is about Linux and the kernel's own
+interfaces, and does not repeat what lives there. **Not a progress tracker.**
+[`Toolbelt.md`](../Toolbelt.md) answers *"what should I be fluent in by now?"* — a question about the
+journey, in the journey's order. These pages are sorted for lookup and say nothing about what you should
+have earned yet.
 
 ## How this directory is held honest
 
-`tools/check_pedagogy.py` skips this directory for the Predict-first and ladder invariants, for the same
-reason it skips `exam-prep/` — see `is_lesson()` there. A lookup table with a "Predict first" block
-would be incoherent.
+The claims on these pages are checked rather than trusted, by `tools/check_pedagogy.py`. Every facet
+vocabulary is closed, so a value invented in one row is a warning. Every summary table must name exactly
+the rows it summarises, in **both** directions — which is what makes the interface taxonomy hold, because
+a tool cannot be added to the roster without being placed, and being unplaceable is how every tool
+taxonomy eventually dies. A `superseded` verdict must name a successor that is itself on the roster, since
+"deprecated" with no replacement is a complaint rather than advice. And every sentence that quotes
+in-image *output* — the most convincing kind, and the first to go stale — declares itself in
+`capabilities.json`, so `tools/probe-lab.py` can re-run the command against `netlab:latest` and turn the
+page red instead of leaving it confidently wrong.
 
-Link integrity still applies, and it does real work here: every "taught in" citation on
-[the index](03-the-index.md) is a relative link, so a lesson that gets renamed or deleted breaks the
-build rather than quietly leaving a lie in a table.
+Each check argues its own case in its docstring, which is where the argument belongs: next to the code, so
+it cannot drift out of step with what the code actually does. Two things it cannot check for itself get an
+agent instead — `technical-accuracy-checker` runs the *lesson* command blocks in the lab image, and each
+`roster only` marker is verified by grep against the lesson sources before it ships.
 
-The index's two facet columns get their own guard, `check_index_facets`. Both vocabularies are closed,
-so a value outside them is a warning; and the *eight interfaces* summary must name exactly the tools the
-`Speaks` column classifies, in both directions. That last check is the one that matters, because it makes
-it impossible to add a tool to this page without placing it — which is how every tool taxonomy
-eventually dies. The counts the page asserts about itself are checked against the columns too.
-
-The two claims this directory can't check for itself are accuracy and honesty, so both get an agent:
-`technical-accuracy-checker` runs every command block in the lab image, and each `roster only` marker is
-verified by grep against the lesson sources before it ships.
+One check exists only to protect the others, and it is a *hard* failure rather than a warning:
+`check_reference_shape` asserts that the roster and all eight interface pages are where the checks above
+expect them. This directory has been restructured twice; the second time, the guards went quiet rather
+than red, because every one of them reads a file by path — and a checker whose path has gone stale does
+not complain, it passes.

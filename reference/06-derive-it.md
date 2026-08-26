@@ -2,7 +2,7 @@
 
 Every other page here is a lookup. This one is the opposite: each drill gives you a **goal** and
 withholds the command, and your job is to build it from [the grammar](01-the-grammar.md) and
-[the state map](02-the-state-map.md) rather than recall it.
+[`procfs`](tools/procfs/README.md) rather than recall it.
 
 That is the whole point. The course's own audit counts about 660 of its command blocks as *"type the
 command shown"* — which is fine, because each one is the measurement half of a prediction. But nothing
@@ -10,10 +10,21 @@ in the acts ever asks you to **produce** a command, and producing one is a diffe
 one that still works when the tool has a flag you have never seen, or when the thing you need was
 invented after you learned.
 
-**How to work these.** Say or type your answer *before* opening the reveal. A wrong attempt followed by
-the right answer beats a confident skim, and it beats reading the answer first by a wide margin — the
-attempt is what makes the second encounter stick. Grading yourself honestly matters more than being
-right: on the site, a "not yet" brings the drill back tomorrow and a "got it" holds it for ten days.
+**How to work these.** Say or type your answer *before* opening the reveal. That skill has a name —
+*generation* — and it beats re-reading by a wide, well-replicated margin (d ≈ 0.40 across 445 effect
+sizes). But the research is specific about two conditions that are easy to get wrong, and both of them
+shape this page:
+
+- **Feedback has to re-derive the answer, not just state it.** Elaborated feedback transfers (d ≈ 0.70);
+  bare correct-answer feedback did nothing for transfer in any analysis, and ran slightly *negative* for
+  inference questions. So every reveal below names the rule that produced the answer instead of printing
+  the command and leaving.
+- **Success matters more than struggle.** Transfer improves sharply with high initial success rates,
+  which cuts against the folk version of "make it hard". If a drill fails you every time the missing rule
+  is the problem, not your effort — go back to [the grammar](01-the-grammar.md) rather than push harder.
+
+Grade yourself honestly; that matters more than being right. On the site a "not yet" brings the drill
+back tomorrow, a "got it" holds it for ten days.
 
 > **Where:** these run inside the lab container, and none of them need a working network:
 >
@@ -152,7 +163,7 @@ nsenter -t <pid> -n ip addr
 
 `-t` = target pid, `-n` = the `net` namespace — the same letter as the `net` file in
 `/proc/<pid>/ns/`. Add `-m` for `mnt`, `-p` for `pid`, `-U` for `user`, and so on down
-[the namespace table](02-the-state-map.md#rule-namespace-flag-letters-are-the-filenames).
+[the namespace table](tools/nsapi/README.md#rule-the-flag-letters-are-the-filenames).
 
 This is the mechanism under `docker exec` and `kubectl exec`, and it is the way into a container that
 has no shell of its own — you bring your own binary and enter its namespaces.
@@ -389,7 +400,7 @@ ss -ti dst :<port>
 Add `-m` for the socket buffers if the window looks like the constraint.
 
 Machine-wide rather than per-socket, the tool is `nstat` — retransmits and listen overflows as deltas
-since the last call. It is **[roster only](03-the-index.md#the-honest-tally)**: no lesson in this course
+since the last call. It is **[roster only](tools/README.md#the-honest-tally)**: no lesson in this course
 runs it, and it is one of the highest-value gaps in the toolset.
 
 </details>
@@ -483,4 +494,4 @@ symptom, on a clock:
 [Act IV](../networking-fundamentals/act-4-one-pretends-many/diagnose.md) ·
 [Act V](../networking-fundamentals/act-5-kubernetes/diagnose.md)
 
-Back to **[the grammar](01-the-grammar.md)** · **[the index](03-the-index.md)**
+Back to **[the grammar](01-the-grammar.md)** · **[the index](tools/README.md)**

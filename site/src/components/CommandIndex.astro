@@ -1,6 +1,6 @@
 ---
 /**
- * Filters the tool tables on `/reference/the-index/` in place.
+ * Filters the tool tables on `/reference/tools/` in place.
  *
  * Renders no markup of its own — like Diagram, Predict, Checkpoint and Annotate it only carries a
  * definition and is included from Footer.astro, so it costs nothing on the pages that don't use it.
@@ -27,7 +27,7 @@
 ---
 
 <script>
-  const PATH = /\/reference\/the-index\/?$/;
+  const PATH = /\/reference\/tools\/?$/;
 
   interface Row {
     el: HTMLTableRowElement;
@@ -44,9 +44,22 @@
     return 'other';
   }
 
+  /**
+   * The *topical* tables only. The page also carries two summary tables that group the roster by
+   * kernel interface, and their rows are interfaces rather than tools — collecting them would filter
+   * the summary as though it were inventory and inflate the result count. A topical table is the one
+   * with an `In the course` column; nothing else has one. This mirrors `index_tool_rows()` in
+   * `tools/check_pedagogy.py`, which needs the same distinction for the same reason.
+   */
+  function toolTables(): HTMLTableElement[] {
+    return [...document.querySelectorAll<HTMLTableElement>('table')].filter((t) =>
+      [...(t.tHead?.rows[0]?.cells ?? [])].some((c) => /in the course/i.test(c.textContent ?? '')),
+    );
+  }
+
   function collect(): Row[] {
     const rows: Row[] = [];
-    for (const table of document.querySelectorAll('table')) {
+    for (const table of toolTables()) {
       for (const tr of table.querySelectorAll<HTMLTableRowElement>('tbody tr')) {
         const cells = [...tr.cells].map((c) => c.textContent ?? '');
         if (cells.length < 2) continue;
@@ -102,7 +115,7 @@
       }
       // Hide a table whose every row was filtered out, so the reader isn't left scrolling past a
       // stack of orphaned headings.
-      for (const table of document.querySelectorAll('table')) {
+      for (const table of toolTables()) {
         const body = table.querySelector('tbody');
         const any = body ? [...body.rows].some((tr) => !tr.hidden) : true;
         const section = table.closest('*');

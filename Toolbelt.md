@@ -22,7 +22,7 @@ and when you're building, you wield the modern one without ceremony.
 > the order the journey introduces things. For *"what does this tool do and how do I spell it"*, the
 > [instrument panel](reference/README.md) is the place — sorted for lookup rather than for learning,
 > with [the naming grammar](reference/01-the-grammar.md) that makes an unfamiliar command guessable and
-> [an index](reference/03-the-index.md) that marks every tool **taught** or **roster only**.
+> [an index](reference/tools/README.md) that marks every tool **taught** or **roster only**.
 
 > ## ⚑ This is the nine-stage roster, not the built course
 >

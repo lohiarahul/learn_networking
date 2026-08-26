@@ -59,7 +59,7 @@ for c in ("10.244.6.37/22", "192.168.1.200/28"):
     n = ipaddress.ip_network(c, strict=False)
     print(c, "-> network", n.network_address,
           "| broadcast", n.broadcast_address,
-          "| usable", n.num_addresses - 2)
+          "| usable", len(list(n.hosts())))
 '
 ```
 
@@ -70,7 +70,32 @@ for c in ("10.244.6.37/22", "192.168.1.200/28"):
 
 **If you got `10.244.0.0` or `10.244.6.0` for the first one, you did the thing everybody does the first time: you rounded to the nearest dot.** `/16` and `/24` land on dots and can be done by squinting at the decimals, which is exactly why they teach you nothing. `/22` does not. Its boundary falls *inside* the third byte — six of that byte's bits are network, two are host — and no amount of looking at the decimal `6` will show you where the line is.
 
-So here is the method, in the one form that cannot mislead you: bits, all the way across. Worked in full on a third address, `172.16.21.99/20`:
+So here is the method, in the one form that cannot mislead you: bits, all the way across.
+
+That needs one thing first — decimal to binary for an arbitrary byte, in your head, because the whole
+point is to do this without a tool. Walking eight place values in a row is too long to hold, so
+**split the byte at 16**: one division, then two numbers under 16, each converted on the `8-4-2-1`
+ladder.
+
+<!-- figure -->
+
+```
+  172 / 16  =  10  remainder  12          (160 is ten 16s)
+
+    10  ->  8? yes, rem 2 · 4? no · 2? yes, rem 0 · 1? no  ->  1010
+    12  ->  8? yes, rem 4 · 4? yes, rem 0 · 2? no · 1? no  ->  1100
+
+  172  =  1010 1100        check: 128 + 32 + 8 + 4 = 172
+```
+
+Four steps per half instead of eight in a row, you never hold a number bigger than 15, and each nibble
+can be re-checked on its own — which is what you want when somebody is watching, because the thing that
+saves you is error *recovery*, not speed. Have the multiples of 16 cold —
+`16 32 48 64 80 96 112 128 144 160 176 192 208 224 240` — and several are already familiar to you as
+mask octets.
+
+Worked in full on a third address, `172.16.21.99/20`. The other two bytes are your practice: do `21`
+and `99` yourself before you read the row.
 
 <!-- figure -->
 
@@ -89,7 +114,50 @@ So here is the method, in the one form that cannot mislead you: bits, all the wa
   usable    = 4096 - 2 = 4094      (minus network address and broadcast address)
 ```
 
-Three results, three rules, and none of them are anything but the AND: **network** is address AND mask; **broadcast** is the network with every host bit set to 1; **usable hosts** is `2^(32 − prefix) − 2` — the 2 being the network address and the broadcast address, which are spoken for.
+Three results, three rules, and none of them are anything but the AND: **network** is address AND
+mask; **broadcast** is the network with every host bit set to 1; **usable hosts** is
+`2^(32 − prefix) − 2` — the 2 being the network address and the broadcast address, which are spoken
+for. That last rule holds for `/30` and shorter, which covers every subnet you hand addresses out of.
+The two prefixes below it are exceptions, and worth having now because you will meet both.
+
+> ### `/31` and `/32` — where minus-two stops being true
+>
+> | prefix | addresses | `− 2` says | actually usable |
+> |---|---|---|---|
+> | `/30` | 4 | 2 | 2 |
+> | `/31` | 2 | **0** | **2** |
+> | `/32` | 1 | **−1** | **1** |
+>
+> The minus-two exists to reserve a network address and a broadcast address. On a **`/31`** there is
+> exactly one other machine on the wire, so there is nothing to broadcast *to* and no subnet identity
+> worth naming apart from the two hosts on it — neither reservation earns its keep, and you get both
+> addresses. That is [RFC 3021](https://www.rfc-editor.org/rfc/rfc3021), *Using 31-Bit Prefixes on IPv4
+> Point-to-Point Links*, and it is the ordinary way to number a router-to-router link. `/30` was the
+> old way, and it threw away half of every one.
+>
+> A **`/32`** is one address and no prefix at all — a *host route*. Loopback addresses, virtual IPs,
+> and, in Act V, the route a node holds for one single Pod.
+>
+> The kernel agrees, and you can watch it agree in the container you are already in:
+>
+> ```bash
+> ip link add p0 type dummy && ip link set p0 up
+> ip addr add 10.7.0.1/31 dev p0 && ip route show dev p0
+> ip addr add 10.7.0.9/32 dev p0 && ip route show dev p0
+> ```
+>
+> The `/31` installs `10.7.0.0/31 proto kernel scope link src 10.7.0.1` — a real on-link prefix, so
+> the kernel considers both addresses reachable without a gateway. The `/32` adds **no second route**:
+> the output is unchanged. There is no prefix for the kernel to treat as on-link, and that absence is
+> what "host route" means. Clean up with `ip link del p0`.
+>
+> Python already encodes the exception, which is why the checks in this lesson count `hosts()` rather
+> than subtracting 2: `len(list(n.hosts()))` gives **2** for a `/31` and **1** for a `/32`, where
+> `n.num_addresses - 2` gives 0 and −1. Check your arithmetic with the same wrong expression and the
+> tool will agree with you — which is the one thing a check must never do.
+>
+> IPv6 has no broadcast address at all, so none of this subtraction applies there. A `/64` has 2^64
+> usable addresses, full stop.
 
 Now go back and redo whichever of the two you missed, with the bits written out, and add the `/20` above to your check:
 
@@ -97,7 +165,7 @@ Now go back and redo whichever of the two you missed, with the bits written out,
 python3 -c '
 import ipaddress
 n = ipaddress.ip_network("172.16.21.99/20", strict=False)
-print(n.network_address, n.broadcast_address, n.num_addresses - 2)
+print(n.network_address, n.broadcast_address, len(list(n.hosts())))
 '
 ```
 

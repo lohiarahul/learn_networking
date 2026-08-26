@@ -18,7 +18,7 @@ Usage:
     python3 tools/check_pedagogy.py --warn-only     # never exit non-zero (report mode)
 """
 from __future__ import annotations
-import os, re, sys, glob
+import os, re, sys, glob, datetime
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COURSE = os.path.join(REPO, "networking-fundamentals")
@@ -193,7 +193,7 @@ def check_command_table_coverage(_files):
        intended state for a freshly generated row (`tools/gen-command-tables.py` emits them blank), so
        it is a warning rather than a gate — but an empty cell that survives a few commits is a command
        the reference lists and does not explain.
-    2. A tool named in `reference/03-the-index.md` that `site/scripts/sync-content.mjs`'s
+    2. A tool named in the roster that `site/scripts/sync-content.mjs`'s
        `SHELL_COMMANDS` set does not know. That set decides which bare fences render as shell on the
        site, so a tool missing from it gets documented here as runnable and rendered there as flat
        plaintext — the two lists have to move together.
@@ -215,31 +215,106 @@ def check_command_table_coverage(_files):
             issues.append(("WARN", f"command-table-coverage: {blank} command row(s) in "
                                    f"reference/05-per-act-commands.md have no syntax breakdown"))
 
-    index = os.path.join(REFERENCE, "03-the-index.md")
     sync = os.path.join(REPO, "site", "scripts", "sync-content.mjs")
-    if os.path.exists(index) and os.path.exists(sync):
+    if os.path.exists(INDEX_MD) and os.path.exists(sync):
         m = re.search(r"const SHELL_COMMANDS = new Set\(`(.*?)`", read(sync), re.DOTALL)
         if m:
             known = set(m.group(1).split())
             named = set()
-            for row in index_tool_rows(read(index)):
+            for row in index_tool_rows(read(INDEX_MD)):
                 for span in re.findall(r"`([^`]+)`", row["Tool"]):
                     tool = span.split()[0]
                     if re.fullmatch(r"[a-z0-9_.-]+", tool):
                         named.add(tool)
             missing = sorted(named - known)
             if missing:
-                issues.append(("WARN", "command-table-coverage: in reference/03-the-index.md but not in "
+                issues.append(("WARN", f"command-table-coverage: in {rel(INDEX_MD)} but not in "
                                        f"sync-content.mjs SHELL_COMMANDS (fences will render as "
                                        f"plaintext): {', '.join(missing)}"))
     return issues
 
 # ── The index's two facets ──────────────────────────────────────────────────
-# `reference/03-the-index.md` classifies every tool by the kernel interface it speaks and by what it can
+# The roster classifies every tool by the kernel interface it speaks and by what it can
 # do to the world. Both vocabularies are deliberately *closed*, because an open one is a taxonomy that
 # quietly stops partitioning anything. These are the values; a cell outside them is the bug.
 INTERFACES = {"netlink", "procfs", "socket", "packet", "probe", "nsapi", "httpapi", "local"}
 MODES = {"read-only", "mutate", "live"}
+
+# The roster, and the interface page that leads each tool directory. One constant rather than the
+# four hard-coded copies this file used to carry, because a checker whose path has gone stale does
+# not complain — it passes, which is the worst of the available behaviours.
+TOOLS_DIR = os.path.join(REFERENCE, "tools")
+INDEX_MD = os.path.join(TOOLS_DIR, "README.md")
+IFACE_MD = {i: os.path.join(TOOLS_DIR, i, "README.md") for i in INTERFACES}
+
+
+def check_reference_shape(_files):
+    """Hard: the reference's own files exist where the checkers below expect them.
+
+    This is the guard on the guards. Three of the checks in this file — the facet vocabularies, the
+    supersession compartment, the SHELL_COMMANDS cross-reference — read the roster by path, and
+    every one of them used to hold its own copy of that path and skip quietly if the file was not
+    there. So a rename anywhere in `reference/` disabled them *without failing anything*: the run
+    went green while nothing was being checked. That is the one failure mode a checker must not
+    have, and it is why this is a hard check rather than a warning.
+    """
+    missing = [p for p in [INDEX_MD, *IFACE_MD.values()] if not os.path.exists(p)]
+    return [("FAIL", f"reference-shape: {rel(p)} is missing — the reference has been "
+                     f"restructured and the checks that read it are no longer checking anything")
+            for p in missing]
+
+
+def page_slug(tool):
+    """`ip netns` -> `ip-netns`. The same transform `tools/gen-tool-pages.py` names the file with;
+    duplicated rather than imported because that script is not an importable module (the hyphen in
+    its name), and three lines of regex is a cheaper fix than renaming it."""
+    return re.sub(r"[^a-z0-9]+", "-", tool.lower()).strip("-")
+
+
+def check_iface_rosters(_files):
+    """Warning-only: each interface page must name exactly the tools the roster gives it.
+
+    `reference/tools/netlink/README.md` is both the netlink page and the landing page for the
+    thirteen tool pages in that directory, and it opens with the list of them. That list is
+    hand-written, so it is the kind of thing that is correct on the day it is typed and wrong two
+    tools later — and it is now the *only* place a reader is offered the siblings of a tool, since
+    the per-page "Same interface" list was seventy-two copies of it.
+
+    So it gets the same bidirectional treatment as the eight-interfaces summary on the roster: a
+    tool the roster puts in this directory must be linked from the page, and the page may not link
+    a tool the roster puts somewhere else. Both directions, or the summary is free to drift.
+    """
+    if not os.path.exists(INDEX_MD):
+        return []
+    rows = index_tool_rows(read(INDEX_MD))
+    by_iface = {}
+    for r in rows:
+        iface = re.split(r"[·&]", r["Speaks"], maxsplit=1)[0].strip()
+        names = re.findall(r"`([^`]+)`", r["Tool"])
+        if iface in INTERFACES and names:
+            # The *page*, not the name. A row like `` `xxd` / `base64` `` is one page under the
+            # first name, and `` [`findmnt`](mount.md) `` is a correct link wearing an alias as its
+            # label — so the comparison has to be over filenames, which is the thing that either
+            # exists or does not.
+            by_iface.setdefault(iface, set()).add(page_slug(names[0]))
+    issues = []
+    for iface, path in sorted(IFACE_MD.items()):
+        if not os.path.exists(path):
+            continue
+        # Only links *into this directory* count as "this page lists that tool". The page also
+        # links sideways to other interfaces and to lessons, and a cross-interface link is a
+        # comparison, not a claim of membership — which the pattern gets for free by refusing a
+        # target with a slash in it.
+        body = read(path)
+        listed = {t[:-3] for t in re.findall(r"\]\(([a-z0-9_.-]+\.md)\)", body)} - {"README"}
+        actual = by_iface.get(iface, set())
+        for m in sorted(actual - listed):
+            issues.append(("WARN", f"iface-roster: `{m}` speaks {iface} on the roster but "
+                                   f"{rel(path)} does not link it"))
+        for e in sorted(listed - actual):
+            issues.append(("WARN", f"iface-roster: {rel(path)} links `{e}`, which the roster "
+                                   f"does not place in {iface}"))
+    return issues
 
 def index_tool_rows(text):
     """Yield the data rows of the index's *topical* tables as dicts, keyed by column header.
@@ -265,26 +340,41 @@ def index_tool_rows(text):
     return rows
 
 def check_index_facets(_files):
-    """Warning-only: the index's `Speaks` and `Mode` columns, and the summary tables that group by them.
+    """Warning-only: the index's `Speaks` column, the `mode` field, and the summaries built on both.
 
-    Three drifts, all silent otherwise:
+    Four drifts, all silent otherwise:
 
-    1. A `Speaks` or `Mode` cell using a value outside the closed vocabulary — a typo, or a new
-       interface invented in one row and nowhere else.
+    1. A `Speaks` cell or a `mode` value outside its closed vocabulary — a typo, or a new interface
+       invented in one row and nowhere else.
     2. The `Speaks` column and the *eight interfaces* summary table disagreeing about which tools speak
        what. This is the check that makes the taxonomy hold: a tool cannot be added without being
        placed, which is how every tool taxonomy eventually dies.
     3. The counts asserted in prose (`13 + 14 + … = 72`, and "22 of the 72 tools can stream") not
-       matching the columns they describe.
+       matching what they describe.
+    4. Every roster row having a `name` and a `mode` in `capabilities.json`, and no orphan entry there
+       naming a tool the roster does not list.
+
+    `mode` is checked against the JSON rather than the roster because the roster no longer has that
+    column — it came down to four so it would fit on a screen. Which makes the streaming claim a
+    cross-file check now: the sentence lives on the roster, the evidence for it lives in the JSON, and
+    the count has to reconcile.
     """
     issues = []
-    index = os.path.join(REFERENCE, "03-the-index.md")
-    if not os.path.exists(index):
+    # Skipping a missing roster is safe here — and only here — because `check_reference_shape`
+    # is a hard check that reports it by name. Without that, this early return was the bug: the
+    # file moved, this check quietly stopped running, and the suite stayed green. Reading it
+    # unguarded is not the fix either, since the traceback kills the run before the failure that
+    # explains it can be printed.
+    if not os.path.exists(INDEX_MD):
         return issues
-    text = read(index)
+    text = read(INDEX_MD)
     rows = index_tool_rows(text)
     if not rows or "Speaks" not in rows[0]:
         return issues
+    caps = {}
+    if os.path.exists(CAPS_JSON):
+        import json
+        with open(CAPS_JSON) as f: caps = json.load(f)
 
     # 1. Closed vocabularies.
     by_iface, rows_by_iface, streams = {}, {}, set()
@@ -300,13 +390,29 @@ def check_index_facets(_files):
         # over *rows*, because that is what the page says it is counting.
         by_iface.setdefault(iface, set()).update(re.findall(r"`([^`]+)`", tool))
         rows_by_iface[iface] = rows_by_iface.get(iface, 0) + 1
-        modes = {m.strip() for m in r["Mode"].split("·")}
+        tid = re.findall(r"`([^`]+)`", tool)[0]
+        d = caps.get(tid)
+        if d is None:
+            issues.append(("WARN", f"index-facets: the roster lists {tool} and `capabilities.json` "
+                                   f"has no entry for it, so it gets no page"))
+            continue
+        if "name" not in d:
+            issues.append(("WARN", f"index-facets: `{tid}` has no `name` — the page title needs the "
+                                   f"expansion, or an em dash to say there is not one"))
+        modes = {m.strip() for m in d.get("mode", [])}
+        if not modes:
+            issues.append(("WARN", f"index-facets: `{tid}` has no `mode`, so its page cannot say "
+                                   f"whether typing it can change anything"))
         bad = modes - MODES
         if bad:
-            issues.append(("WARN", f"index-facets: {tool} claims mode {sorted(bad)}, "
+            issues.append(("WARN", f"index-facets: `{tid}` claims mode {sorted(bad)}, "
                                    f"not in {sorted(MODES)}"))
         if "live" in modes:
             streams.add(tool)
+    listed = {re.findall(r"`([^`]+)`", r["Tool"])[0] for r in rows}
+    for orphan in sorted(set(caps) - listed):
+        issues.append(("WARN", f"index-facets: `capabilities.json` describes `{orphan}`, which the "
+                               f"roster does not list — a page nothing links to"))
 
     # 2. The summary table must name exactly the tools the column classifies.
     for line in text.split("\n"):
@@ -333,15 +439,354 @@ def check_index_facets(_files):
         if sorted(parts, reverse=True) != want or int(sums.group(2)) != len(rows):
             issues.append(("WARN", f"index-facets: the page states {sums.group(0)} but the columns give "
                                    f"{'+'.join(str(n) for n in want)} = {len(rows)}"))
-    live = re.search(r"\*\*(\d+) of the (\d+) tools can stream\*\*", text)
+    # `[^*]*` because the sentence on the page reads "can stream events", and an exact-phrase
+    # regex here silently matched nothing for as long as it existed — the same failure mode
+    # `check_reference_shape` guards paths against, one level down in the pattern.
+    live = re.search(r"\*\*(\d+) of the (\d+) tools can stream[^*]*\*\*", text)
     if live and (int(live.group(1)) != len(streams) or int(live.group(2)) != len(rows)):
         issues.append(("WARN", f"index-facets: the page claims {live.group(1)} of {live.group(2)} tools "
-                               f"stream; the Mode column gives {len(streams)} of {len(rows)}"))
+                               f"stream; the `mode` fields give {len(streams)} of {len(rows)}"))
     return issues
 
-HARD_CHECKS = [check_links, check_act_shape, check_prediction, check_ladder]
+MAN_CMD_RE = re.compile(r"`man\s+[0-9n]?\s*[a-z0-9_.-]+`|^\s*man\s+[0-9n]?\s*[a-z0-9_.-]+\s*$",
+                        re.MULTILINE)
+
+def check_runnable_citations(_files):
+    """Warning-only: nothing should read as `man <page>`, because the lab image has no man pages.
+
+    The lab image is built FROM nicolaka/netshoot (Alpine): `man` is not installed and
+    /usr/share/man is empty, so a reader who follows `man 8 ip` gets `sh: man: not found`. A
+    citation is still worth making — it just has to be written in a form that does not look like
+    a command you can run here. Two accepted forms:
+
+      * the reference form, `ip(8)` / `unshare(2)`, for provenance; and
+      * an in-image equivalent, `ip help` / `ss --help` / `<tool> -V`, for instruction.
+
+    Sometimes the man page really is the instruction — Act X sends the reader to `man 5 apparmor.d`
+    on the *exam* machine, which is a different machine and does have it. Those lines carry an
+    explicit `<!-- man-ok: why -->` marker, so the exception is stated rather than assumed.
+
+    Warning rather than failure: a page may have a reason to name the command itself, and this
+    cannot tell that apart from a dead citation on its own.
+    """
+    issues = []
+    for f in all_md():
+        for i, line in enumerate(read(f).splitlines(), 1):
+            m = MAN_CMD_RE.search(line)
+            if not m or "man-ok:" in line:
+                continue
+            issues.append(("WARN", f"runnable-citations: {rel(f)}:{i} cites {m.group(0).strip()} — "
+                                   f"the lab image has no man pages. Use the `tool(8)` citation form, "
+                                   f"or an in-image equivalent such as `tool help`"))
+    return issues
+
+STANDING_LEVELS = {"default", "superseded", "emerging"}
+SWAP_KINDS = {"rename", "reflag", "rewrite"}
+# How long a tool gets to stay "emerging" before the verdict is re-read rather than inherited.
+# Five years is roughly how long it takes a genuinely useful tool to reach a distro repository,
+# which is the event that ends the claim.
+EMERGING_YEARS = 5
+CAPS_JSON = os.path.join(REPO, "reference", "capabilities.json")
+LAB_JSON = os.path.join(REPO, "reference", "lab-inventory.json")
+
+def check_standing(_files):
+    """Warning-only: the `Standing` facet must stay a measurement, not an opinion.
+
+    The facet answers "is this tool current, or am I only meeting it because other people's
+    runbooks are full of it?" — which is worth having only if every non-default verdict names its
+    evidence. So the shape is enforced:
+
+      * the vocabulary is closed (default / superseded / emerging), like `Speaks` and `Mode`;
+      * `superseded` must name a replacement that is itself on the roster — "superseded" with no
+        successor is a complaint, not a fact;
+      * `emerging` must carry a first-release year, and must *not* be installed in the lab image,
+        because "you install it deliberately" is the claim the level makes;
+      * every non-default verdict carries a rationale long enough to be an argument.
+
+    Also checks that the measured inventory covers exactly the roster, so a tool added to
+    capabilities.json without rerunning tools/probe-lab.py is caught rather than silently
+    rendering as "not installed".
+    """
+    import json
+    issues = []
+    if not (os.path.exists(CAPS_JSON) and os.path.exists(LAB_JSON)):
+        return [("WARN", "standing: capabilities.json or lab-inventory.json missing")]
+    issues += check_standing_section()
+    with open(CAPS_JSON) as f: caps = json.load(f)
+    with open(LAB_JSON) as f: lab = json.load(f)
+    inv = lab.get("tools", {})
+
+    missing = sorted(set(caps) - set(inv))
+    extra = sorted(set(inv) - set(caps))
+    if missing:
+        issues.append(("WARN", f"standing: lab-inventory.json has no measurement for "
+                               f"{len(missing)} tool(s) ({', '.join(missing[:6])}) — "
+                               f"rerun tools/probe-lab.py"))
+    if extra:
+        issues.append(("WARN", f"standing: lab-inventory.json measures {len(extra)} tool(s) no "
+                               f"longer on the roster ({', '.join(extra[:6])})"))
+
+    for tool in sorted(caps):
+        st = caps[tool].get("standing")
+        if not st:
+            issues.append(("WARN", f"standing: `{tool}` has no standing facet"))
+            continue
+        lvl = st.get("level")
+        if lvl not in STANDING_LEVELS:
+            issues.append(("WARN", f"standing: `{tool}` has level {lvl!r}, outside the closed "
+                                   f"vocabulary {sorted(STANDING_LEVELS)}"))
+            continue
+        if lvl == "default":
+            continue
+        why = st.get("why", "")
+        if len(why) < 80:
+            issues.append(("WARN", f"standing: `{tool}` is marked {lvl} with a "
+                                   f"{len(why)}-character rationale — name the evidence"))
+        if lvl == "superseded":
+            by = st.get("by") or []
+            if not by:
+                issues.append(("WARN", f"standing: `{tool}` is superseded by nothing named"))
+            for b in by:
+                if b.split()[0] not in caps:
+                    issues.append(("WARN", f"standing: `{tool}` is superseded by `{b}`, which is "
+                                           f"not on the roster"))
+            # "Superseded" without a migration cost is advice a reader cannot act on: whether the
+            # swap is a rename, a relearn or a rewrite is the whole difference between "do it now"
+            # and "schedule it". So the cost is required, and so is at least one worked rewrite.
+            if st.get("swap") not in SWAP_KINDS:
+                issues.append(("WARN", f"standing: `{tool}` is superseded with swap "
+                                       f"{st.get('swap')!r}, outside {sorted(SWAP_KINDS)}"))
+            instead = st.get("instead") or []
+            if not instead:
+                issues.append(("WARN", f"standing: `{tool}` is superseded with no `instead` "
+                                       f"rewrites — name what to type instead"))
+            for pair in instead:
+                if not (isinstance(pair, list) and len(pair) == 2):
+                    issues.append(("WARN", f"standing: `{tool}` has a malformed `instead` entry "
+                                           f"{pair!r} — want [old, new]"))
+                    continue
+                old_cmd, new_cmd = pair
+                # The left side must be this tool, or the row is telling you to stop using
+                # something else; the right side must be a tool on the roster, or the reference
+                # is sending you to a page that does not exist.
+                if old_cmd.split()[0] != tool:
+                    issues.append(("WARN", f"standing: `{tool}`'s `instead` row starts "
+                                           f"`{old_cmd}`, which is not this tool"))
+                if new_cmd.split()[0] not in caps:
+                    issues.append(("WARN", f"standing: `{tool}`'s `instead` row points at "
+                                           f"`{new_cmd}`, whose tool is not on the roster"))
+        issues += check_evidence(tool, st, lab.get("evidence", {}).get(tool, []))
+        # `gains` is the field that makes the verdict useful rather than merely disapproving:
+        # what the reader gets, not what the reader loses. Required at both non-default levels.
+        if len(st.get("gains", "")) < 60:
+            issues.append(("WARN", f"standing: `{tool}` is marked {lvl} without saying what the "
+                                   f"reader gains — that is a complaint, not a recommendation"))
+        if lvl == "emerging":
+            yr = st.get("since")
+            if not (isinstance(yr, int) and 1990 <= yr <= 2100):
+                issues.append(("WARN", f"standing: `{tool}` is emerging with since={yr!r} — "
+                                       f"needs a four-digit first-release year"))
+            if inv.get(tool, {}).get("present"):
+                issues.append(("WARN", f"standing: `{tool}` is marked emerging but the lab image "
+                                       f"now ships it — it has become a default"))
+            # "Emerging" is a claim about *now* — new enough that you install it deliberately —
+            # stored as a static year, which means it is the one facet guaranteed to rot: nothing
+            # about `pwru` will change on its own, and in 2031 the page will still be calling a
+            # ten-year-old tool new. The year stays in the page, because the year is a fact; the
+            # judgement of whether it is still recent belongs here, where it can be re-read
+            # against today rather than against the day someone typed it.
+            elif isinstance(yr, int) and datetime.date.today().year - yr > EMERGING_YEARS:
+                issues.append(("WARN", f"standing: `{tool}` is marked emerging but was first "
+                                       f"released {yr}, "
+                                       f"{datetime.date.today().year - yr} years ago — re-read "
+                                       f"the verdict: still a deliberate install, or just "
+                                       f"unpackaged?"))
+    return issues
+
+MAX_KEYS = 4
+
+def key_literal(key):
+    """The typable part of a `keys` entry. A flag is documented with its argument where that is
+    how you meet it — `-e trace=<set>`, `-M do` — but the thing that has to appear in a command
+    is the flag itself."""
+    return re.split(r"[ <]", key, maxsplit=1)[0].strip()
+
+def flag_used(key, cmds):
+    """Is this flag actually typed in one of the commands on the tool's own page?"""
+    lit = key_literal(key)
+    for c in cmds:
+        for tok in re.split(r"[\s|'\"]+", c):
+            tok = tok.split("=", 1)[0].split(":", 1)[0]
+            if tok == lit:
+                return True
+            # `dig` drives on `+trace` and `@1.1.1.1`, neither of which is a dash-flag.
+            if lit[:1] in "+@" and tok.startswith(lit):
+                return True
+            # Short-flag bundling, because getopt permits it and this course uses it throughout:
+            # `ss -i` is only ever typed as `ss -ti`, `ulimit -H` as `-Hn`, `nstat -z` as `-az`.
+            if len(lit) == 2 and lit[0] == "-" and lit[1].isalnum() \
+               and tok.startswith("-") and not tok.startswith("--") and lit[1] in tok[1:]:
+                return True
+    return False
+
+def check_keys(_files):
+    """Warning-only: the `keys` facet must name flags the page also demonstrates.
+
+    The facet exists because `--help` sorts flags alphabetically and treats all forty as equals,
+    which is the opposite of what a reader needs. The editorial rule is that a flag earns a line
+    only when leaving it off gives you a different *answer* rather than a different format:
+    `ip -d` is the only way an interface's kind appears at all, while `ip -j` is the same facts in
+    JSON. So `-j`, `-br` and `jq`'s pretty-printer are in the capability tables and not here.
+
+    Which makes the facet sparse on purpose. Roughly a third of the roster names nothing, because
+    a tool driven by objects and subcommands — `bridge fdb show`, `wg show`,
+    `socat TCP-LISTEN:8080,fork -` — has no flag that carries weight, and inventing one would
+    bury the ones that do. Absence is a claim here, so it is not flagged.
+
+    What is enforced:
+
+      * every flag named must be typed in one of that tool's own commands, so the reader has a
+        worked example rather than a flag they have to go and look up. This is the check that
+        keeps the facet from drifting into a transcription of `--help`;
+      * at most four, since a list of ten is the thing this facet exists to replace;
+      * no duplicates, and a rationale long enough to say what changes rather than what the flag
+        is called;
+      * nothing on a superseded tool. That page's job is the swap table — it is telling the reader
+        to stop typing this command, and a section on how to type it better fights the page.
+    """
+    import json
+    issues = []
+    if not os.path.exists(CAPS_JSON):
+        return []
+    with open(CAPS_JSON) as f: caps = json.load(f)
+    for tool in sorted(caps):
+        d = caps[tool]
+        keys = d.get("keys")
+        if not keys:
+            continue
+        if d.get("standing", {}).get("level") == "superseded":
+            issues.append(("WARN", f"keys: `{tool}` is superseded and still names key flags — "
+                                   f"that page's job is the swap table, not how to drive this one"))
+        if len(keys) > MAX_KEYS:
+            issues.append(("WARN", f"keys: `{tool}` names {len(keys)} flags, over the {MAX_KEYS} "
+                                   f"this facet exists to cut down to"))
+        seen = set()
+        cmds = [c for _, cs in d.get("caps", []) for c, _ in cs] \
+            + [c["cmd"] for c in d.get("course", [])]
+        for k, why in keys:
+            if k in seen:
+                issues.append(("WARN", f"keys: `{tool}` names `{k}` twice"))
+            seen.add(k)
+            if len(why) < 40:
+                issues.append(("WARN", f"keys: `{tool}` `{k}` has a {len(why)}-character "
+                                       f"rationale — say what it changes, not what it is called"))
+            if not flag_used(k, cmds):
+                issues.append(("WARN", f"keys: `{tool}` names `{k}` as a flag that carries its "
+                                       f"weight, but no command on its page types it — either "
+                                       f"add the command or drop the flag"))
+    return issues
+
+def check_evidence(tool, st, measured):
+    """Warning-only: a prose field that quotes in-image output must still produce that output.
+
+    This is the gap the rest of `check_standing` cannot close. Everything above checks *shape* —
+    that a level is in the vocabulary, that a successor is on the roster, that a rationale is long
+    enough to be an argument. None of it can tell that `arp -6` no longer answers
+    `unrecognized option: 6`, and a quoted string is the most convincing sentence on the page and
+    the first to go stale: one `apk add net-tools` in the Dockerfile and the reference is
+    confidently wrong with every check green.
+
+    So the claim declares itself — `standing.evidence` names the field, the command and the
+    string — and this check joins the two halves:
+
+      * the quoted string must actually appear in the field that is said to quote it, so evidence
+        cannot drift away from the prose it is evidence *for*;
+      * `tools/probe-lab.py` must have re-run the command and found the string, so the prose
+        cannot drift away from the image.
+
+    The measurement itself lives in probe-lab, not here, because it needs Docker. What is checked
+    here is that a measurement exists, is current, and says yes.
+    """
+    issues = []
+    declared = st.get("evidence", [])
+    by_cmd = {m["cmd"]: m for m in measured}
+    for e in declared:
+        field, cmd, expect = e.get("field"), e.get("cmd"), e.get("expect") or []
+        if field not in st:
+            issues.append(("WARN", f"evidence: `{tool}` measures {cmd!r} for field {field!r}, "
+                                   f"which its standing does not have"))
+            continue
+        for x in expect:
+            if x not in st[field]:
+                issues.append(("WARN", f"evidence: `{tool}`'s `{field}` is said to quote {x!r} "
+                                       f"but does not — the evidence has drifted from the claim"))
+        m = by_cmd.get(cmd)
+        if m is None:
+            issues.append(("WARN", f"evidence: `{tool}` quotes the output of `{cmd}` but "
+                                   f"lab-inventory.json has no measurement of it — rerun "
+                                   f"tools/probe-lab.py"))
+        elif not m.get("matched"):
+            got = m.get("got", "")
+            issues.append(("WARN", f"evidence: `{tool}`'s `{field}` quotes output the lab image "
+                                   f"no longer produces — `{cmd}` now says {got!r}. The prose is "
+                                   f"wrong, not the measurement"))
+        elif m.get("expect") != expect:
+            issues.append(("WARN", f"evidence: `{tool}`'s measurement of `{cmd}` was taken "
+                                   f"against {m.get('expect')!r}, not the current "
+                                   f"{expect!r} — rerun tools/probe-lab.py"))
+    for cmd in by_cmd:
+        if cmd not in {e.get("cmd") for e in declared}:
+            issues.append(("WARN", f"evidence: lab-inventory.json measures `{cmd}` for `{tool}`, "
+                                   f"which no longer claims it — rerun tools/probe-lab.py"))
+    return issues
+
+
+HARD_CHECKS = [check_links, check_reference_shape, check_act_shape, check_prediction,
+               check_ladder]
+SECTION_H2 = "## Six to stop reaching for, and two to start"
+
+
+def check_standing_section():
+    """Warning-only: the roster's supersession compartment must name exactly the non-default tools.
+
+    The same bidirectional check `check_index_facets` runs on the interface summary, for the same
+    reason: a summary that is allowed to fall behind the rows it summarises is worse than no
+    summary, because a reader trusts it. So a tool marked superseded or emerging in
+    capabilities.json must appear in the section, and the section must name nothing else.
+
+    Only the *left-hand* superseded name is looked for — the section links successors too, and
+    `ss` appearing there is not a claim that `ss` is legacy.
+    """
+    import json, re as _re
+    if not os.path.exists(INDEX_MD):
+        return []   # check_reference_shape has already failed the run
+    text = read(INDEX_MD)
+    if SECTION_H2 not in text:
+        return [("WARN", f"standing-section: {rel(INDEX_MD)} has no {SECTION_H2!r} section — "
+                         f"the roster no longer says which tools are legacy")]
+    body = text.split(SECTION_H2, 1)[1].split("\n## ", 1)[0]
+    with open(CAPS_JSON) as f:
+        caps = json.load(f)
+    want = {t for t, d in caps.items()
+            if d.get("standing", {}).get("level", "default") != "default"}
+    # Rows are `| [`ss`](…) | [`netstat`](…) | …`; the second cell holds the tool being retired,
+    # and the emerging table's first cell holds the tool being recommended. A tool link from the
+    # roster is `<interface>/<tool>.md`, since the roster now sits above those directories rather
+    # than beside them — matched against the interface names so an ordinary prose link cannot pass
+    # for a tool page.
+    named = set(_re.findall(r"\[`([a-z0-9_.-]+)`\]\((?:" + "|".join(INTERFACES) + r")/", body))
+    missing = sorted(want - named)
+    if missing:
+        issues = [("WARN", f"standing-section: {', '.join(missing)} marked non-default in "
+                           f"capabilities.json but absent from {SECTION_H2!r}")]
+    else:
+        issues = []
+    return issues
+
+
 WARN_CHECKS = [check_index_freshness, check_map_vs_build, check_command_table_coverage,
-               check_index_facets]
+               check_index_facets, check_iface_rosters, check_runnable_citations, check_standing,
+               check_keys]
 
 # ── Runner ──────────────────────────────────────────────────────────────────
 def main(argv):
