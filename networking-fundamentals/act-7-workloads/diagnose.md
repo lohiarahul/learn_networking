@@ -26,6 +26,7 @@ Unlike Act VI, nothing here can break your cluster. These drills break *workload
 ```bash
 kubectl delete deploy,sts,ds,job,cronjob,hpa,svc,cm,secret,pvc -l drill --ignore-not-found
 kubectl delete pv -l drill --ignore-not-found
+kubectl delete namespace imagelab --ignore-not-found     # drill 8 works in its own namespace
 kubectl get pvc                 # should be empty
 kubectl get nodes               # both Ready, neither SchedulingDisabled
 ```
@@ -735,9 +736,258 @@ kubectl delete pv drill7-pv --ignore-not-found
 
 ---
 
-## What these seven have in common
+## Drill 8 — "the deploy went out and not one Pod ever started"
 
-Six of the seven drills had **nothing wrong with the cluster and nothing wrong with the container image**. In every case an object was accepted, stored, and read by exactly the loop that was supposed to read it — and that loop then did precisely what the field said.
+**Target: 10 minutes** for all four, which is the point — see [the clock](#the-clock) above.
+
+> **Ticket:** *"A batch of four services went out together and none of them is up. The cluster looks
+> fine, the nodes look fine, and `kubectl get pods` is a wall of red words we have not seen before.
+> Somebody said it is a registry outage. Somebody else said it is the images. We need to know which
+> ones are the same problem and which are not."*
+
+**Reproduce it** (run; don't read):
+
+```bash
+kubectl create namespace imagelab
+kubectl -n imagelab create configmap appcfg --from-literal=settings.yml='mode: safe'
+kubectl apply -n imagelab -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: badtag, labels: { drill: "8" } }
+spec: { containers: [ { name: c, image: "nginx:1.27-alpine-nope" } ] }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: badregistry, labels: { drill: "8" } }
+spec: { containers: [ { name: c, image: "registry.invalid.example/web:1" } ] }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: neverpull, labels: { drill: "8" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36.9
+      imagePullPolicy: Never
+      command: ["sh","-c","sleep 300"]
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: crashloop, labels: { drill: "8" } }
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh","-c","test -f /etc/app/settings.yaml || { echo 'FATAL: /etc/app/settings.yaml missing, refusing to start' >&2; exit 78; }; sleep 300"]
+      volumeMounts: [ { name: cfg, mountPath: /etc/app } ]
+    - name: shipper
+      image: busybox:1.36
+      command: ["sh","-c","while true; do echo 'shipper: 0 events queued'; sleep 10; done"]
+  volumes:
+    - name: cfg
+      configMap: { name: appcfg }
+EOF
+sleep 45
+kubectl -n imagelab get pods
+```
+
+**Your symptom:**
+
+```
+NAME          READY   STATUS              RESTARTS
+badregistry   0/1     ImagePullBackOff    0
+badtag        0/1     ImagePullBackOff    0
+crashloop     1/2     Error               3 (34s ago)
+neverpull     0/1     ErrImageNeverPull   0
+```
+
+**Three different words in one column, and if you run `get pods` again you may see a fourth.** The
+first two flip between `ErrImagePull` and `ImagePullBackOff` depending on whether you catch them
+mid-attempt or mid-wait — same failure, two points in one retry loop, which is the first hint that this
+column is describing *the kubelet's state* rather than your problem. Before you fix anything: which of those four
+words are the same failure, and which are different? Sort them before you touch them — the ticket's
+real question is how many problems there are, not how to fix any one of them.
+
+<details>
+<summary>Reveal</summary>
+
+**Start by throwing away the STATUS column, because three of those four words are states rather than
+causes.** `ImagePullBackOff` does not mean "the image is bad"; it means *a pull failed and the kubelet
+is now waiting longer between retries*. The cause is only in the event text, and never in the status:
+
+```bash
+kubectl -n imagelab describe pod badtag      | grep 'Failed to pull' | head -1
+kubectl -n imagelab describe pod badregistry | grep 'Failed to pull' | head -1
+```
+
+```
+Failed to pull image "nginx:1.27-alpine-nope": ... failed to resolve reference
+  "docker.io/library/nginx:1.27-alpine-nope": docker.io/library/nginx:1.27-alpine-nope: not found
+
+Failed to pull image "registry.invalid.example/web:1": ... failed to do request:
+  Head "https://registry.invalid.example/v2/web/manifests/1": dial tcp: lookup
+  registry.invalid.example on 192.168.65.254:53: no such host
+```
+
+**Identical status, and the two least similar causes on the page.** The first got all the way to a
+registry, authenticated, asked for a tag and was told it does not exist — the registry is *fine*. The
+second never reached a registry at all: `no such host` is a DNS failure, and the address it names is
+the node's resolver, not the cluster's. So "it's a registry outage" is wrong about the first and not
+quite right about the second either — nothing is down, a name does not exist. One is a typo in a tag,
+the other a typo in a hostname, and only the event text can tell you.
+
+**Now the third, which is the useful one.** `ErrImageNeverPull` is not a variant of
+`ImagePullBackOff`; it is the opposite kind of statement:
+
+```bash
+kubectl -n imagelab describe pod neverpull | grep ErrImageNeverPull | head -1
+```
+
+```
+Container image "busybox:1.36.9" is not present with pull policy of Never
+```
+
+**No pull was attempted, so no pull failed.** `imagePullPolicy: Never` is an instruction to use only
+what is already on the node, and the image is not there, so the kubelet refuses before it does
+anything. That is why this is the one status in the set that needs no event: it *is* its own cause.
+And it is the tell that separates a broken registry from a broken assumption — if you ever see this
+in production, someone shipped a policy that expects a pre-loaded image onto a node that never got
+one, and no amount of fixing the registry will help.
+
+**The fourth was never an image problem at all**, which is why it is here. Note `1/2`, not `0/1`: one
+container came up and one did not. The image pulled, the sandbox exists, the container was *created* —
+and then it died:
+
+```bash
+kubectl -n imagelab describe pod crashloop | grep -E 'Exit Code|Back-off'
+```
+
+```
+      Exit Code:    78
+  Warning  BackOff  19s  kubelet  spec.containers{app}: Back-off restarting failed container app ...
+```
+
+An exit code and a back-off, and **nothing about why**. `describe` can tell you a container died; it
+structurally cannot tell you what the process was complaining about, because that was written to
+stdout and stderr, and those go somewhere else:
+
+```bash
+kubectl -n imagelab logs crashloop
+```
+
+```
+Defaulted container "app" out of: app, shipper
+FATAL: /etc/app/settings.yaml missing, refusing to start
+```
+
+There it is, in the one place nobody looked. Two things about that command worth having in your
+fingers, because both cost people time on a clock:
+
+**`kubectl logs` on a multi-container Pod picks one for you and says so.** It defaulted to `app`
+because `app` is first in the spec — helpful here and dangerous in general, because on the day the
+broken container is second you will read a healthy container's logs and conclude nothing is wrong.
+Name it: `-c app`. And to read across the whole Pod at once:
+
+```bash
+kubectl -n imagelab logs crashloop --all-containers --prefix
+kubectl -n imagelab logs -l drill=8 --all-containers --prefix --tail=2
+```
+
+```
+[pod/crashloop/app]     FATAL: /etc/app/settings.yaml missing, refusing to start
+[pod/crashloop/shipper] shipper: 0 events queued
+```
+
+**`--previous` is the flag for the case this drill *nearly* is.** Here the container is dying
+repeatedly, so the current container's log is the failing run and plain `logs` works. The one that
+catches people is a Pod that is `Running` now with a non-zero `RESTARTS` — the run that failed is
+gone, and `--previous` is the only way to read it. Treat a non-zero restart count as a standing
+instruction to run `logs --previous` before you believe the Pod is healthy.
+
+Then fix the actual cause, which is one character:
+
+```bash
+kubectl -n imagelab get configmap appcfg -o jsonpath='{.data}'; echo
+```
+
+```
+{"settings.yml":"mode: safe"}
+```
+
+The container wants `settings.yaml`; the ConfigMap has `settings.yml`. A ConfigMap volume is a
+directory of files named after its keys, so a wrong key is a missing file — and the container is
+right to refuse.
+
+**Fix all four:**
+
+```bash
+kubectl -n imagelab create configmap appcfg --from-literal=settings.yaml='mode: safe' \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n imagelab set image pod/badtag c=nginx:1.27-alpine    # image is a mutable field; the rest are not
+kubectl -n imagelab delete pod badregistry neverpull crashloop  # blocking, and it has to be
+kubectl apply -n imagelab -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: badregistry, labels: { drill: "8" } }
+spec: { containers: [ { name: c, image: "nginx:1.27-alpine" } ] }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: neverpull, labels: { drill: "8" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      imagePullPolicy: IfNotPresent
+      command: ["sh","-c","sleep 300"]
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: crashloop, labels: { drill: "8" } }
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh","-c","test -f /etc/app/settings.yaml || { echo 'FATAL: /etc/app/settings.yaml missing, refusing to start' >&2; exit 78; }; sleep 300"]
+      volumeMounts: [ { name: cfg, mountPath: /etc/app } ]
+    - name: shipper
+      image: busybox:1.36
+      command: ["sh","-c","while true; do echo 'shipper: 0 events queued'; sleep 10; done"]
+  volumes:
+    - name: cfg
+      configMap: { name: appcfg }
+EOF
+kubectl -n imagelab wait --for=condition=Ready pod --all --timeout=180s
+```
+
+Two things in that block are worth more than the fix. **`set image` works and nothing else would** —
+a Pod is almost entirely immutable once created, and the API server will tell you so in a list of the
+five fields you may change, which is why the other three had to be deleted and recreated. And the
+delete is **blocking on purpose**: `--wait=false` here races the recreate, the `apply` lands on a Pod
+that is still terminating, and you get *"pod updates may not change fields other than…"* — an error
+about immutability that is really an error about timing.
+
+**The reasoning worth keeping.** The kubelet's startup is a sequence, and each step fails in its own
+vocabulary: no image (`ErrImagePull` → `ImagePullBackOff`, cause in the event), an image it was told
+not to fetch (`ErrImageNeverPull`, cause in the status), a container that starts and dies
+(`CrashLoopBackOff`, cause in the *logs*, and only in the logs). Read the `READY` fraction first —
+`0/1` and `1/2` are different worlds — then let the depth choose your tool. `describe` for everything
+before the process ran, `logs` for everything after.
+
+</details>
+
+**Verify it, then clean up:**
+
+```bash
+tools/verify-drill.sh act-7 8 "the status that names its own cause"
+kubectl delete namespace imagelab
+```
+
+---
+
+## What these eight have in common
+
+Seven of the eight drills had **nothing wrong with the cluster**. In every case an object was accepted, stored, and read by exactly the loop that was supposed to read it — and that loop then did precisely what the field said. Drill 8 is the exception and earns its place by being one: it is the act's only failure that happens *below* the object, where the kubelet is trying to turn a spec into a running process, and it is there to teach that those failures are ordered — no image, an image nobody was allowed to fetch, a container that starts and dies — with a different tool reading each depth.
 
 Which is the diagnostic value of this act's spine. A workload failure is almost never "Kubernetes is broken"; it is a claim being kept faithfully that you did not mean to make. So the productive question is never "what is wrong with it" but **which loop is keeping which promise, and is that the promise I wrote?**
 

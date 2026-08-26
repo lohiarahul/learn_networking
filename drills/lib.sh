@@ -128,6 +128,20 @@ probe_controller_writes() {
   else bad "a controller wrote status on a new Deployment" "status.replicas stayed empty for 60s"; return 1; fi
 }
 
+# `status.phase` is Running for a Pod whose containers are crash-looping — the phase is about the
+# sandbox, not the processes — so a naive phase check passes on a CrashLoopBackOff. The Ready condition
+# is the claim that cannot be faked: it requires every container to have passed its checks *now*.
+pod_ready() {
+  local ns="$1" name="$2"
+  local s; s=$(kubectl -n "$ns" get pod "$name" \
+        -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+  if [ "$s" = "True" ]; then ok "pod/$name is Ready (every container, not just the sandbox)"
+  else
+    local st; st=$(kubectl -n "$ns" get pod "$name" --no-headers 2>/dev/null | awk '{print $2" "$3}')
+    bad "pod/$name is Ready" "${st:-not found} — Ready=${s:-<none>}"; return 1
+  fi
+}
+
 # Pin a Pod to one node and require it to actually *run* there. This is the strongest statement you
 # can make about a single node without logging into it: a Pod reaching Running on node N means N's
 # kubelet is up, talking to the API server, talking to its container runtime, and able to build a

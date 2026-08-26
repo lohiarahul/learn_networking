@@ -8,8 +8,7 @@ require "the claim is Bound" \
 require "it bound through a StorageClass that actually exists" \
   bash -c 'sc=$(kubectl get pvc reports-data -o jsonpath="{.spec.storageClassName}");
            [ -z "$sc" ] || kubectl get storageclass "$sc" >/dev/null 2>&1'
-require "the Deployment is available" \
-  bash -c '[ "$(kubectl get deploy reports -o jsonpath="{.status.readyReplicas}")" = "1" ]'
+rollout_complete reports 1
 require "and the volume is really mounted in the container" \
   bash -c 'kubectl exec deploy/reports -- sh -c "mount | grep -q /data"'
 answer_check "${ANSWER:-}"
