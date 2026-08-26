@@ -31,14 +31,18 @@ A cluster missing its scheduler looks completely healthy until the moment someth
 7. **[Taking a node out of service](07-node-maintenance.md)** — cordon is one field; drain is a loop in your terminal. Then meet the one request the cluster is allowed to refuse.
 8. **[When the control plane breaks](08-when-the-control-plane-breaks.md)** — Act V's five questions, pointed down the dependency stack instead of the network stack. Break the API server on purpose and find out where the evidence went.
 
-Then, when you have worked through all eight:
+Then, once the eight above are done, one appendix that needs machines rather than containers:
+
+9. **[Two machines, from nothing](09-two-machines-from-nothing.md)** — `kind` did about a dozen things to those nodes before the first Pod ever ran, and never said what. Build a cluster by hand on two VMs, earning each prerequisite from the failure that happens without it, then run the in-place upgrade this lab cannot host. **It is also the one page in the course its author has not run**, and it says so at the top.
+
+Then, when you have worked through all eight lessons and the appendix:
 
 - **[Test yourself](test-yourself.md)** — twenty questions, answers folded away. Attempt each before opening it.
-- **[Diagnose it](diagnose.md)** — eight on-call drills that put your cluster into a genuinely broken state and hand you only the symptom. The last one has no command at the end of it: the node is shared, the blocker belongs to a tenant you do not own, and every fix that works is somebody else's decision.
+- **[Diagnose it](diagnose.md)** — eleven on-call drills that put your cluster into a genuinely broken state and hand you only the symptom, each ending in a `tools/verify-drill.sh` run that exits 0 only if the cluster is functionally repaired **and** you can name the cause. Drills 9–11 are one symptom — a `NotReady` node — with three different causes, separated by two fields and one command. The last one has no command at the end of it: the node is shared, the blocker belongs to a tenant you do not own, and every fix that works is somebody else's decision.
 - **[The instrument panel](../../reference/README.md)** — where to look a tool or a `/proc` path up once you have stopped meeting it for the first time, and the naming grammar that makes an unfamiliar command guessable.
 - **[Act VI in the wild](in-the-wild.md)** — why every managed Kubernetes service hides exactly the four things this act taught you to read, and which of your commands survive that.
 
-> **On verification.** All eight lessons have been run against a real cluster (`kind`, Kubernetes v1.36.1, etcd 3.6.8) and corrected against what actually happened — including several places where the cluster contradicted the text outright. The drills in `diagnose.md` reuse those verified commands but have not been walked end to end as drills, so treat their timings as the least-tested thing here. All three supporting pages linked above are written; the roadmap banner in [the journey map](../../JOURNEY-MAP.md) tracks what is real across the whole course.
+> **On verification.** All eight numbered lessons have been run against a real cluster (`kind`, Kubernetes v1.36.1, etcd 3.6.8) and corrected against what actually happened — including several places where the cluster contradicted the text outright. The drills in `diagnose.md` reuse those verified commands but have not been walked end to end as drills, so treat their timings as the least-tested thing here. The appendix (lesson 09) is the exception and carries its own banner: it needs two VMs and a hypervisor, which the authoring environment did not have, so its outputs are expected rather than measured. All three supporting pages linked above are written; the roadmap banner in [the journey map](../../JOURNEY-MAP.md) tracks what is real across the whole course.
 
 ## What breaks here
 

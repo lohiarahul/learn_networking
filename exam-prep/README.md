@@ -60,6 +60,12 @@ publishes an invented 12/22/31 split for CKA.
 - **[kubectl-speed.md](kubectl-speed.md)** — what actually saves time in the current environment.
   Read the warning at the top: the familiar `alias k=kubectl` ritual is now mostly wasted keystrokes.
 - **[exam-day.md](exam-day.md)** — the environment, its friction, and the time-management sweep.
+- **[authoring-sprint.md](authoring-sprint.md)** — seven artifacts, 45 minutes, no docs but
+  `kubectl explain`. Every item is something the course made you *read* and never made you *write*: a
+  `StorageClass` made default, a `PriorityClass` plus a preemption you watch happen, the CoreDNS
+  `Corefile` edited and reverted, a Gateway HTTPS listener, a `ResourceQuota` and `LimitRange` from
+  scratch, an egress policy blocking `169.254.169.254/32`, and `kubectl` checked against its published
+  `sha256`. The output is not seven objects — it is the list of the ones you could not type.
 
 ## Practice resources that are actually current
 
