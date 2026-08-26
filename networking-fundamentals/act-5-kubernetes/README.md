@@ -30,7 +30,7 @@ Work through these in order. Each one runs experiments against the cluster and e
 6. **[CNI — the veth-pair installer](05-cni.md)** — the Act IV wiring, run by a binary instead of by hand.
 7. **[Ingress — the front door](06-ingress.md)** — the Act III TLS handshake terminated at the cluster edge. The one lesson that installs something.
 8. **[Gateway API — when routing outgrows annotations](06b-gateway-api.md)** — Ingress's successor: the same job split along the seams that actually exist, and a status you have to read.
-9. **[Network Policy — iptables with a YAML interface](07-network-policy.md)** — kernel-level allow/deny on Pod identity.
+9. **[Network Policy — a filter table someone else has to enforce](07-network-policy.md)** — allow/deny on Pod identity, and finding the process that actually decides.
 10. **[The four shapes of a NetworkPolicy](07b-policy-shapes.md)** — the one hyphen that turns an AND into an OR, `ipBlock`, and the egress policy that breaks DNS.
 11. **[The debugging method — five questions in order](08-debugging.md)** — which file to read first when it breaks.
 12. **[The method in action — a worked failure](09-debugging-walkthrough.md)** — the debugging walk end to end.
