@@ -41,6 +41,9 @@ A namespace answered one question: **what can this process see?** It said nothin
 /sys/fs/cgroup/memory.current      how many bytes the group is using right now
 /sys/fs/cgroup/memory.events       counters, including how many times it was OOM-killed
 /sys/fs/cgroup/cpu.max             "<quota> <period>" in microseconds, or "max"
+/sys/fs/cgroup/pids.max            the most processes this group may have, or "max"
+/sys/fs/cgroup/pids.current        how many it has right now
+/sys/fs/cgroup/pids.events         a counter of times a fork was refused
 ```
 
 **The experiment** — Two containers from the same image, differing only in one flag. Start with an unrestricted one — no `--privileged` needed this time, because you are only reading files:
@@ -119,9 +122,69 @@ You have now met both halves of container isolation from the inside, one by a fa
 
 </details>
 
-> **You understand this when you can** name the file holding a container's memory ceiling and the file holding its current usage, explain why `free` inside a container disagrees with both, and decide from a bare symptom whether you are chasing a namespace problem (it cannot *see* something) or a cgroup problem (it was *killed*, or it is *slow*).
+> **You understand this when you can** name the file holding a container's memory ceiling and the file holding its current usage, explain why `free` inside a container disagrees with both, give the three limits' three symptoms — killed, slowed, refused — and decide from a bare symptom whether you are chasing a namespace problem (it cannot *see* something) or a cgroup problem (it was *killed*, *slow*, or *refused*).
+
+### The third limit, and the one you cannot ask for
+
+Memory and CPU are the two everybody knows. There is a third, and it is the only cgroup limit that
+defends against a specific attack rather than a specific appetite.
+
+> **Predict first —** a process inside a container calls `fork()` in a loop, forever. Memory and CPU are
+> both capped. What stops it, and what does the *failure* look like from inside — an OOM kill, a hang,
+> or something else?
+
+```bash
+docker run --rm --pids-limit 20 nicolaka/netshoot sh -c '
+  cat /sys/fs/cgroup/pids.max
+  i=0; while [ $i -lt 40 ]; do sleep 30 & i=$((i+1)); done
+  echo "pids.current: $(cat /sys/fs/cgroup/pids.current)"
+  cat /sys/fs/cgroup/pids.events'
+```
+
+```
+20
+sh: can't fork: Resource temporarily unavailable
+pids.current: 2
+max 1
+```
+
+Three things in that output. `pids.max` is `20` because you asked for it — without the flag it reads
+`max`, and a fork bomb in an unrestricted container takes the *machine*, not the container. The
+refusal is **`can't fork`**, not an OOM kill and not a hang: `fork()` returned `EAGAIN`, which is a
+number the program has to check, so a process that ignores the return value of `fork()` carries on
+believing it succeeded. And `pids.current` never left `2` — none of the forty children was ever
+created, so there is nothing to see afterwards. The evidence is `pids.events`, whose `max 1` counts
+the times the limit was hit, exactly as `memory.events` counted the OOM kills.
+
+So the third limit completes a set worth memorising by its *symptom*, because that is how it arrives:
+
+```
+  memory.max  crossed  ->  the process is KILLED          (SIGKILL, exit 137)
+  cpu.max     crossed  ->  the process is SLOWED          (throttled, no error anywhere)
+  pids.max    crossed  ->  the next syscall is REFUSED    (EAGAIN, and only if it checks)
+```
 
 **Kubernetes sees this as** — When you write `resources.limits.memory: 64Mi` on a container, nothing clever happens: something on the node writes `67108864` into that container's `memory.max`, and from then on the kernel is the enforcement. `OOMKilled` in `kubectl describe pod` is the `oom_kill` counter you just read, given a name. CPU limits become `cpu.max`, which is why a Pod at its CPU limit gets slower and a Pod at its memory limit gets *dead*.
+
+`pids.max` is the interesting one, because **there is no field for it.** `kubectl explain
+pod.spec.containers.resources` has no `pids`, and no manifest you can write sets it. It is a *node*
+setting — the kubelet's `podPidsLimit` — so the one limit that stops a fork bomb is the one a workload
+author cannot request and cannot see in their own YAML. Read what your Pods actually got:
+
+```bash
+kubectl run pidprobe --image=busybox:1.36 --restart=Never \
+  --command -- sh -c 'cat /sys/fs/cgroup/pids.max; sleep 20'
+kubectl logs pidprobe
+```
+
+```
+9563
+```
+
+Not `max`. `podPidsLimit` is unset in this cluster's kubelet configuration and the Pod still got a
+ceiling, because something below the kubelet applied a default share of the node's `threads-max`. Which
+is the useful shape of the finding rather than the number: **a limit you did not set, cannot write, and
+would not have found by reading your manifest.**
 
 But that same block of YAML carries **two** numbers, not one — a `limits` and a `requests` — and you have just seen the machinery for only one of them. A ceiling is a file on a machine that already exists. The other number is a claim made before any machine has been chosen, and no file on any host can satisfy it: ask for 8 GiB where there are 4, and the kernel you have been reading all lesson has nothing to say, because it only knows about *this* box. So who reads that second number, and what do they have to know that a kernel does not? Carry the question.
 

@@ -81,18 +81,48 @@ notice that the second number is the one that predicts anything.
 > interface is up, the IP is right, the cable's fine, nothing changed in the routing. It's like the
 > gateway just stopped existing."*
 
+> **⚠ On Docker Desktop this drill's symptom may not appear at all, and that is worth knowing before
+> you spend seven minutes on it.** The poisoning below works — `ip neigh show` will show your bogus MAC
+> as `PERMANENT` — and the machine will keep reaching the internet anyway. The reason is that a Docker
+> Desktop container's uplink is **not a real Ethernet path**: `eth0` faces a userspace network stack in
+> the VM (you can see it as the `services1` device and the `192.168.65.0/24` range), and frames to the
+> gateway are not delivered by their L2 header, so a wrong MAC costs nothing. Everything in Act II that
+> depends on Layer 2 actually carrying the frame is in the same position.
+>
+> One command tells you which environment you are in:
+>
+> ```bash
+> ip -o link show "$(ip route get 8.8.8.8 | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+> ip rule show | grep -q 'lookup 2' && echo "policy-routed uplink — probably Docker Desktop's VM"
+> ```
+>
+> On a real Linux host, or a Linux VM you made yourself (the
+> [two-machines appendix](../act-6-control-plane/09-two-machines-from-nothing.md) builds two), the
+> poisoning breaks connectivity exactly as described and the drill works. On Docker Desktop, read the
+> diagnosis for the method and take the symptom on trust — or better, run the drill between two of your
+> own namespaces, where the veth pair *is* a real Ethernet path.
+
 **Reproduce it** (run; don't read):
 
 ```bash
-GW=$(ip route show default | awk '{print $3}')
+GW=$(ip route get 8.8.8.8 | awk '{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1); exit}}')
 ip neigh replace "$GW" lladdr de:ad:be:ef:00:01 dev eth0 nud permanent
 ```
+
+> **`ip route get`, not `ip route show default` — and this is the fix for a real trap.** `show`
+> reads only the **main** routing table, and on some hosts (Docker Desktop's VM among them) the
+> default route lives in a separate policy-routing table instead, so `ip route show default` prints
+> **nothing at all** and every `$(...)` built on it silently becomes an empty string — which then
+> produces a command with a missing argument rather than an error you can read.
+> `ip route get <dst>` asks the kernel which route it would *actually* use, whichever table holds
+> it. [Act II lesson 01](01-ethernet-and-arp.md) is where this is explained;
+> `ip rule show` is how you see the table it was hiding in.
 
 **Confirm the symptom:**
 
 ```bash
 ip addr show eth0 | grep 'inet '      # IP is present and correct
-ip route show default                  # default route is present and correct
+ip route get 8.8.8.8                   # the route the kernel would actually use
 ping -c1 -W2 8.8.8.8 || echo "external ping: FAILED"
 ```
 
@@ -106,7 +136,7 @@ and what does it say about the gateway right now?
 <summary><b>The diagnosis</b> — open after you've tried</summary>
 
 ```bash
-ip neigh show | grep "$(ip route show default | awk '{print $3}')"
+ip neigh show | grep "$(ip route get 8.8.8.8 | awk '{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1); exit}}')"
 ```
 
 ```
@@ -133,7 +163,7 @@ tools/verify-drill.sh act-2 1 "the table that had the wrong answer"
 ### ⚠ Cleanup — Drill 1, run this now before starting the next drill
 
 ```bash
-ip neigh del "$(ip route show default | awk '{print $3}')" dev eth0
+ip neigh del "$(ip route get 8.8.8.8 | awk '{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1); exit}}')" dev eth0
 ping -c1 -W2 8.8.8.8 && echo "recovered"
 ```
 

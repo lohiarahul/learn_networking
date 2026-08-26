@@ -64,10 +64,30 @@ notice that the second number is the one that predicts anything.
 > configured, forwarding is on — but every ping to the outside times out. The host itself reaches
 > `8.8.8.8` fine. Same kernel, same uplink. Why can the host get out and the namespace can't?"*
 
+> **⚠ On Docker Desktop this drill's symptom may not appear, for a reason worth more than the drill.**
+> The namespace will reach `8.8.8.8` *before* you add any `MASQUERADE` rule. Nothing is wrong with your
+> setup: a Docker Desktop container's uplink faces a **userspace network stack** in the VM rather than a
+> real L3 forwarder, so the private source address is rewritten outside netfilter entirely and the
+> missing rule costs nothing. `iptables -t nat -S POSTROUTING` will confirm there is no rule matching
+> your range, and the ping will work regardless — which is a good demonstration that **a NAT you cannot
+> see in the tables is still a NAT**.
+>
+> Check which environment you have:
+>
+> ```bash
+> ip rule show | grep -q 'lookup 2' && echo "policy-routed uplink — probably Docker Desktop's VM"
+> ```
+>
+> On a real Linux host the packet leaves with `10.50.0.2` as its source and the `tcpdump` below shows
+> it. On Docker Desktop, do the `tcpdump` anyway and read what the source has become — it is the same
+> lesson arriving as an answer rather than a question. The
+> [two-machines appendix](../act-6-control-plane/09-two-machines-from-nothing.md) is where this drill
+> reproduces properly, because those are real machines.
+
 **Reproduce it** (run; don't read):
 
 ```bash
-UPLINK=$(ip route show default | awk '{print $5}')
+UPLINK=$(ip route get 8.8.8.8 | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')
 ip netns add app
 ip link add veth-h type veth peer name veth-a
 ip link set veth-a netns app
@@ -79,6 +99,15 @@ ip netns exec app ip link set lo up
 ip netns exec app ip route add default via 10.50.0.1
 sysctl -qw net.ipv4.ip_forward=1
 ```
+
+> **`ip route get`, not `ip route show default` — and this is the fix for a real trap.** `show`
+> reads only the **main** routing table, and on some hosts (Docker Desktop's VM among them) the
+> default route lives in a separate policy-routing table instead, so `ip route show default` prints
+> **nothing at all** and every `$(...)` built on it silently becomes an empty string — which then
+> produces a command with a missing argument rather than an error you can read.
+> `ip route get <dst>` asks the kernel which route it would *actually* use, whichever table holds
+> it. [Act II lesson 01](../act-2-two-machines/01-ethernet-and-arp.md) is where this is explained;
+> `ip rule show` is how you see the table it was hiding in.
 
 **Confirm the symptom:**
 
@@ -99,7 +128,7 @@ onto the real wire — then ask which table was supposed to fix that, and whethe
 Watch what actually leaves the box:
 
 ```bash
-UPLINK=${UPLINK:-$(ip route show default | awk '{print $5}')}   # re-derive it if this is a new shell
+UPLINK=${UPLINK:-$(ip route get 8.8.8.8 | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')}   # re-derive it if this is a new shell
 echo "uplink is: $UPLINK"                                        # must not be empty
 tcpdump -ni "$UPLINK" icmp &
 ip netns exec app ping -c1 8.8.8.8

@@ -7,12 +7,21 @@ CAUSE_SHA='cf835fc094349f22c2214fc8256cb895fcbcc01c77083c0f94114703d9e79a29
 2611b5670368ec5ddaa3f1b5f21cbdb034c3a57d0963193676a4686803c2f829'
 
 lab_up
-lab_require "the machine reaches the internet again" 'ping -c1 -W3 8.8.8.8 >/dev/null'
+if lab_uplink_is_real; then
+  lab_require "the machine reaches the internet again" 'ping -c1 -W3 8.8.8.8 >/dev/null'
+else
+  note "this lab's uplink is a userspace stack (policy-routed, no default route in main), so a wrong"
+  note "gateway MAC does not break connectivity here — the reachability check cannot discriminate and"
+  note "is skipped. The neighbour-table checks below are the load-bearing ones on this host."
+fi
 # The anti-cheat, and the point of the drill: a route or a second address would also restore the ping.
 # The fix is the removal of a wrong PERMANENT answer, so the wrong answer must be gone.
 lab_require "and no permanent neighbour entry is left overriding the gateway" \
   '! ip neigh show | grep -q PERMANENT'
+# `ip route get`, not `ip route show default` — the latter reads only the main table and prints nothing
+# on Docker Desktop's VM, where the default route sits in a policy-routing table. Act II lesson 01.
 lab_require "the gateway now resolves by asking, not by being told" \
-  'gw=$(ip route show default | awk "{print \$3}"); ip neigh show "$gw" | grep -Eq "REACHABLE|STALE|DELAY"'
+  'gw=$(ip route get 8.8.8.8 | awk "{for(i=1;i<=NF;i++) if(\$i==\"via\"){print \$(i+1); exit}}");
+   [ -n "$gw" ] && ip neigh show "$gw" | grep -Eq "REACHABLE|STALE|DELAY"'
 answer_check "${ANSWER:-}"
 verdict

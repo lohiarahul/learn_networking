@@ -12,7 +12,14 @@ lab_up
 lab_require "the drill's namespace still exists to test" 'ip netns list | grep -q "^app"'
 # Function: the namespace reaches the internet. This is the only claim that matters and it needs no
 # reading of any table.
-ns_require "a Pod-shaped namespace now reaches 8.8.8.8" app 'ping -c1 -W3 8.8.8.8 >/dev/null'
+if lab_uplink_is_real; then
+  ns_require "a Pod-shaped namespace now reaches 8.8.8.8" app 'ping -c1 -W3 8.8.8.8 >/dev/null'
+else
+  note "this lab's uplink is a userspace stack, so it rewrites the private source outside netfilter and"
+  note "the namespace reaches 8.8.8.8 with or without your rule. The reachability check cannot"
+  note "discriminate here and is skipped; the NAT-rule check below is the load-bearing one."
+  ns_require "the namespace at least has a working default route" app 'ip route get 8.8.8.8 >/dev/null'
+fi
 # And at the right layer. Giving the namespace a routable address, or routing it some other way, also
 # fixes the ping — and is not the rule Docker and kube-proxy write.
 lab_require "and the fix is a source-NAT rule for the namespace's range, not a re-addressing" \

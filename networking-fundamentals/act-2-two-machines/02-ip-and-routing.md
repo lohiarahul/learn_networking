@@ -213,7 +213,14 @@ The `fib_trie` dump is deliberately overwhelming — a tree of `/N` nodes and le
 
 So decode a row yourself before any tool tells you what it says. Find the row whose `Destination` is `00000000` — that is the default route, `0.0.0.0/0`, and its `Gateway` column is the machine's next hop for the whole internet.
 
-You already know what that gateway is: you read it with `ip route show default` and pinged it in the ARP lesson. So this is not a guessing game, it is the sharper test — *does the file, decoded by your own hand, come out to the address the tool told you?*
+> **If there is no such row, you are not lost — you have found the thing lesson 01 warned about.**
+> `/proc/net/route` holds the **main** table only, and on some hosts (Docker Desktop's VM among them)
+> the default route lives in a separate policy-routing table, so the `00000000` row is genuinely
+> absent from this file. `ip rule show` will show you a `lookup 2` beside `lookup main`, and
+> `ip route show table all | grep default` finds the row. Decode it from there — the byte-reversal is
+> the same, and you have just learned that "the routing table" was always a simplification.
+
+You already know what that gateway is: you read it with `ip route get 8.8.8.8` and pinged it in the ARP lesson. So this is not a guessing game, it is the sharper test — *does the file, decoded by your own hand, come out to the address the tool told you?*
 
 > **Predict first —** take *your* row's `Gateway` hex, reverse its four bytes, and write out the dotted-decimal. Do it before reading on, and predict whether it will match the gateway you already know. If it doesn't, one of you is wrong — and it isn't the file.
 
@@ -235,7 +242,7 @@ Here is the same decode worked on a sample row from a different machine, so the 
 Read the bytes right-to-left, two hex digits at a time, and convert each pair to decimal — `C0`=192, `A8`=168, `02`=2, `01`=1. Now check your own row's answer against the tool:
 
 ```bash
-ip route show default
+ip route get 8.8.8.8            # the route the kernel would actually use, whichever table holds it
 ```
 
 They agree, and that is the whole point of having decoded it: you did not take "the file wins" on faith, you read the file and then watched the tool report exactly what you had already worked out. If they had disagreed, the file would still be right.

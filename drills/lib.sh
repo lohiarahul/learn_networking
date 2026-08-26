@@ -327,6 +327,20 @@ lab_require() {
   require "$desc" docker exec "$LAB" sh -c "$*"
 }
 
+# Is this lab's uplink a real L3/L2 path, or a userspace stack pretending to be one?
+#
+# It matters because two Act I-IV drills cannot reproduce their symptom behind a userspace uplink:
+# poisoning the gateway's MAC costs nothing when frames are not delivered by their L2 header, and a
+# missing MASQUERADE costs nothing when the source address is rewritten outside netfilter. Both then
+# produce a *false pass* on the obvious reachability check, which is worse than a failure.
+#
+# The tell is policy routing: Docker Desktop's VM puts the default route in table 2 and leaves the main
+# table without one. Heuristic, but a measured one — and it is the same fact that breaks
+# `ip route show default`.
+lab_uplink_is_real() {
+  ! docker exec "$LAB" sh -c "ip rule show 2>/dev/null | grep -q 'lookup 2'" 2>/dev/null
+}
+
 # require, but inside one of the drill's network namespaces. This is the shape most Act IV checks
 # take, because the whole act is about a packet's view of the world changing with where it stands.
 ns_require() {
@@ -334,10 +348,14 @@ ns_require() {
   require "$desc" docker exec "$LAB" ip netns exec "$ns" sh -c "$*"
 }
 
-# The lab's own uplink and gateway, derived rather than assumed — the drills derive them too, because
-# the interface name differs between `--network host` on Linux and Docker Desktop's VM.
-lab_uplink()  { docker exec "$LAB" sh -c "ip route show default | awk '{print \$5}'" 2>/dev/null | head -1; }
-lab_gateway() { docker exec "$LAB" sh -c "ip route show default | awk '{print \$3}'" 2>/dev/null | head -1; }
+# The lab's own uplink and gateway, and note *how* they are derived, because the obvious way is wrong
+# here. `ip route show default` reads only the **main** table, and on Docker Desktop's VM the default
+# route lives in a separate policy-routing table — `ip rule show` reveals a `lookup 2` — so `show
+# default` prints **nothing at all** and every `$(...)` built on it silently becomes an empty string.
+# `ip route get <dst>` asks the kernel which route it would actually use, whichever table holds it.
+# Act II lesson 01 explains this; these two functions are it, applied.
+lab_uplink()  { docker exec "$LAB" sh -c "ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if(\$i==\"dev\"){print \$(i+1); exit}}'" 2>/dev/null | head -1; }
+lab_gateway() { docker exec "$LAB" sh -c "ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if(\$i==\"via\"){print \$(i+1); exit}}'" 2>/dev/null | head -1; }
 
 # ------------------------------------------------- Act IX: identity, over the wire
 
