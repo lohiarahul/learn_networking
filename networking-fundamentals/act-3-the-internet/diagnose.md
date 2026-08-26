@@ -11,6 +11,21 @@ story), hands you only the symptom, and asks you to find the cause with the act'
 2. **Form a hypothesis before you inspect.** Say out loud what you think is wrong and which file or
    tool would prove it — *then* look.
 3. **Open the reveal only after you've tried.** It's collapsed for a reason.
+4. **Then verify it — and say what was wrong.** Every drill ends with a `Verify it` line:
+
+   ```bash
+   tools/verify-drill.sh act-3 <n> "your one-line diagnosis"
+   ```
+
+   Run it **from your repository checkout on the host, not from inside the lab container** — and run it
+   **before** the drill's `Cleanup` line, because everything it checks lives in the namespaces and rules
+   that line destroys. It reaches into the container through `docker exec`, which is why the container
+   has to be named `lab` (set `LAB=<name>` if yours is not). It exits `0` only if the machine genuinely
+   works again **and** the cause you typed is right, and the checks are function-level on purpose: a
+   1450-byte ping with `DF` set rather than a default 56-byte one, a bridge that has *learned* two MACs
+   rather than a link that merely reads `UP`, an fd count taken before and after twenty connections. It
+   will not tell you the answer — see [`drills/`](../../drills/README.md) for why the expected cause is
+   stored as a hash.
 
 **Where:** inside the lab container with the host's real network attached —
 `docker run --rm -it --privileged --network host --name lab nicolaka/netshoot`.
@@ -127,6 +142,12 @@ look in. **Fix:** find and remove whatever is dropping the SYN.
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-3 1 "what happened to the packets"
+```
+
 ---
 
 ## Drill 2 — "The app logged 'upload complete' but the client is still waiting"
@@ -183,6 +204,12 @@ Send-Q empty → the app hasn't actually sent, or it *was* delivered.
 **Cleanup:** `pkill -f 'nc -l 8080'; pkill -f 'nc 127.0.0.1 8080'`
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-3 2 "what was actually slow"
+```
 
 ---
 
@@ -247,6 +274,12 @@ production.
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-3 3 "what nobody trusted had signed it"
+```
+
 ---
 
 ## Drill 4 — "Timeouts under load, and they clear when traffic dies down"
@@ -265,6 +298,24 @@ number and not a guess; run both lines together, and note what the first one pri
 cat /proc/sys/net/netfilter/nf_conntrack_max | tee /tmp/ct_max_before   # YOUR default. keep it.
 sysctl -w net.netfilter.nf_conntrack_max=64 >/dev/null    # a table far too small for real load
 ```
+
+> **⚠ This is the one drill in Acts I–IV that reaches outside its container, and you should know that
+> before you run it.** `nf_conntrack_max` is a property of a **network namespace**, and the drill page
+> tells you to start the lab with `--network host` — so the namespace you are shrinking is the host's,
+> not the container's. On Linux that is your machine. On Docker Desktop it is the Linux VM every one of
+> your containers is running in, **including the Docker daemon's own networking**.
+>
+> A 64-entry table is not enough for that VM. Setting it will break `docker exec`, `kubectl`, and any
+> `kind` cluster you have running, in the middle of the drill — which is exactly the symptom the drill
+> is teaching, arriving from an unexpected direction and taking your tooling with it. Recovery is the
+> `Cleanup` line and nothing else, so **read the Cleanup before you run the reproduce**, and do not run
+> this one in a terminal you are about to close.
+>
+> Two ways to be safe. Either raise the number rather than lowering it — `256` is still small enough to
+> fill under the burst and large enough to leave the daemon working — or drop `--network host` for this
+> drill only, in which case the sysctl is refused outright (`Permission denied`, because a container's
+> own netns does not own the conntrack module) and you get to read *that* refusal instead. The second
+> is a real finding worth having: it is why this drill needs host networking in the first place.
 
 **Confirm the symptom** — throw a burst of connections at it and read the two numbers that matter:
 
@@ -313,6 +364,12 @@ sysctl net.netfilter.nf_conntrack_max      # confirm it matches the number you n
 ```
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-3 4 "the table that filled up"
+```
 
 ---
 

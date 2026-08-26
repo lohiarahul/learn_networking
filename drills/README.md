@@ -86,6 +86,33 @@ already exists — a stale field cannot fake a Pod that did not exist a moment a
 message say what to do rather than what went wrong: `run 'kubectl uncordon <node>'` is worth more at
 2am than `assertion failed`.
 
+## Two places the drills run, and two ways in
+
+Acts V to X break a **cluster**, so their verifiers talk to `kubectl` and `docker exec` into the kind
+nodes. Acts I to IV break a **machine** — one privileged container with its own namespaces, veths and
+NAT tables — so nothing they check is visible from the host at all.
+
+The lab verifiers therefore route every assertion through `docker exec` into that container, which the
+diagnose pages all name `lab`. Run them from your checkout on the host, not from inside the container:
+
+```bash
+tools/verify-drill.sh act-4 1 "the rule that should have rewritten the source"
+LAB=mylab tools/verify-drill.sh act-4 1 "..."     # if your container is called something else
+```
+
+Three things learned building this half, all of them now comments in [`lib.sh`](lib.sh):
+
+- **`docker exec` needs `-i` to accept a heredoc.** Without it the container gets no stdin, the
+  interpreter reads an empty program, and it **succeeds** — printing nothing. The check then fails with
+  "no output" for a reason nowhere near the check.
+- **`sed -i` cannot edit `/etc/hosts` in a container.** Docker bind-mounts it as a single file and
+  `sed -i` works by renaming a temporary over the original, which a bind mount refuses:
+  `can't move '/etc/hostsaKbfmH' to '/etc/hosts': Resource busy`. Act II drill 4's cleanup said to do
+  exactly that; it now writes through the inode instead (`cat new > /etc/hosts`) and explains why.
+- **`getent hosts` and `dig +short A` are not comparable as strings.** On a dual-stack host libc
+  prefers the AAAA, so `getent` answers `2606:…` while `dig` answers `104.20.…` and both are right. The
+  checkable claim is narrower: the address libc returns has to be one the resolver actually knows.
+
 ## The one act where this works differently
 
 Act IX has no repairs to check. Its opening sentence is *"every system in these drills is working

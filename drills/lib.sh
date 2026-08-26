@@ -253,6 +253,52 @@ svc_answers() {
   fi
 }
 
+# ------------------------------------------------- Acts I-IV: the lab container
+
+# Acts I to IV do not run against a cluster. They run inside one privileged container with its own
+# namespaces, veths and NAT tables — so their verifiers cannot read anything from the host, and every
+# assertion below goes through `docker exec` into that container.
+#
+# The container is conventionally named `lab`, because that is the `--name` every one of those
+# diagnose pages tells you to use. Override with LAB=<name> if yours is called something else.
+LAB=${LAB:-lab}
+
+lab_up() {
+  if docker exec "$LAB" true 2>/dev/null; then
+    ok "the lab container ($LAB) is running"
+  else
+    bad "the lab container ($LAB) is running" \
+        "start it the way the drill page says and keep it running while you verify: docker run --rm -it --privileged --network host --name $LAB netlab"
+    return 1
+  fi
+}
+
+# Run a shell command inside the lab and hand back its output. Exit status is the command's.
+#
+# If you need to pipe a script *in* — a python heredoc, say — use `docker exec -i`. Without `-i` the
+# container gets no stdin at all and the interpreter reads an empty program, which does not error: it
+# succeeds, prints nothing, and the check fails with "no output" for a reason that is nowhere near
+# the check.
+lab() { docker exec "$LAB" sh -c "$1" 2>&1; }
+
+# require, but inside the lab.
+lab_require() {
+  local desc="$1"; shift
+  require "$desc" docker exec "$LAB" sh -c "$*"
+}
+
+# require, but inside one of the drill's network namespaces. This is the shape most Act IV checks
+# take, because the whole act is about a packet's view of the world changing with where it stands.
+ns_require() {
+  local desc="$1" ns="$2"; shift 2
+  require "$desc" docker exec "$LAB" ip netns exec "$ns" sh -c "$*"
+}
+
+# The lab's own uplink and gateway, derived rather than assumed — the drills derive them too, because
+# the interface name differs between `--network host` on Linux and Docker Desktop's VM.
+lab_uplink()  { docker exec "$LAB" sh -c "ip route show default | awk '{print \$5}'" 2>/dev/null | head -1; }
+lab_gateway() { docker exec "$LAB" sh -c "ip route show default | awk '{print \$3}'" 2>/dev/null | head -1; }
+
 # ------------------------------------------------- Act IX: identity, over the wire
 
 # Act IX is the one act where nothing is broken, so its verifiers cannot check a repair. What they can

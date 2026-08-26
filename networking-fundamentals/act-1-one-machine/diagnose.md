@@ -11,6 +11,21 @@ symptom, and asks you to find the cause with the act's tools.
 2. **Form a hypothesis before you inspect.** Say out loud what you think is wrong and which file or
    tool would prove it — *then* look.
 3. **Open the reveal only after you've tried.** It's collapsed for a reason.
+4. **Then verify it — and say what was wrong.** Every drill ends with a `Verify it` line:
+
+   ```bash
+   tools/verify-drill.sh act-1 <n> "your one-line diagnosis"
+   ```
+
+   Run it **from your repository checkout on the host, not from inside the lab container** — and run it
+   **before** the drill's `Cleanup` line, because everything it checks lives in the namespaces and rules
+   that line destroys. It reaches into the container through `docker exec`, which is why the container
+   has to be named `lab` (set `LAB=<name>` if yours is not). It exits `0` only if the machine genuinely
+   works again **and** the cause you typed is right, and the checks are function-level on purpose: a
+   1450-byte ping with `DF` set rather than a default 56-byte one, a bridge that has *learned* two MACs
+   rather than a link that merely reads `UP`, an fd count taken before and after twenty connections. It
+   will not tell you the answer — see [`drills/`](../../drills/README.md) for why the expected cause is
+   stored as a hash.
 
 **Where:** inside the `lab` container (`docker run --rm -it --privileged --name lab netlab`). One shell
 is enough — each broken server runs in the background. Drill 3 needs the `--privileged` flag (it uses a
@@ -92,6 +107,12 @@ refuses every Service connection, because `kube-proxy` knocks on the *outside* d
 **Cleanup:** `kill %1`
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-1 1 "the address the server bound to"
+```
 
 ---
 
@@ -183,6 +204,12 @@ and the restart "fixes" it only by resetting the count.
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-1 2 "what the process ran out of"
+```
+
 ---
 
 ## Drill 3 — "We were scanned, but the logs are clean"
@@ -234,6 +261,12 @@ security watches the kernel, not app logs).
 **Cleanup:** `kill %1` (and `pkill -f http.server` if it lingers)
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-1 3 "what the application never did"
+```
 
 ---
 

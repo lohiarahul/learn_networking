@@ -11,6 +11,21 @@ hands you only the symptom, and asks you to find the cause with the act's tools.
 2. **Form a hypothesis before you inspect.** Say out loud what you think is wrong and which file or
    tool would prove it — *then* look.
 3. **Open the reveal only after you've tried.**
+4. **Then verify it — and say what was wrong.** Every drill ends with a `Verify it` line:
+
+   ```bash
+   tools/verify-drill.sh act-2 <n> "your one-line diagnosis"
+   ```
+
+   Run it **from your repository checkout on the host, not from inside the lab container** — and run it
+   **before** the drill's `Cleanup` line, because everything it checks lives in the namespaces and rules
+   that line destroys. It reaches into the container through `docker exec`, which is why the container
+   has to be named `lab` (set `LAB=<name>` if yours is not). It exits `0` only if the machine genuinely
+   works again **and** the cause you typed is right, and the checks are function-level on purpose: a
+   1450-byte ping with `DF` set rather than a default 56-byte one, a bridge that has *learned* two MACs
+   rather than a link that merely reads `UP`, an fd count taken before and after twenty connections. It
+   will not tell you the answer — see [`drills/`](../../drills/README.md) for why the expected cause is
+   stored as a hash.
 
 **Where:** inside the lab container, with the host's real network attached:
 
@@ -109,6 +124,12 @@ re-ARP for the real MAC.
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-2 1 "the table that had the wrong answer"
+```
+
 ### ⚠ Cleanup — Drill 1, run this now before starting the next drill
 
 ```bash
@@ -168,6 +189,12 @@ route, or a bad BGP announcement from lesson 2b) winning the longest-prefix matc
 **Fix:** remove it and let the default take over again.
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-2 2 "the kind of entry that beat the default"
+```
 
 ### ⚠ Cleanup — Drill 2, run this now before starting the next drill
 
@@ -234,6 +261,12 @@ real world, an overlay or VPN's encapsulation overhead — the exact trap Act IV
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-2 3 "the property of the link"
+```
+
 ### ⚠ Cleanup — Drill 3, run this now before starting the next drill
 
 ```bash
@@ -295,12 +328,33 @@ resolve, used by accident. In a Pod this is the "name resolves to the wrong plac
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-2 4 "the file that answered first"
+```
+
 ### ⚠ Cleanup — Drill 4, run this now
 
 ```bash
-sed -i '/1.2.3.4 example.com/d' /etc/hosts
+sed '/1.2.3.4 example.com/d' /etc/hosts > /tmp/hosts.new && cat /tmp/hosts.new > /etc/hosts
 getent hosts example.com          # must agree with dig again
 ```
+
+**And note why that is two commands rather than `sed -i`.** Inside a container `/etc/hosts` is a
+**bind-mounted single file**, and `sed -i` does not edit a file in place at all — it writes a temporary
+file next to it and *renames* it over the original. A rename replaces the directory entry, which a bind
+mount will not allow:
+
+```
+sed: can't move '/etc/hostshAlnMO' to '/etc/hosts': Resource busy
+```
+
+So the append that created this bug worked (`>>` writes through the existing inode) and the obvious
+removal does not. `cat X > /etc/hosts` truncates and rewrites *the same inode*, which is why it
+succeeds. The same is true of `/etc/resolv.conf` and `/etc/hostname`, which Docker bind-mounts the same
+way — and it is the first appearance in this course of a distinction Act IV will make properly: **a
+path is a name for an inode, and some operations act on the name while others act on the file.**
 
 ---
 

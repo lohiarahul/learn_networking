@@ -11,6 +11,21 @@ story), hands you only the symptom, and asks you to find the cause with the act'
 2. **Form a hypothesis before you inspect.** Say out loud what you think is wrong and which file or
    tool would prove it — *then* look.
 3. **Open the reveal only after you've tried.**
+4. **Then verify it — and say what was wrong.** Every drill ends with a `Verify it` line:
+
+   ```bash
+   tools/verify-drill.sh act-4 <n> "your one-line diagnosis"
+   ```
+
+   Run it **from your repository checkout on the host, not from inside the lab container** — and run it
+   **before** the drill's `Cleanup` line, because everything it checks lives in the namespaces and rules
+   that line destroys. It reaches into the container through `docker exec`, which is why the container
+   has to be named `lab` (set `LAB=<name>` if yours is not). It exits `0` only if the machine genuinely
+   works again **and** the cause you typed is right, and the checks are function-level on purpose: a
+   1450-byte ping with `DF` set rather than a default 56-byte one, a bridge that has *learned* two MACs
+   rather than a link that merely reads `UP`, an fd count taken before and after twenty connections. It
+   will not tell you the answer — see [`drills/`](../../drills/README.md) for why the expected cause is
+   stored as a hash.
 
 **Where:** inside the lab container with the host's real network attached —
 `docker run --rm -it --privileged --network host nicolaka/netshoot`. Each drill builds its **own**
@@ -126,6 +141,12 @@ ip netns del app
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 1 "the rule that should have rewritten the source"
+```
+
 ---
 
 ## Drill 2 — "Two containers on the same host can't reach each other"
@@ -207,6 +228,12 @@ ip netns del ns1; ip netns del ns2; ip link del br0
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 2 "the state of the thing between them"
+```
+
 ---
 
 ## Drill 3 — "The published service answers inside the container but nowhere else"
@@ -286,6 +313,12 @@ pkill -f 'http.server 8080'; ip netns del app
 ```
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 3 "the rewrite that never happened"
+```
 
 ---
 
@@ -376,6 +409,12 @@ ip netns del mtu1; ip netns del mtu2
 ```
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 4 "the property the two ends disagreed about"
+```
 
 ---
 
