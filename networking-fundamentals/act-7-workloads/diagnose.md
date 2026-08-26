@@ -26,7 +26,7 @@ Unlike Act VI, nothing here can break your cluster. These drills break *workload
 ```bash
 kubectl delete deploy,sts,ds,job,cronjob,hpa,svc,cm,secret,pvc -l drill --ignore-not-found
 kubectl delete pv -l drill --ignore-not-found
-kubectl delete namespace imagelab --ignore-not-found     # drill 8 works in its own namespace
+kubectl delete namespace imagelab mountlab --ignore-not-found  # drills 8 and 9 use their own
 kubectl get pvc                 # should be empty
 kubectl get nodes               # both Ready, neither SchedulingDisabled
 ```
@@ -985,9 +985,290 @@ kubectl delete namespace imagelab
 
 ---
 
-## What these eight have in common
+## Drill 9 — "four Pods will not start and the events are a wall"
 
-Seven of the eight drills had **nothing wrong with the cluster**. In every case an object was accepted, stored, and read by exactly the loop that was supposed to read it — and that loop then did precisely what the field said. Drill 8 is the exception and earns its place by being one: it is the act's only failure that happens *below* the object, where the kubelet is trying to turn a spec into a running process, and it is there to teach that those failures are ordered — no image, an image nobody was allowed to fetch, a container that starts and dies — with a different tool reading each depth.
+**Target: 10 minutes** for all four — see [the clock](#the-clock) above.
+
+> **Ticket:** *"A stateful service went out this morning and none of it came up. Four Pods, four
+> different messages, and the on-call engineer's note says 'volume problems'. The storage team says
+> nothing is wrong with the storage."*
+
+**Reproduce it** (run; don't read):
+
+```bash
+kubectl create namespace mountlab
+kubectl -n mountlab create secret generic appsecret --from-literal=DB_PASS=hunter2
+kubectl -n mountlab create configmap appconf --from-literal=app.conf='listen: 8080'
+kubectl apply -n mountlab -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: badkey, labels: { drill: "9" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","sleep 300"]
+      env:
+        - name: DB_PASSWORD
+          valueFrom: { secretKeyRef: { name: appsecret, key: DB_PASSWORD } }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: badmap, labels: { drill: "9" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","sleep 300"]
+      volumeMounts: [ { name: conf, mountPath: /etc/conf } ]
+  volumes:
+    - name: conf
+      configMap: { name: app-config }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: readonly, labels: { drill: "9" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","echo 'state: starting' > /etc/conf/state.txt && sleep 300"]
+      volumeMounts: [ { name: conf, mountPath: /etc/conf } ]
+  volumes:
+    - name: conf
+      configMap: { name: appconf }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: ledger, labels: { drill: "9" } }
+spec:
+  accessModes: [ ReadWriteOnce ]
+  resources: { requests: { storage: 64Mi } }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: first-writer, labels: { drill: "9" } }
+spec:
+  nodeSelector: { kubernetes.io/hostname: netlab-worker }
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","echo primary > /data/owner; sleep 600"]
+      volumeMounts: [ { name: d, mountPath: /data } ]
+  volumes: [ { name: d, persistentVolumeClaim: { claimName: ledger } } ]
+EOF
+kubectl -n mountlab wait --for=condition=Ready pod/first-writer --timeout=180s
+kubectl apply -n mountlab -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: second-writer, labels: { drill: "9" } }
+spec:
+  nodeSelector: { kubernetes.io/hostname: netlab-control-plane }
+  tolerations: [ { operator: Exists } ]
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","sleep 600"]
+      volumeMounts: [ { name: d, mountPath: /data } ]
+  volumes: [ { name: d, persistentVolumeClaim: { claimName: ledger } } ]
+EOF
+sleep 30
+kubectl -n mountlab get pods
+```
+
+**Your symptom:**
+
+```
+NAME            READY   STATUS                       RESTARTS
+badkey          0/1     CreateContainerConfigError   0
+badmap          0/1     ContainerCreating            0
+first-writer    1/1     Running                      0
+readonly        0/1     Error                        3 (63s ago)
+second-writer   0/1     Pending                      0
+```
+
+**Four failures and four different statuses, and the on-call note is wrong about at least two of
+them.** Before you fix anything: which of these ever reached a node, which ever mounted anything,
+and which ever ran a process? Order them by how far they got.
+
+<details>
+<summary>Reveal</summary>
+
+**Order them by depth and the diagnosis falls out, because each status is a different distance
+travelled.** Read them in that order rather than top to bottom.
+
+**`Pending` — never placed.** This one never got near a volume, so no volume tool will help:
+
+```bash
+kubectl -n mountlab describe pod second-writer | grep -A2 FailedScheduling
+```
+
+```
+0/2 nodes are available: 1 node(s) didn't match PersistentVolume's node affinity,
+1 node(s) didn't match Pod's node affinity/selector.
+```
+
+**Two clauses, and they must add up to the node count** — the arithmetic habit from
+[drill 3](#drill-3--half-the-replicas-never-start). One node was refused by *your* selector, and one
+node was refused by **the PersistentVolume's** node affinity, which is a field you never wrote. Go and
+look at it:
+
+```bash
+kubectl get pv -o custom-columns='NAME:.metadata.name,CLAIM:.spec.claimRef.name,\
+NODE:.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]'
+```
+
+```
+NAME         CLAIM    NODE
+pvc-7f7559…  ledger   netlab-worker
+```
+
+**The volume has a node.** The default StorageClass here provisions local directories, so when
+`first-writer` was scheduled the provisioner created a directory on *that* machine and pinned the PV
+to it — the `WaitForFirstConsumer` binding mode from [lesson 06](06-storage.md), doing exactly what it
+says. `second-writer` asked for the same claim on the other node, and the volume cannot follow it.
+
+Which is what `ReadWriteOnce` actually means, and it is worth saying out loud because the word invites
+the wrong reading: **`ReadWriteOnce` is one *node*, not one Pod.** Two Pods on the same node may share
+an RWO volume happily. One Pod on the wrong node cannot have it at all. So the fix is co-location, not
+a second copy — and the reason this scheduler message exists rather than a mount error is that
+Kubernetes checks volume topology *before* placing, precisely so you get a clear refusal instead of a
+Pod stuck on a machine that can never mount.
+
+**`ContainerCreating` — placed, and stuck trying to mount.** This is the only one of the four that is
+genuinely a volume failure:
+
+```bash
+kubectl -n mountlab describe pod badmap | grep FailedMount | tail -1
+```
+
+```
+MountVolume.SetUp failed for volume "conf" : configmap "app-config" not found
+```
+
+The name in the manifest is `app-config`; the object is `appconf`. Note the *shape* of this failure:
+the kubelet will retry forever and never give up, because a ConfigMap that does not exist yet might
+exist in a minute — a volume reference is not required to resolve at admission time. So a typo here
+produces a Pod that waits patiently and indefinitely, with the answer in an event that scrolls.
+
+**`CreateContainerConfigError` — placed, mounted, and refused before the process started.** Different
+word, different stage:
+
+```bash
+kubectl -n mountlab describe pod badkey | grep "couldn't find" | tail -1
+```
+
+```
+Error: couldn't find key DB_PASSWORD in Secret mountlab/appsecret
+```
+
+The Secret exists and the *key* does not — `DB_PASS`, not `DB_PASSWORD`. This is not a mount at all:
+it is an environment variable, injected while the container is being configured, after every volume
+has already succeeded. Which is why the status says `Config` and not `Mount`, and why looking at
+volumes here wastes the clock.
+
+**`Error` with a restart count — placed, mounted, configured, ran, and died.** The furthest of the
+four, and the only one whose reason is not in `describe`:
+
+```bash
+kubectl -n mountlab logs readonly
+```
+
+```
+sh: can't create /etc/conf/state.txt: Read-only file system
+```
+
+The mount **worked perfectly**. A ConfigMap volume is read-only and always has been — it is a
+projection of an API object, and there is nowhere for a write to go. The container wants to keep state
+in its config directory, which is a design mistake that only shows up once the config comes from
+Kubernetes instead of from a file someone put there. This is the one where "nothing is wrong with the
+storage" is exactly right.
+
+**Fix all four:**
+
+```bash
+# 1. the key, not the Secret
+kubectl -n mountlab delete pod badkey readonly second-writer
+# 2. the ConfigMap the volume actually names
+kubectl -n mountlab create configmap app-config --from-literal=app.conf='listen: 8080'
+kubectl apply -n mountlab -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: badkey, labels: { drill: "9" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","sleep 300"]
+      env:
+        - name: DB_PASSWORD
+          valueFrom: { secretKeyRef: { name: appsecret, key: DB_PASS } }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: readonly, labels: { drill: "9" } }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","echo 'state: starting' > /var/run/state.txt && sleep 300"]
+      volumeMounts:
+        - { name: conf, mountPath: /etc/conf }
+        - { name: run, mountPath: /var/run }
+  volumes:
+    - name: conf
+      configMap: { name: appconf }
+    - name: run
+      emptyDir: {}
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: second-writer, labels: { drill: "9" } }
+spec:
+  nodeSelector: { kubernetes.io/hostname: netlab-worker }
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","sleep 600"]
+      volumeMounts: [ { name: d, mountPath: /data } ]
+  volumes: [ { name: d, persistentVolumeClaim: { claimName: ledger } } ]
+EOF
+kubectl -n mountlab wait --for=condition=Ready pod --all --timeout=180s
+kubectl -n mountlab exec second-writer -- cat /data/owner      # primary — the same volume
+```
+
+The last line is the point of the fourth fault: `second-writer` now mounts the *same* RWO volume as
+`first-writer`, reads what the other Pod wrote, and both are happy — because they are on one node.
+Nothing about the volume changed.
+
+**The reasoning worth keeping.** *Pending* and *ContainerCreating* are not two flavours of the same
+problem; they are different components refusing at different times, and only one of them has anything
+to do with volumes. Read the status word first and let it choose the tool:
+
+```
+  Pending                     -> the SCHEDULER refused. describe, read the FailedScheduling tally.
+  ContainerCreating           -> the KUBELET is stuck mounting. describe, read FailedMount.
+  CreateContainerConfigError  -> mounts succeeded; an env/config reference does not resolve.
+  Error / CrashLoopBackOff    -> everything worked and the process disagreed. logs.
+```
+
+Each row up that list is one step further from your YAML and one step closer to your program, and the
+status column tells you which step you are on for free.
+
+</details>
+
+**Verify it, then clean up:**
+
+```bash
+tools/verify-drill.sh act-7 9 "the field on the PV that refused it"
+kubectl delete namespace mountlab
+```
+
+---
+
+## What these nine have in common
+
+Seven of the nine drills had **nothing wrong with the cluster**. In every case an object was accepted, stored, and read by exactly the loop that was supposed to read it — and that loop then did precisely what the field said. Drills 8 and 9 are the two exceptions, and they earn their place by going *below* the object — down to where the kubelet is turning a spec into a running process. Between them they teach one thing the other seven cannot: those failures are **ordered**, and the status word tells you which step you are on. No image, an image nobody was allowed to fetch, a volume that will not resolve, an env reference that does not exist, a container that starts and disagrees. Each step is one further from your YAML and one closer to your program, and each is read with a different tool.
 
 Which is the diagnostic value of this act's spine. A workload failure is almost never "Kubernetes is broken"; it is a claim being kept faithfully that you did not mean to make. So the productive question is never "what is wrong with it" but **which loop is keeping which promise, and is that the promise I wrote?**
 
