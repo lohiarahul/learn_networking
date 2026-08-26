@@ -13,6 +13,37 @@ Question 4 is the one nobody asks, and it is the whole act.
 
 ---
 
+## Then verify it — and say what was wrong
+
+Every drill ends with a `Verify it` line:
+
+```bash
+tools/verify-drill.sh act-10 <n> "your one-line diagnosis"
+```
+
+Act X's verifiers are shaped by the same fact as Act IX's — nothing here is broken, so there is no
+repair to check — and by one more that is specific to this act: **three of these drills need no cluster
+at all.** So the eleven split three ways, and the file tells you which one you are running rather than
+pretending they are alike.
+
+- **The measurement drills** (1, 4, 5, 8, 9, 10, 11) get a check that runs the act's own method
+  against the thing it is about. Drill 8 asks etcd for the stored bytes, because the drill's closing
+  line is that every check which would have caught the bug is a check on the data. Drill 9 does not
+  read the `enforce` label — it sends a Pod each namespace must refuse, which is precisely the audit
+  the answer says to do instead of the one that missed all three faults. Drill 11 attempts the syscall
+  on both nodes, which its own closing box names as the only honest verification there is.
+- **The revert drills** (2, and the bench tear-downs) check that the cluster is back. Drill 2 is worth
+  singling out: it does not read the API server's flags to see whether the plugin is gone, it makes a
+  Pod that says nothing about pull policy and reads what got stored. Same measurement that found the
+  plugin, pointed at proving it left.
+- **The paper drills** (3, 6, 7) are the honest case. There is no state, the answer is the whole
+  deliverable, and the verifier says so out loud instead of inventing an assertion. Drill 6 still earns
+  one: it computes the counterexample the answer tells you to reach for, because *"one pair of
+  communicating Pods on the same node"* is worth more measured than read.
+
+None of them will tell you the answer — see [`drills/`](../../drills/README.md) for why the expected
+cause is stored as a hash.
+
 ## The clock
 
 Every drill below carries a **target time**, and this is the one thing these drills do that the
@@ -130,6 +161,12 @@ That `crane digest` line is not decoration, and it is there because this drill w
 
 </details>
 
+**Verify it:** Run this **while bench A is still up** — it compares the three Pods you just made.
+
+```bash
+tools/verify-drill.sh act-10 1 "the field that says what actually ran"
+```
+
 ## Drill 2 — nothing is wrong and nothing will start
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
@@ -183,6 +220,12 @@ for i in $(seq 1 40); do sleep 4; kubectl get --raw /healthz >/dev/null 2>&1 && 
 ```
 
 </details>
+
+**Verify it:** Run this **after the drill's revert block**. It checks the mutation is gone by making a Pod and reading what got stored, not by reading the flag.
+
+```bash
+tools/verify-drill.sh act-10 2 "the plugin that rewrote a field you never wrote"
+```
 
 ## Drill 3 — the signature gate that refuses everything
 
@@ -240,6 +283,12 @@ kubectl -n kyverno rollout status deploy/kyverno-admission-controller --timeout=
 **The general lessons, and there are two.** First: **read the message, not the flag name** — twice in this drill the words in a name pointed away from the mechanism. Second, and more useful: when a control fails, establish *how far it got* before deciding what failed. "Denied by the signature policy" and "the signature did not verify" are different events with the same user-visible shape, and one of them is not a cryptography problem at all.
 
 </details>
+
+**Verify it:** A paper drill, so this is mostly the answer check — plus a check that you left no policy engine behind. If you reinstalled Kyverno to run it for real, run the tear-down below first.
+
+```bash
+tools/verify-drill.sh act-10 3 "what it could not establish to the registry"
+```
 
 **Tear down bench A:**
 
@@ -400,6 +449,12 @@ and keep Secrets pinned at `Metadata` above it, because `RequestResponse` on Sec
 
 </details>
 
+**Verify it:** Run this **while bench B is still up**, after you have applied your fix to the audit policy. It patches a label and asks the log what it wrote down.
+
+```bash
+tools/verify-drill.sh act-10 4 "the setting that made the trail a rumour"
+```
+
 ## Drill 5 — what happened inside the shell
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
@@ -440,6 +495,12 @@ So the general statement, which is the one to carry: **an audit log is a record 
 And the honest limit on *that*, which you should state when you propose it: the runtime alert arrives with `k8s_pod_name=<NA>` and a truncated container ID. The audit log knows *who* and not *what*; the runtime sensor knows *what* and not *who*. An incident is a sentence containing both, so every real investigation is a join on container ID and timestamp — **and its value is bounded by the shorter retention of the two**, plus the lifetime of the Pod object that maps the ID to a name. Nine hours is long enough for that Pod to be gone.
 
 </details>
+
+**Verify it:** Run this **while bench B is still up**. There is nothing to repair, so it runs both shapes of exec and requires the log to show the asymmetry.
+
+```bash
+tools/verify-drill.sh act-10 5 "the code that explains the difference"
+```
 
 **Tear down bench B:**
 
@@ -491,6 +552,12 @@ The reflex: **"encrypted in transit" is a property of a path, not of a system.**
 
 </details>
 
+**Verify it:** A paper drill. This computes the counterexample your answer says to reach for.
+
+```bash
+tools/verify-drill.sh act-10 6 "the traffic the scheme does not cover"
+```
+
 ## Drill 7 — the deleted credential that came back
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
@@ -518,6 +585,12 @@ This is Act VI's reconciliation loop doing exactly its job — compare desired t
 That is the sibling of lesson 06's finding that an etcd snapshot is no longer a backup once you encrypt — both are cases where **a control that improved confidentiality created an availability dependency that nobody added to the runbook.** Fifth time in the act.
 
 </details>
+
+**Verify it:** A paper drill with no measurement to stand in for one, so this is the answer check and it says so. The rewritten runbook is the real output and no script can grade it.
+
+```bash
+tools/verify-drill.sh act-10 7 "the object that brought it back"
+```
 
 ## Bench C — a cluster that encrypts its Secrets, allegedly
 
@@ -660,6 +733,12 @@ Both — including `legacy-creds`, which predates the whole exercise. The prefix
 
 </details>
 
+**Verify it:** Run this **while bench C is still up**. It asks etcd for the stored bytes, which is the only question the drill says is worth asking.
+
+```bash
+tools/verify-drill.sh act-10 8 "the provider that should not have been first"
+```
+
 ## Drill 9 — the namespace that never enforced anything
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
@@ -779,6 +858,12 @@ for n in json.load(sys.stdin)['items']:
 ...then read the API server's `--admission-control-config-file` for exemptions, and then — the only check that is about behaviour rather than configuration — **try to create a violating Pod**, which is the loop at the top of this answer. Same finding as drill 8, one layer up: the configuration is not the control, and only the attempt tells you what the control does.
 
 </details>
+
+**Verify it:** Run this **before the bench C tear-down**. It does not read the label — it sends a Pod each namespace must refuse.
+
+```bash
+tools/verify-drill.sh act-10 9 "the field that makes enforcing enforce less"
+```
 
 **Tear down bench C:**
 
@@ -937,6 +1022,12 @@ controls, two different words, and the word tells you which one you are fighting
 
 </details>
 
+**Verify it:** Run this **after the tear-down below**. It re-runs the two-Pod measurement in a namespace of its own.
+
+```bash
+tools/verify-drill.sh act-10 10 "what made the add: list evaporate"
+```
+
 **Tear down:**
 
 ```bash
@@ -1058,6 +1149,12 @@ not manage for you and will not warn you about.
 > anybody what happened.
 
 </details>
+
+**Verify it:** Run this **after the tear-down below**. It attempts the syscall on both nodes, which the drill's closing box names as the only honest verification.
+
+```bash
+tools/verify-drill.sh act-10 11 "where the difference actually lives"
+```
 
 **Tear down:**
 
