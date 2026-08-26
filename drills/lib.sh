@@ -253,6 +253,68 @@ svc_answers() {
   fi
 }
 
+# ------------------------------------------------- Act IX: identity, over the wire
+
+# Act IX is the one act where nothing is broken, so its verifiers cannot check a repair. What they can
+# do is run the experiment the answer predicts — grant a permission and watch an authentication failure
+# refuse to move, revoke a permission and watch it land in the same second an identity would have taken
+# ten. That is a stronger check than it sounds: a wrong explanation predicts the wrong result.
+#
+# Every request goes out through curl and not kubectl, for the reason drill 4 exists: kubectl sends the
+# kubeconfig's client certificate too, and the certificate authenticator runs first, so a test that
+# uses kubectl is testing the wrong credential and cannot tell.
+#
+# Call this *bare*, never through `require` — `require` runs its command inside `$(...)`, and a
+# subshell's variable assignments do not survive it. Which is why it asserts for itself.
+act9_env() {
+  API=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' 2>/dev/null)
+  CA="${TMPDIR:-/tmp}/verify-act9-ca.crt"
+  kubectl config view --minify --raw \
+    -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' 2>/dev/null | base64 -d > "$CA"
+  URL="$API/api/v1/namespaces/default/pods"
+  if [ -n "$API" ] && [ -s "$CA" ]; then
+    ok "a kubeconfig that reaches the cluster ($API)"
+  else
+    bad "a kubeconfig that reaches the cluster" \
+        "could not read a server URL and a CA out of the current context — every check below sends its own request, so they all depend on this"
+    return 1
+  fi
+}
+
+# The HTTP code the API server gives this bearer token, and nothing else in the request.
+#
+# The empty-token guard is not defensive padding. `Authorization: Bearer ` with nothing after it is a
+# well-formed request from `system:anonymous`, so it comes back **403** — a plausible-looking answer to
+# a question that was never asked. Every failure in this file that took real debugging was that: a
+# token that failed to mint, and a 403 that looked like a permissions result.
+api_status() {
+  [ -n "${1:-}" ] || { printf 'no-token-was-minted'; return 0; }
+  curl -s -o /dev/null -w '%{http_code}' --cacert "$CA" -H "Authorization: Bearer $1" "$URL"
+}
+
+# Same, but allow the authorizer's caches a moment to catch up before believing the answer. Used only
+# where a grant has just been written; revocation needs no window at all, which is itself a drill.
+api_status_settles() {
+  local want="$1" tok="$2" i c
+  for i in $(seq 1 10); do
+    c=$(api_status "$tok"); [ "$c" = "$want" ] && break
+    sleep 1
+  done
+  printf '%s' "$c"
+}
+
+# Who does the API server think sent this? Asking the server is the only way to be sure, because the
+# question "which of the credentials I sent was believed" has no local answer.
+api_whoami() {
+  [ -n "${1:-}" ] || { printf ''; return 0; }
+  curl -s --cacert "$CA" -H "Authorization: Bearer $1" -H 'Content-Type: application/json' \
+    -X POST "$API/apis/authentication.k8s.io/v1/selfsubjectreviews" \
+    -d '{"apiVersion":"authentication.k8s.io/v1","kind":"SelfSubjectReview"}' 2>/dev/null \
+  | python3 -c 'import sys,json
+try: print(json.load(sys.stdin)["status"]["userInfo"]["username"])
+except Exception: print("")' 2>/dev/null
+}
+
 # ---------------------------------------------------------------- the answer
 
 # Normalise so that "the kube-scheduler", "Kube Scheduler" and "kube-scheduler" are one answer.

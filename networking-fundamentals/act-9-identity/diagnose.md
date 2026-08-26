@@ -15,6 +15,40 @@ CA="${TMPDIR:-/tmp}/ca.crt"
 URL="$API/api/v1/namespaces/default/pods"
 ```
 
+## Then verify it — and say what was wrong
+
+Every drill ends with a `Verify it` line:
+
+```bash
+tools/verify-drill.sh act-9 <n> "your one-line diagnosis"
+```
+
+Act IX's verifiers work differently from every other act's, and the reason is the first sentence on
+this page: **nothing here is broken**, so there is no repair to check. Four of the six drills have no
+fix at all — their whole output is an explanation. So instead of checking a repair, each verifier
+**runs the experiment your explanation predicts**, which turns out to be a harder test rather than a
+softer one, because a wrong explanation predicts the wrong result:
+
+- Drill 1 grants `probe` read access cluster-wide and re-sends both tokens. If the `401` is really an
+  authentication failure, the ordinary token must move to `200` and the audience-scoped one must not
+  move at all. It does not.
+- Drill 3 times both revocations on one busy token: removing the *permission* lands on the very next
+  request, removing the *identity* takes about ten seconds. That is the drill's closing advice, as a
+  number.
+- Drill 5 mints a token whose signature verifies against the cluster's own published key, and shows
+  the API server refusing it anyway — so the "still not finished" claim at the end of that answer is
+  measured rather than asserted.
+- Drill 6 creates a ServiceAccount that did not exist when you made your fix and asks whether it can
+  delete pods. Nothing else can tell you whether the grant is really gone.
+
+Every request the verifiers make goes out through `curl`, never `kubectl`, for exactly the reason
+drill 4 exists.
+
+Two of the six do check a repair — drill 2 requires **both** faults fixed, and drill 6 requires the
+binding gone — and both were run against the broken state first to confirm they fail there. It will
+not tell you the answer: see [`drills/`](../../drills/README.md) for why the expected cause is stored
+as a hash.
+
 ## The clock
 
 Every drill below carries a **target time**, and this is the one thing these drills do that the
@@ -116,6 +150,12 @@ The general shape, and the reason this drill exists: **a genuine credential pres
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-9 1 "the claim the server would not accept"
+```
+
 ---
 
 ## Drill 2 — a RoleBinding that is syntactically perfect and grants nothing
@@ -207,6 +247,12 @@ yes
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-9 2 "what roleRef and subjects both are not"
+```
+
 ---
 
 ## Drill 3 — you deleted the account and the calls keep succeeding
@@ -276,6 +322,12 @@ What to tell the colleague: deleting the account is correct and it is not immedi
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-9 3 "the mechanism behind the disagreement"
+```
+
 ---
 
 ## Drill 4 — the powerless token that can see everything
@@ -323,6 +375,12 @@ Extra: authentication.kubernetes.io/credential-id   [X509SHA256=d6b667f1036a0ca8
 The fix for the experiment is to construct the request yourself, which is why every credential test in this act used `curl` and `--cacert`. The fix for the habit is broader: **when an identity experiment gives an answer that seems too good, verify the identity before verifying the permission.** `kubectl auth whoami` costs one line and settles it, and the mistake is nearly universal — it is the reason the act's README tells you to use `curl`.
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-9 4 "the credential that was actually believed"
+```
 
 ---
 
@@ -423,6 +481,12 @@ Second, the fixed version is still not finished. It checks the signature and not
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-9 5 "what the service never did"
+```
+
 ---
 
 ## Drill 6 — a permission that no binding mentions
@@ -489,6 +553,12 @@ There it is, in the first two lines of results, named as a **Group** rather than
 **And this is the README's third failure shape**, the one about permission accumulating: a binding to a broad group is the cheapest possible way to make a complaint go away, it is a single line in a review, it never appears in any per-account audit, and nobody will ever delete it because nobody can prove what would break. Compare the two candidate groups if you want to see how close the footgun is: `system:authenticated` versus `system:unauthenticated`, one character of thought apart, and only one of them includes `system:anonymous`.
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-9 6 "what the grant was attached to"
+```
 
 ---
 

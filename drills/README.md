@@ -85,3 +85,30 @@ Two rules for a new check. Prefer a probe that creates something new over a read
 already exists — a stale field cannot fake a Pod that did not exist a moment ago. And make the failure
 message say what to do rather than what went wrong: `run 'kubectl uncordon <node>'` is worth more at
 2am than `assertion failed`.
+
+## The one act where this works differently
+
+Act IX has no repairs to check. Its opening sentence is *"every system in these drills is working
+correctly"*, and four of its six drills ask only for an explanation — so a verifier that looked for a
+fix would have nothing to look at.
+
+What those four do instead is **run the experiment the explanation predicts**. Drill 1's answer says a
+`401` cannot be repaired by granting permissions, so the verifier grants them and re-sends both
+tokens: the ordinary one moves to `200`, the audience-scoped one does not move at all. Drill 3's
+answer ends in advice — revoke what the credential *may do*, not the credential — so the verifier
+times both revocations on one busy token and reports the two numbers. Drill 5's answer claims that
+checking a signature is not the same as verifying a token, so the verifier mints a token whose
+signature verifies against the cluster's own published key and shows the API server refusing it
+anyway.
+
+That is a harder test than checking a repair, not a softer one, because **a wrong explanation predicts
+the wrong result** — and unlike a reveal, it cannot be graded generously by the person reading it.
+
+## One trap worth naming
+
+`Authorization: Bearer ` with nothing after it is a **well-formed request from `system:anonymous`**, so
+it comes back `403`. Every Act IX check that took real debugging to write failed this way: a token that
+silently failed to mint (`kubectl create token --duration` below ten minutes is refused outright), and
+then a `403` that read exactly like a permissions result. `api_status` in [`lib.sh`](lib.sh) now
+answers `no-token-was-minted` rather than sending the request, because a legible failure is worth more
+than a plausible one.
