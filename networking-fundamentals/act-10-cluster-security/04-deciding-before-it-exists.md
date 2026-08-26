@@ -10,7 +10,9 @@ Act IX left the same thread hanging from the other end. It proved that a Role ca
 
 ### What a write already goes through
 
-Before adding anything, look at what is already happening. Into an untouched namespace, create one perfectly ordinary Pod, asking for nothing:
+You drew this chain once already. [Act VI lesson 01](../act-6-control-plane/01-the-api-server-is-a-filesystem.md#what-did-that-write-pass-through-on-the-way-in) put five requests through the API server and read the stage each one died at off the wording — `401` with no user named, `is forbidden` naming user and verb, `unknown field`, `is invalid`, and one request that succeeded while quietly acquiring a ServiceAccount token nobody asked for. This section does not re-derive that. It adds the two things Act VI could not: a mutation **you** install, and the one stage on the chain that has still never refused you anything.
+
+Start by confirming the mutation you already know about is still happening, because everything below hangs off it. Into an untouched namespace, create one perfectly ordinary Pod, asking for nothing:
 
 ```bash
 export KUBECONFIG="${TMPDIR:-/tmp}/act10.kubeconfig"
@@ -51,9 +53,7 @@ kubectl get pod m0 -n mutshow -o jsonpath='{.spec.volumes}' | python3 -m json.to
                 },
 ```
 
-That is Act IX's ServiceAccount token — the one you took apart by hand, with an hour of life — **mounted into a Pod that never asked for a credential.** Hold that; it is lesson 07's whole subject.
-
-Notice what you have just proved about your own history. You installed nothing to make that happen and there was no way to opt in, so it has happened to **every Pod you have created since Act V**, lesson 03's included. Something has been editing your objects on the way in the entire time.
+That is Act IX's ServiceAccount token — the one you took apart by hand, with an hour of life — **mounted into a Pod that never asked for a credential.** Act VI showed you the volume; Act IX showed you what is in it. Put the two together and it is a live, cluster-scoped credential injected into every workload you have ever run, by a stage you cannot opt out of. Hold that; it is lesson 07's whole subject.
 
 Now put something of your own into that same stage, so you can watch one fire deliberately. A `LimitRange` is a namespace-scoped object whose entire job is to fill in `requests` and `limits` on containers that omitted them — Act VII lesson 04's two numbers, written by the cluster instead of by you:
 
@@ -77,7 +77,7 @@ kubectl get pod m -n mutshow -o jsonpath='resources: {.spec.containers[0].resour
 resources: {"limits":{"cpu":"200m","memory":"128Mi"},"requests":{"cpu":"50m","memory":"64Mi"}}
 ```
 
-Two mutations, honestly labelled: one you never installed and cannot switch off, and one you installed thirty seconds ago. Both edited the object between "you sent a request" and "an object exists", and so did lesson 03's two refusals. Line up everything you have already observed and the chain draws itself:
+Two mutations, honestly labelled: one you never installed and cannot switch off, and one you installed thirty seconds ago. Both edited the object between "you sent a request" and "an object exists". So here is Act VI's chain again — same six stages, now annotated with the receipt *this act* has for each, which is a different set of receipts and a much more uncomfortable one:
 
 ```
    request

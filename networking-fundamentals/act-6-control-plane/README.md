@@ -22,7 +22,7 @@ A cluster missing its scheduler looks completely healthy until the moment someth
 
 ## The lessons — read in this order
 
-1. **[The API server is a filesystem](01-the-api-server-is-a-filesystem.md)** — go looking for a Pod on the node's disk, fail, and find the tree it actually lives in.
+1. **[The API server is a filesystem](01-the-api-server-is-a-filesystem.md)** — go looking for a Pod on the node's disk, fail, find the tree it actually lives in, and then read the six stages a write walks to get there off the four different errors they refuse with.
 2. **[Static pods — where the control plane lives](02-static-pods.md)** — the API server is a Pod, so who starts it? The boot-order paradox, and the directory that breaks it.
 3. **[The reconciliation loop](03-the-reconciliation-loop.md)** — stop a controller and watch a Deployment stop defending itself. Three loops, no calls between them.
 4. **[The cluster's own PKI](04-the-clusters-own-pki.md)** — you have been authenticating with a file this whole time. Read what it claims about you, and find out what nothing can revoke.

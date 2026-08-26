@@ -165,19 +165,169 @@ The thing that would actually capture the cluster is a snapshot of the store its
 
 </details>
 
+### What did that write pass through on the way in?
+
+You watched a `PUT` land in etcd. Nothing so far has said what happened between you pressing return and
+that `PUT` appearing — and that gap is where most of *"my apply was rejected and the message means
+nothing to me"* lives. The API server is not a thin door onto the store. A write walks a fixed line of
+stages, each of which can refuse, and **each refusal has a different signature.** Five requests will
+show you five of them.
+
+> **Predict first —** you `curl` the API server with no credential at all, and then with a credential
+> that is simply wrong. Same status code both times, or different — and if different, which gets which?
+
+```bash
+SRV=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+curl -sk -o /dev/null -w 'no header:  HTTP %{http_code}\n' "$SRV/api/v1/namespaces/default/pods"
+curl -sk -o /dev/null -w 'bad token:  HTTP %{http_code}\n' \
+     -H 'Authorization: Bearer not-a-real-token' "$SRV/api/v1/namespaces/default/pods"
+```
+
+```
+no header:  HTTP 403
+bad token:  HTTP 401
+```
+
+**That is the opposite way round from the guess almost everyone makes.** Read the bodies and the reason
+appears:
+
+```bash
+curl -sk "$SRV/api/v1/namespaces/default/pods" | grep '"message"'
+curl -sk -H 'Authorization: Bearer not-a-real-token' \
+     "$SRV/api/v1/namespaces/default/pods" | grep '"message"'
+```
+
+```
+  "message": "pods is forbidden: User \"system:anonymous\" cannot list resource \"pods\" ...",
+  "message": "Unauthorized",
+```
+
+Presenting no credential is not the absence of an identity — it **is** an identity, called
+`system:anonymous`. That request was named, and then refused on what the name is allowed to do. The bad
+token never got a name at all. Which fixes the two words for good:
+
+- **401** — *I could not work out who you are.* No user in the message, because there is no user.
+- **403** — *I know exactly who you are, and no.* The message names the **user, the verb and the
+  resource**, which is what makes it the more useful of the two errors, and the one you can act on.
+
+Two stages, in that order. The third refusal is the one that looks like the second and is not:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: {name: typo}
+spec:
+  contaners: [{name: c, image: busybox:1.36}]
+EOF
+```
+
+```
+Error from server (BadRequest): error when creating "STDIN": Pod in version "v1" cannot be handled
+as a Pod: strict decoding error: unknown field "spec.contaners"
+```
+
+`BadRequest`, not `Forbidden`. Nobody refused you — the server could not turn your bytes into a Pod,
+because `contaners` is not a field and it declines to silently drop what it does not recognise. That is
+a **decode**, and it happens *after* the server knows who you are and *before* anything inspects the
+object's meaning: there is nothing yet to inspect.
+
+Which is exactly what makes the fourth one worth seeing next to it. Spell the field correctly and put a
+nonsense *value* in it:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: {name: badport}
+spec:
+  containers: [{name: c, image: busybox:1.36, ports: [{containerPort: 99999}]}]
+EOF
+```
+
+```
+The Pod "badport" is invalid: spec.containers[0].ports[0].containerPort: Invalid value: 99999:
+must be between 1 and 65535, inclusive
+```
+
+`422 Unprocessable Entity`, and the wording changed from *unknown field* to **is invalid**. The decoder
+was satisfied — `containerPort` is a real field holding a real integer — and then something further in
+asked whether the object *means* anything, and it does not. Two errors, two stages, one letter of
+difference in the manifest. Learn the three phrasings and you can place a failure without reading the
+manifest at all: `is forbidden` (someone said no), `unknown field` (it did not parse), `is invalid`
+(it parsed and is nonsense).
+
+The fifth is not a refusal, which is why it is the one that changes how you read every object you own:
+
+```bash
+kubectl run w0 --image=busybox:1.36 --restart=Never --command -- sh -c 'echo hi'
+sleep 3
+kubectl get pod w0 -o jsonpath='serviceAccount: {.spec.serviceAccountName}{"\n"}volume: {.spec.volumes[0].name}{"\n"}'
+```
+
+```
+serviceAccount: default
+volume: kube-api-access-qwm2w
+```
+
+**Your command mentioned neither.** The object in etcd is not the object you sent: something on the way
+in assigned it an account and mounted a credential into it. You installed nothing, and there was no way
+to opt out, so this has happened to every Pod you have created since Act V. Objects are *edited* in
+transit, not merely accepted or rejected — which means `kubectl get -o yaml` shows you the stored
+result of a negotiation, and diffing it against your manifest will show differences that are nobody's
+bug.
+
+Line those five up and the pipeline draws itself. Every write you make, in order:
+
+<!-- figure -->
+
+```
+   your request
+     |
+     v  AUTHENTICATION      who are you?            refuses: 401, no user named
+     v  AUTHORIZATION       may you do this?        refuses: 403, names user+verb+resource
+     v  DECODE (strict)     are these real fields?  refuses: 400, "unknown field ..."
+     v  MUTATING admission  edit the object         the ServiceAccount token, above
+     v  OBJECT validation   does it mean anything?  refuses: 422, "... is invalid"
+     v  VALIDATING admission may it exist?          refuses: 403, names a policy
+     |
+     v  PERSISTED to etcd   the PUT you watched arrive
+```
+
+Read it as a filter, not a menu: a request that dies at stage two never reaches stage three, so **the
+error you get tells you how far in you got.** A 401 means nothing about your YAML. A 403 that names a
+user is RBAC; a 403 that names a policy is admission, and those are two different files to go and edit.
+A `BadRequest` about a field means your permissions are fine and your typing is not. That distinction is
+most of the debugging.
+
+Two of the six stages are the interesting ones, because they are the only two the *cluster's operator*
+gets to put rules into: the mutating stage, which you just watched write a volume you never asked for,
+and the validating stage, which so far has refused you nothing. Everything Kubernetes calls **admission
+control** lives in those two rows, and [Act X](../act-10-cluster-security/04-deciding-before-it-exists.md)
+is where you write your own and find out which of the two runs first — a question this diagram
+deliberately does not answer, because the order is not the one most people assume.
+
+**Clean up the two objects this section left:**
+
+```bash
+kubectl delete pod w0 --wait=false
+```
+
+(The `typo` Pod was never created — that was the point.)
+
 ### What does this cost you?
 
 One store holds everything, which buys the coordination you just watched and hands you a single point of failure in exchange. Every component in the cluster is disposable except this one.
 
 That is not a hypothetical. Three facts you now have, taken together, should make you uneasy: the whole cluster is a few hundred keys; those keys are reachable by anyone holding three files from `/etc/kubernetes/pki/etcd/`; and you just read one with a shell command. If a Secret is in there, it is in there the way that Pod was.
 
-**Cleanup** — the `kubectl delete pod db-0` above already did it. Confirm nothing is left:
+**Cleanup** — the two `delete` commands above already did it. Confirm nothing is left:
 
 ```bash
 kubectl get pods
 ```
 
-> **You understand this when you can** explain why a Pod cannot be found on the disk of the node that runs it, and what `kubectl get pod` is doing instead — a `GET` on a path, against a tree whose keys are literally `/registry/<kind>/<namespace>/<name>`; say what the API server computes its answers *from*, and why YAML is a rendering rather than the record; and describe what an `etcdctl watch` shows you when you label a Pod, including why writes you did not perform appear alongside the one you did.
+> **You understand this when you can** explain why a Pod cannot be found on the disk of the node that runs it, and what `kubectl get pod` is doing instead — a `GET` on a path, against a tree whose keys are literally `/registry/<kind>/<namespace>/<name>`; say what the API server computes its answers *from*, and why YAML is a rendering rather than the record; and describe what an `etcdctl watch` shows you when you label a Pod, including why writes you did not perform appear alongside the one you did — and, given a rejected `apply`, name the stage that rejected it from the wording alone: `401`, `is forbidden`, `unknown field`, or `is invalid`.
 
 **Which raises:** those extra writes came from somewhere. Something is watching this store and acting on what it sees — and if that is how a Pod gets a deletion stamp, it may also be how a Pod gets *scheduled to a node at all*. Before you can watch one of those watchers stop, you need to know where they run. You have never seen the API server as a *process*.
 
