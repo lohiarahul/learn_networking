@@ -33,14 +33,16 @@ Rate yourself in the last column as you go: `-` untried · `?` shaky · `✓` ca
 
 ## Troubleshooting — 30%
 
-The largest domain, and the one where time bleeds. Four of the five bullets are covered — two of them
+The largest domain, and the one where time bleeds. Four of the five bullets are covered — three of them
 above exam depth — and the course carries two independent diagnostic methods, one for a broken
-*cluster* and one for a broken *workload*. It is the best-verified domain in the map.
+*cluster* and one for a broken *workload*. It is the best-verified domain in the map, and since the
+[drill verifiers](../drills/README.md) landed it is the only domain where the repo checks *your*
+answer rather than its own prose.
 
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
-| Troubleshoot clusters and nodes | ✅ covered | [node maintenance](../networking-fundamentals/act-6-control-plane/07-node-maintenance.md) · [when the control plane breaks](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md) — the five-question descent, `journalctl -u kubelet`, `crictl` · [the drills](../networking-fundamentals/act-6-control-plane/diagnose.md) | `-` |
-| Troubleshoot cluster components | ✅ **covered, above exam depth** | [when the control plane breaks](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md) — a deliberately broken static-pod manifest, plus `crictl ps -a` / `crictl logs` with the apiserver down · [7 drills](../networking-fundamentals/act-6-control-plane/diagnose.md) | `-` |
+| Troubleshoot clusters and nodes | ✅ **covered, above exam depth** | [node maintenance](../networking-fundamentals/act-6-control-plane/07-node-maintenance.md) · [when the control plane breaks](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md) — the five-question descent, `journalctl -u kubelet`, `crictl` · [the drills](../networking-fundamentals/act-6-control-plane/diagnose.md), where **drill 9 is the canonical form of this bullet**: a `NotReady` worker whose containers are still serving on their Pod IPs, diagnosed from the `Unknown`-not-`False` conditions, the heartbeat-vs-transition timestamp gap, and the `ready=false` EndpointSlice — with the 300-second `NoExecute` clock running | `-` |
+| Troubleshoot cluster components | ✅ **covered, above exam depth** | [when the control plane breaks](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md) — a deliberately broken static-pod manifest, plus `crictl ps -a` / `crictl logs` with the apiserver down · [nine drills](../networking-fundamentals/act-6-control-plane/diagnose.md), each ending in a `verify-drill.sh` run that exits 0 only if the cluster is functionally repaired **and** you named the cause | `-` |
 | Monitor cluster and application resource usage | ✅ covered | [choosing the number](../networking-fundamentals/act-7-workloads/10-choosing-the-number.md) — metrics-server installed and made to fail first, `kubectl top` | `-` |
 | Manage and evaluate container output streams | 🟡 partial | used throughout ([`logs --previous`](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md), `crictl logs`, [`logs -l`](../networking-fundamentals/act-7-workloads/07-the-other-workload-kinds.md)) but no lesson treats `-c` / `--since` / multi-container selection as a subject | `-` |
 | Troubleshoot services and networking | ✅ **covered, above exam depth** | [the five-question method](../networking-fundamentals/act-5-kubernetes/08-debugging.md) · [a worked failure](../networking-fundamentals/act-5-kubernetes/09-debugging-walkthrough.md) · [the drills](../networking-fundamentals/act-5-kubernetes/diagnose.md) | `-` |

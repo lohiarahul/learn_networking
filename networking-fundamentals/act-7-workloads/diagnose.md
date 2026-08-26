@@ -6,6 +6,18 @@
 1. **Don't study the "Reproduce it" block — just run it.** Reading it closely spoils the hunt. Run it, then diagnose from the symptom like you would at 3am.
 2. **Form a hypothesis before you inspect.** Say out loud what you think is wrong and which field or command would prove it — *then* look.
 3. **Open the reveal only after you've tried.**
+4. **Then verify it — and say what was wrong.** Every drill ends with a `Verify it` line:
+
+   ```bash
+   tools/verify-drill.sh act-7 <n> "your one-line diagnosis"
+   ```
+
+   It exits `0` only if the workload is genuinely fixed **and** the cause you typed is right. The
+   checks are deliberately not `kubectl get` on the object you edited — they read the thing the
+   *next* loop in the chain produced, because that is the only evidence a claim was kept: an
+   EndpointSlice with a ready endpoint, a symlink inside the container, an HPA condition going
+   `True`. It will not tell you the answer — see [`drills/`](../../drills/README.md) for why the
+   expected cause is stored as a hash.
 
 **Where:** the same `kind` cluster as the lessons. If you do not have it, [the Act V lab lesson](../act-5-kubernetes/01-lab-with-kind.md) builds it in a minute.
 
@@ -61,7 +73,7 @@ Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/
 Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
 notice that the second number is the one that predicts anything.
 
-## Drill 1 — "the deploy finished but the site is down"
+## Drill 1 — "the deploy finished but the site is down"1
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -117,9 +129,15 @@ kubectl rollout status deployment/shop --timeout=60s
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-7 1 "the field that broke readiness"
+```
+
 ---
 
-## Drill 2 — "it worked in staging"
+## Drill 2 — "it worked in staging"2
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -189,9 +207,15 @@ kubectl logs deploy/api --tail=1        # mode=live
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-7 2 "the volumeMount field that froze the file"
+```
+
 ---
 
-## Drill 3 — "half the replicas never start"
+## Drill 3 — "half the replicas never start"3
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -243,9 +267,15 @@ kubectl get pods -l app=heavy
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-7 3 "what the scheduler was short of"
+```
+
 ---
 
-## Drill 4 — "we scaled it down but the bill didn't move"
+## Drill 4 — "we scaled it down but the bill didn't move"4
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -260,6 +290,12 @@ spec:
   clusterIP: None
   selector: { app: cache }
   ports: [ { port: 6379 } ]
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-7 4 "the kind of object nothing cleaned up"
+```
+
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -324,7 +360,7 @@ kubectl get pvc
 
 ---
 
-## Drill 5 — "the cron job hasn't run and nothing is wrong"
+## Drill 5 — "the cron job hasn't run and nothing is wrong"5
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -395,9 +431,15 @@ kubectl delete jobs -l drill=5 --ignore-not-found
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-7 5 "the CronJob field that stopped it"
+```
+
 ---
 
-## Drill 6 — "the autoscaler is broken"
+## Drill 6 — "the autoscaler is broken"6
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -466,10 +508,16 @@ kubectl get pvc      # empty
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-7 6 "the missing denominator"
+```
+
 ---
 
 
-## Drill 7 — "the scheduler says we are out of nodes"
+## Drill 7 — "the scheduler says we are out of nodes"7
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -484,6 +532,12 @@ spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: fast-ssd
   resources: { requests: { storage: 2Gi } }
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-7 7 "the PVC field that named nothing"
+```
+
 ---
 apiVersion: apps/v1
 kind: Deployment

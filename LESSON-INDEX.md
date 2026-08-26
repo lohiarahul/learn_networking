@@ -82,6 +82,7 @@ Acts 5–6 = the same 2-node `kind` cluster (`kubectl`, plus `docker exec` onto 
 - `cilium`/eBPF referenced. Deferred (roadmap): bpftrace capstone (the Act-1 promise lands here), Hubble.
 
 ## Act 6 — the control plane  ⟨complete: 8 lessons + all supporting files; all 8 cluster-verified, drills not walked as drills⟩
+- `diagnose.md` — nine drills, each ending in `tools/verify-drill.sh act-6 <n> "<your diagnosis>"`, which exits 0 only if the cluster is functionally repaired *and* you named the cause (stored as a hash, so the verifier is not a second reveal)
 - `01-the-api-server-is-a-filesystem.md` — a Pod is not on the node's disk — Act-I creed's next form; `kubectl get --raw`, `/registry/<kind>/<ns>/<name>` in etcd, protobuf-vs-YAML rendering, `etcdctl` mTLS via `/etc/kubernetes/pki/etcd/`, **`etcdctl watch` while you label** (writes you didn't make)
 - `02-static-pods.md` — the boot-order paradox — kubelet as the one non-Pod; `staticPodPath`, `/etc/kubernetes/manifests/`, **`kubectl delete` on a static Pod is a no-op**, stop a component by moving its file, etcd's `hostPath` as the only durable bytes
 - `03-the-reconciliation-loop.md` — stop a watcher, watch intent go inert — controller-manager down → two Pods but **`READY 3/3` forever, because `status` is a stored note the same controller writes** (so `kubectl wait` believes it); scheduler down → `Pending`, empty `spec.nodeName`, `Events: <none>`; leader election as the restore delay; three loops, zero calls; "current state is the entire input"

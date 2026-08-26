@@ -6,6 +6,19 @@
 1. **Don't study the "Reproduce it" block — just run it.** Reading it closely spoils the hunt. Run it, then diagnose from the symptom like you would at 3am.
 2. **Form a hypothesis before you inspect.** Say out loud what you think is wrong and which file or tool would prove it — *then* look.
 3. **Open the reveal only after you've tried.**
+4. **Then verify it — and say what was wrong.** Every drill below ends with a `Verify it` line:
+
+   ```bash
+   tools/verify-drill.sh act-6 <n> "your one-line diagnosis"
+   ```
+
+   It exits `0` only if the cluster is genuinely repaired **and** the cause you typed is the right
+   one. It checks by *function* rather than by configuration — a Pod created five seconds ago
+   acquiring a `spec.nodeName` proves a scheduler is reconciling, where a file being back on disk
+   proves nothing — and it will not tell you the answer: the expected cause is stored as a hash, so
+   reading [`drills/`](../../drills/README.md) spoils nothing. This exists because the reveal above is
+   graded by the person who just failed to solve the drill, which is the most reliable way anyone
+   arrives at an exam confident and unready.
 
 **Where:** the same `kind` cluster as the lessons. If you do not have it, [the Act V lab lesson](../act-5-kubernetes/01-lab-with-kind.md) builds it in a minute — pinned, and the pin matters here. **Drill 5 needs a server at 1.29 or newer**: it breaks the cluster by deleting `clusterrolebinding kubeadm:cluster-admins` and recovers through `/etc/kubernetes/super-admin.conf`, and neither of those exists on an older node image. `kubectl version` tells you the server version; if it is below 1.29 the drill's reproduce step fails `NotFound` and there is nothing to hunt.
 
@@ -54,7 +67,7 @@ Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/
 Run each drill untimed the first time if you like. Then run it again, weeks later, with a timer, and
 notice that the second number is the one that predicts anything.
 
-## Drill 1 — "kubectl works, but nothing we deploy ever starts"
+## Drill 1 — "kubectl works, but nothing we deploy ever starts"1
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -110,9 +123,15 @@ kubectl delete deployment shipping
 docker exec $CP ls /etc/kubernetes/manifests/
 ```
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 1 "the component you think was missing"
+```
+
 ---
 
-## Drill 2 — "the dashboard says everything is healthy and it is not"
+## Drill 2 — "the dashboard says everything is healthy and it is not"2
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -178,9 +197,15 @@ kubectl delete deployment payments
 docker exec $CP ls /etc/kubernetes/manifests/
 ```
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 2 "the component you think was missing"
+```
+
 ---
 
-## Drill 3 — "kubectl died after a config change and we cannot get in"
+## Drill 3 — "kubectl died after a config change and we cannot get in"3
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -242,9 +267,15 @@ until kubectl get nodes 2>/dev/null; do sleep 2; done
 docker exec $CP rm -f /tmp/apiserver.good
 ```
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 3 "the flag whose value was rejected"
+```
+
 ---
 
-## Drill 4 — "same symptom, and this time crictl shows nothing"
+## Drill 4 — "same symptom, and this time crictl shows nothing"4
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -306,9 +337,15 @@ until kubectl get nodes 2>/dev/null; do sleep 2; done
 docker exec $CP rm -f /tmp/apiserver.good
 ```
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 4 "the step the kubelet never got past"
+```
+
 ---
 
-## Drill 5 — "we are locked out of our own cluster and nothing is down"
+## Drill 5 — "we are locked out of our own cluster and nothing is down"5
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -377,9 +414,15 @@ kubectl get nodes                    # answers again
 rm -f /tmp/crb-backup.yaml
 ```
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 5 "the object that was deleted"
+```
+
 ---
 
-## Drill 6 — "the drain has been running for half an hour"
+## Drill 6 — "the drain has been running for half an hour"6
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -447,9 +490,15 @@ kubectl get nodes                                  # both Ready, neither Schedul
 docker exec $CP ls /etc/kubernetes/manifests/      # all four
 ```
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 6 "the kind of object that refused the eviction"
+```
+
 ---
 
-## Drill 7 — "the node is fine and the cluster says it does not exist"
+## Drill 7 — "the node is fine and the cluster says it does not exist"7
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -509,10 +558,16 @@ kubectl -n kube-system get pods -o wide | grep netlab-worker    # kube-proxy and
 rm -f /tmp/node-backup.yaml
 ```
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 7 "the process that has to re-register the node"
+```
+
 ---
 
 
-## Drill 8 — "the fix that worked last month is refused too"
+## Drill 8 — "the fix that worked last month is refused too"8
 
 **Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
@@ -533,6 +588,12 @@ kind: ResourceQuota
 metadata: { name: tenant-cap, namespace: team-b }
 spec:
   hard: { pods: "1" }
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 8 "the kind of object whose cap was hit"
+```
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -705,9 +766,187 @@ docker exec $CP ls /etc/kubernetes/manifests/      # all four
 
 ---
 
+## Drill 9 — "a node went NotReady and half the site went with it"
+
+**Target: 8 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"`frontline` started returning errors about a minute ago. `kubectl get nodes` shows a
+> worker `NotReady`, which we assume is the cause, but nobody has touched that machine and it is
+> still up — you can `docker exec` into it and it is perfectly healthy. We are about to reboot it.
+> Talk us out of it or tell us to do it."*
+
+**Reproduce it** (run; don't read):
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: frontline }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: frontline } }
+  template:
+    metadata: { labels: { app: frontline } }
+    spec:
+      nodeSelector: { kubernetes.io/hostname: netlab-worker }
+      containers: [ { name: web, image: nginx:1.27-alpine } ]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: frontline }
+spec:
+  selector: { app: frontline }
+  ports: [ { port: 80 } ]
+EOF
+kubectl rollout status deployment/frontline --timeout=120s
+docker exec netlab-worker systemctl stop kubelet
+```
+
+**Your symptom** — and note that it takes the best part of a minute to arrive, which is itself a clue:
+
+```bash
+kubectl get nodes
+kubectl get pods -l app=frontline -o wide
+CIP=$(kubectl get svc frontline -o jsonpath='{.spec.clusterIP}')
+docker exec netlab-control-plane \
+  curl -s -o /dev/null -w 'service: HTTP %{http_code}\n' --max-time 5 "http://$CIP/"; echo "curl exit $?"
+```
+
+```
+netlab-worker   NotReady   <none>   4d22h   v1.36.1
+frontline-...-5qt7s   1/1   Running   0   47s   10.244.1.210   netlab-worker
+frontline-...-ghs4d   1/1   Running   0   47s   10.244.1.209   netlab-worker
+service: HTTP 000
+curl exit 7
+```
+
+`000` is not a status code — it is `curl`'s placeholder for *there was no response to read a code
+from*, and exit `7` is `CURLE_COULDNT_CONNECT`. Note which failure that is: not a timeout, a
+**refusal**. Keep that; it is the difference between two very different diagnoses, and it decides this
+drill.
+
+**Two Pods, both `1/1 Running`, and the Service refuses the connection.** Do not reboot anything
+yet. Find out what is actually broken, and what is not.
+
+<details>
+<summary>Reveal</summary>
+
+**Question 1 passes and question 2 is where this lives — but read the *whole* condition block, not
+the `STATUS` column:**
+
+```bash
+kubectl describe node netlab-worker | sed -n '/^Conditions:/,/^Addresses:/p'
+```
+
+```
+  Type             Status    LastHeartbeatTime    LastTransitionTime   Reason              Message
+  MemoryPressure   Unknown   22:33:24             22:34:45             NodeStatusUnknown   Kubelet stopped posting node status.
+  DiskPressure     Unknown   22:33:24             22:34:45             NodeStatusUnknown   Kubelet stopped posting node status.
+  PIDPressure      Unknown   22:33:24             22:34:45             NodeStatusUnknown   Kubelet stopped posting node status.
+  Ready            Unknown   22:33:24             22:34:45             NodeStatusUnknown   Kubelet stopped posting node status.
+```
+
+**Three things in that block, and each one changes what you do next.**
+
+**`Unknown`, not `False`.** `kubectl get nodes` printed `NotReady`, which reads like a verdict; the
+condition says the cluster has no idea. Nobody assessed this node and found it wanting — nobody
+assessed it at all. `False` would mean a kubelet ran a check and reported failure. `Unknown` means
+the reporter is gone, and the message says so in words: *Kubelet stopped posting node status.* Which
+is [drill 2](#drill-2--the-dashboard-says-everything-is-healthy-and-it-is-not) exactly, one layer
+down — a `status` field is a note some component left behind, and when that component stops the note
+does not become false, it becomes stale. The only reason you were not fooled for longer is that
+somebody wrote code specifically to notice this staleness, which is the `NodeStatusUnknown` reason.
+
+**Two timestamps, and the gap between them is a setting.** `LastHeartbeatTime` is when the kubelet
+last spoke — that is when it died. `LastTransitionTime` is when the control plane gave up on it —
+that is when *you* found out. Here that is 81 seconds, and it is `--node-monitor-grace-period` on
+the controller manager plus rounding. When someone asks how long a node can be dead before Kubernetes
+reacts, this is the pair of numbers to point at, and the answer is not zero.
+
+**Now the part that decides the ticket.** Ask the runtime rather than the API server:
+
+```bash
+docker exec netlab-worker crictl ps
+docker exec netlab-control-plane curl -s -o /dev/null -w '%{http_code}\n' --max-time 4 http://10.244.1.203/
+kubectl get endpointslices -l kubernetes.io/service-name=frontline \
+  -o jsonpath='{range .items[*]}{range .endpoints[*]}{.addresses[0]}{" ready="}{.conditions.ready}{"\n"}{end}{end}'
+```
+
+```
+fb9a234d90c20   96868d9fa38f4   Running   nginx   0   frontline-...-hg6ns
+a231403356483   96868d9fa38f4   Running   nginx   0   frontline-...-fb278
+200
+10.244.1.203 ready=false
+10.244.1.204 ready=false
+```
+
+**The containers are running and the Pod IPs are serving `200`.** Nothing is wrong with the
+application, the network, or the node. What broke is the *Service*, and the EndpointSlice says why:
+both endpoints are `ready=false`.
+
+And they are `ready=false` for the same reason the Node is `Unknown` — **readiness is reported by
+the kubelet.** No kubelet, no readiness reports, so the control plane cannot know whether those
+containers are healthy and correctly refuses to send them traffic. The endpoints leave the slice,
+kube-proxy rewrites the `KUBE-SVC` chain to have no backends, and a `KUBE-SVC` chain with no backends
+**rejects** — which is why the client saw `Connection refused` rather than a timeout. Trace it back
+and every symptom in the ticket comes from one dead process, and none of it comes from a sick machine.
+
+So the answer to *"should we reboot it?"* is no, and the reason is better than "it is not necessary":
+a reboot would take the containers down too, and they are the only thing still working.
+
+**One more thing, before the clock runs out on its own.** Look at what the node controller has
+already done to the node:
+
+```bash
+kubectl get node netlab-worker -o jsonpath='{range .spec.taints[*]}{.key}{"="}{.effect}{"\n"}{end}'
+kubectl get pod -l app=frontline \
+  -o jsonpath='{range .items[0].spec.tolerations[*]}{.key}{" "}{.effect}{" for "}{.tolerationSeconds}{"s\n"}{end}'
+```
+
+```
+node.kubernetes.io/unreachable=NoSchedule
+node.kubernetes.io/unreachable=NoExecute
+node.kubernetes.io/not-ready NoExecute for 300s
+node.kubernetes.io/unreachable NoExecute for 300s
+```
+
+There is your deadline. The node now carries a `NoExecute` taint, and every Pod on it tolerates that
+taint for exactly **300 seconds** — the `tolerationSeconds` nobody wrote, added automatically, which
+[Act VII lesson 04](../act-7-workloads/04-scheduling.md) told you about and this is the first time it
+has ever fired. Five minutes after the transition, the Pods you were told are fine get deleted and
+rescheduled elsewhere. That is not a bug and it is not your five minutes to fix the node; it is the
+cluster's own decision that an unreachable node's Pods should be given up on, and it means a node
+outage you resolve in four minutes costs nothing and one you resolve in six costs a full
+reschedule.
+
+**Fix it:**
+
+```bash
+docker exec netlab-worker systemctl start kubelet
+until [ "$(kubectl get node netlab-worker --no-headers | awk '{print $2}')" = "Ready" ]; do sleep 3; done
+kubectl rollout status deployment/frontline --timeout=120s
+kubectl delete deploy frontline svc frontline
+```
+
+**The reasoning worth keeping:** `NotReady` is a statement about a *reporter*, not about a machine.
+Before you touch the node, ask the runtime — `crictl ps` — and curl a Pod IP. If both answer, the
+node is fine and what you have is a reporting outage, which is a completely different repair with a
+completely different blast radius. And check the clock: you have five minutes before the cluster
+stops waiting for you.
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 9 "the process that stopped reporting"
+```
+
+---
+
 ## When you can do these without the reveals
 
-You can operate a cluster below `kubectl` — which is the thing this act existed to give you, and the thing that separates knowing Kubernetes from being able to fix it. Notice what every drill had in common: **the fix was never in the manifest the ticket was about.** Six of these seven were solved by asking *which process should have done this, and did it* — and the seventh by asking *which of authentication and authorisation actually failed*.
+You can operate a cluster below `kubectl` — which is the thing this act existed to give you, and the thing that separates knowing Kubernetes from being able to fix it. Notice what every drill had in common: **the fix was never in the manifest the ticket was about.** Almost all of them were solved by asking *which process should have done this, and did it* — one by asking *which of authentication and authorisation actually failed*, and one by asking *is this node broken, or has it merely stopped talking about itself*.
 
 The two questions to carry:
 
