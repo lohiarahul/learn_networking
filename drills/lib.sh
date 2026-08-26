@@ -253,6 +253,46 @@ svc_answers() {
   fi
 }
 
+# ------------------------------------------------- Act VIII: certificates, locally
+
+# Act VIII needs no cluster and no container. It needs OpenSSL 3.x and the small PKI its diagnose page
+# builds in ${TMPDIR}/drills, so these verifiers run right there — and, like Act IX's, they run the
+# experiment the answer predicts rather than checking a repair, because none of the six drills breaks
+# anything. A certificate that fails to verify is not a fault; it is a correct answer to a question the
+# reader has to identify.
+PKI="${TMPDIR:-/tmp}/drills"
+
+pki_ready() {
+  if [ ! -d "$PKI" ]; then
+    bad "the drill PKI exists in $PKI" "run the diagnose page's setup block first — the six drills share one PKI"
+    return 1
+  fi
+  local missing=""
+  for f in root.crt root.key int.crt int.key leaf.crt leaf.key; do
+    [ -s "$PKI/$f" ] || missing="$missing $f"
+  done
+  if [ -n "$missing" ]; then
+    bad "the drill PKI is complete" "missing from $PKI:$missing"; return 1
+  fi
+  ok "the drill PKI is in place (root -> intermediate -> leaf)"
+}
+
+# OpenSSL 3.x, not LibreSSL. The diagnose page says so and two of the drills silently produce the wrong
+# result without it, which is worse than failing.
+openssl3() {
+  local v; v=$(openssl version 2>/dev/null)
+  case "$v" in
+    OpenSSL\ 3*|OpenSSL\ 4*) ok "openssl is $v" ;;
+    *) bad "openssl is OpenSSL 3.x" "found '${v:-nothing}' — LibreSSL lacks -not_before/-not_after and will not reproduce these drills"; return 1 ;;
+  esac
+}
+
+# require, but with $PKI as the working directory, which is where every path in these drills is relative to.
+pki_require() {
+  local desc="$1"; shift
+  require "$desc" sh -c "cd '$PKI' && { $*; }"
+}
+
 # ------------------------------------------------- Acts I-IV: the lab container
 
 # Acts I to IV do not run against a cluster. They run inside one privileged container with its own

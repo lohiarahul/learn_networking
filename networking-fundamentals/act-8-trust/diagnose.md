@@ -31,6 +31,39 @@ openssl x509 -req -in leaf.csr -CA int.crt -CAkey int.key -out leaf.crt \
 
 That is a two-level hierarchy: a root that signs an intermediate, and an intermediate that signs the leaf. Real PKI is always shaped this way, and the reason is worth knowing before you start — the root's private key can then be kept offline, in a safe, powered down, because it only ever signs one thing every few years.
 
+## Then verify it — and say what was wrong
+
+Every drill ends with a `Verify it` line:
+
+```bash
+tools/verify-drill.sh act-8 <n> "your one-line diagnosis"
+```
+
+These need no cluster and no container — they run right here, against the PKI you just built in
+`${TMPDIR:-/tmp}/drills`. And like Act IX's, they cannot check a repair, because **nothing in this act
+is broken**: a certificate that fails to verify is not a defect, it is a correct answer to a question
+you have to identify. So each one runs the experiment your answer predicts, and in four of the six that
+experiment is a pair of outcomes differing in one input:
+
+- Drill 1 verifies the same leaf twice, failing against the root alone and succeeding with the
+  intermediate supplied — and then produces `error 20`'s **other** meaning, which the drill asks for
+  separately, from a complete chain against a store that lacks the root.
+- Drill 2 refuses a future-dated certificate and then verifies **the identical bytes** with `-attime`
+  moved forward. Nothing about the certificate changed; the input that decided was the clock.
+- Drill 3 runs the proposal the drill says cannot work — adding the certificate to the trust store —
+  and shows it changing nothing, then verifies the same leaf for the name it does carry.
+- Drill 6 signs a sub-CA under a `pathlen:0` intermediate and shows the signing **succeeding**, which
+  is what makes the question "why must the verifier check this?" answerable rather than rhetorical.
+
+Drill 4 is the one to run even if you are sure: it stands up an mTLS server, connects without a client
+certificate, and shows the client reporting `Verify return code: 0 (ok)` while the server's log records
+`peer did not return a certificate` **in the same second** — then connects with one and shows the
+client's output is byte-identical. Drill 5 does the relocation twice, unbound and bound, in one
+process, so the difference really is the two lines.
+
+None of them will tell you the answer — see [`drills/`](../../drills/README.md) for why the expected
+cause is stored as a hash.
+
 ## The clock
 
 Every drill below carries a **target time**, and this is the one thing these drills do that the
@@ -109,6 +142,12 @@ This is the single most common TLS misconfiguration in existence, and it has a s
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-8 1 "what was absent from the chain"
+```
+
 ---
 
 ## Drill 2 — a certificate that will work, later
@@ -144,6 +183,12 @@ The component is **NTP**. A host whose time drifts, or which boots without netwo
 Note the shape, which is the act's second question: **the verifier checks the clock.** Nothing in a certificate notices its own dates. So a fleet with skewed clocks produces `error 9` and `error 10` reports from clients while every server insists it is serving a perfectly valid certificate — and both are telling the truth.
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-8 2 "the input that actually decided"
+```
 
 ---
 
@@ -200,6 +245,12 @@ Which explains a detail that otherwise looks like sloppiness. `--kubelet-insecur
 And keep the general form, because it outlives certificates entirely: **an error names a check that failed, never the set of checks that would have.**
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-8 3 "the check that failed"
+```
 
 ---
 
@@ -261,6 +312,12 @@ once. That is the log growing, not three handshakes.)
 Identical client output — and the server now names who it is talking to. So the rule, which belongs alongside Act V's five questions: **when mTLS fails, read the other end's log.** The end that is failing is not the end that reports it.
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-8 4 "whose question each verdict answers"
+```
 
 ---
 
@@ -332,6 +389,12 @@ cryptography.exceptions.InvalidTag
 
 </details>
 
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-8 5 "what the code never authenticated"
+```
+
 ---
 
 ## Drill 6 — the intermediate that tries to be a root
@@ -380,6 +443,12 @@ That is the same structure as lesson 05's `CA:TRUE` (`error 79`), and the same s
 Real-world weight: this is how a company gets given a CA that can only issue for its own domain. `nameConstraints` does the same job for names rather than depth — and its history is instructive, because for years several major clients did not check it, which meant the constraint was in the document and enforced by nobody.
 
 </details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-8 6 "the field that decided it"
+```
 
 ---
 
