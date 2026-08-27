@@ -108,6 +108,78 @@
 >
 > Which is the audit's own finding a third time, and the sharpest instance of it: **the repository had
 > already done this piece of self-knowledge properly, and the audit read the symptom as the defect.**
+>
+> ### Round three — the two §F items that needed a decision
+>
+> | §F line item | §F's number | Measured | Done |
+> |---|---|---|---|
+> | Act X lesson 08 — split in two | 10,017 words | 9,616 | ✅ **split**, at §F's own enumeration rather than §F's quoted sentence |
+> | `reference/tools/` pages for six tools with no path | "17 of 72 pages are `roster only`" | **15**, and **two of the named six are taught by lessons** | ✅ **four compressed** |
+>
+> **The split went where §F's list said, not where §F's sentence said, and they are 145 lines apart.**
+> §F named a seam — *"you can verify signatures on your laptop; nothing so far constrains what the
+> cluster runs"* — and separately enumerated the contents in two groups: tags, digests, the image store,
+> `AlwaysPullImages`, scanning, CVE arithmetic, SBOMs / then `cosign`, keyless, Fulcio, Rekor, CEL's
+> limits, the Kyverno policy. The enumeration breaks at `cosign`; the quoted sentence sits three sections
+> later, after signing and keyless. Both are real boundaries, so the tie-breakers are balance and whether
+> the prose already turns there. §F's sentence gives **6,343 / 3,273**; §F's list gives **5,385 / 4,876**,
+> two lessons both under Act X's median of ~6,000 where the other leaves one at the act's second-largest.
+> And the prose turns at the list's seam explicitly, in a paragraph nobody had to write for this purpose:
+> *"Which sets up the real problem. Everything so far … is something you computed about bytes you had.
+> None of it survives being handed to somebody else, because none of it is a claim anyone is accountable
+> for."* That paragraph now ends lesson 08 and names the next one. The split is
+> [`08b-who-says-so.md`](networking-fundamentals/act-10-cluster-security/08b-who-says-so.md), following
+> the course's existing `b`-suffix convention (`01b`, `02b`, `03b`, `03c`, `05b`, and Act VII's `08b`),
+> which avoids renumbering lessons 09–11 and the 24 references to them across 14 files.
+>
+> Each half now carries its own `Predict first` (the signature question moved with the signatures), its
+> own milestone, and its own rung of the ladder; the shared bench is built in 08, stated to outlive it,
+> and torn down at the end of 08b. Twelve textual "lesson 08" back-references across Act X, `exam-prep/`
+> and `Toolbelt.md` were re-pointed by which half they actually mean — `cosign`'s roster row and the
+> authoring sprint's checksum-versus-signature argument to 08b, `trivy`'s and the GitOps drift argument
+> to 08. The `LESSON-INDEX.md` entry split at the same seam, and while rewriting it a pre-existing gap
+> showed up: the entry never mentioned the build-secret section at all. It does now.
+>
+> **§F's tool-page list included two tools the course teaches, which its own criterion excludes.** The
+> criterion is "no CKA, CKS or on-call route". `scapy` is run by Act II lesson 01 and its page carries
+> **six hand-written syntax breakdowns**; `ltrace` is run by Act I lesson 03 and carries one. Compressing
+> either would have deleted hand-written teaching material to satisfy a rule that does not apply to it.
+> So four were compressed, not six — `tc`, `ipvsadm`, `ipset`, `devlink` — and the `roster only` count is
+> 15, not 17.
+>
+> The compression is a mechanism rather than four deletions, because four deletions would come back the
+> next time someone ran the generator. **A roster row whose tool name is a link claims a page; a bare name
+> is a row and nothing more**, and `gen-tool-pages.py` deletes any page it finds for one — so de-linking
+> the row is the entire edit. That puts the decision in the file that already decides which tools exist,
+> and it made the reason legible: what a page added over its row was mostly furniture. The blind-spot row
+> is the one every netlink tool shares, the *"4 commands, grouped by what you are trying to find out"*
+> preamble sat over four commands derivable from [the grammar](reference/01-the-grammar.md) once you know
+> the interface is `netlink`, and the row already carried the sentence that matters. `devlink` is not
+> installed in the lab image at all.
+>
+> What did *not* survive derivation was moved to where a reader actually arrives — holding a symptom, not
+> a tool name. `tc -s qdisc` and `netem` are now rows under *"it's slow, but nothing is broken"*, beside
+> the `nstat`, `mtr` and `ethtool -S` that were already handled that way; the IPVS connection table is
+> under *"it works from the node but not from the Pod"*, next to the `iptables-save` line it is the
+> alternative to. `tc monitor` and `devlink monitor` were already in `netlink`'s streaming block. Then the
+> now-inert `caps` came out of `capabilities.json`, because generator input nothing renders is the kind
+> that goes stale unnoticed.
+>
+> Two checks had to learn about the new state, and the second one is the interesting failure.
+> `check_index_facets`'s `iface-roster` clause asserts every roster tool is placed on its interface page —
+> it fired four warnings immediately, correctly. Teaching it that an unpaged row is placed by *name*
+> rather than by link was easy; the first version was **worthless**, because it scanned the whole page and
+> every one of these four is discussed in netlink's grammar prose anyway, so an incidental backtick
+> satisfied it. Round-tripping caught that: the "never names it" clause would not fire when the sibling
+> list dropped `tc`. Scoped to the sibling list — everything above the page's first rule — it fires.
+> The third clause matters most and does fire: an interface page linking a page-less tool is a 404 the
+> moment the orphan sweep runs, and it is now both a hard `check_links` failure and a named warning.
+>
+> **Net: §F is closed.** Of its six line items, three overstated their measurement, one got its
+> recommendation backwards, one named two tools its own criterion protected, and one — the 475-word
+> milestone block — was exactly the defect it claimed. Two were declined with the reasoning recorded
+> above; four were done. Every threshold and every seam in this round came out of a measured
+> distribution or a sentence the prose had already written.
 
 
 
@@ -457,6 +529,14 @@ short, which is the finding — the repo's default mode is the opposite of this.
 ---
 
 ## F. Material to remove or compress
+
+> **This section is closed, and the table below is the original text, kept as written.** Every line item
+> in it was measured before being acted on, and most did not survive the measurement — three overstate
+> their own numbers, one has its recommendation backwards, and one names two tools its own criterion
+> protects. What was actually done, declined, and found wrong is in
+> **[round two](#round-two--f-and-g-the-learning-efficiency-findings)** and
+> **[round three](#round-three--the-two-f-items-that-needed-a-decision)** at the top of this file. Read
+> those before acting on anything here.
 
 Being aggressive, as asked. Nothing here is bad work; all of it competes for the same hours.
 
