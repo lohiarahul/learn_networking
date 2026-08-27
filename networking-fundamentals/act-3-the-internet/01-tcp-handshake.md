@@ -18,6 +18,14 @@ The network is allowed to duplicate and delay; the original ARPAnet engineers le
 
 Before data, both sides agree on an *initial sequence number* (ISN) — their starting position in the imaginary byte stream. The exchange takes three messages. The client sends a **SYN** (synchronize) carrying its chosen start: "I'll begin counting at X." The server replies with a **SYN-ACK**: "I'll begin at Y, and I acknowledge your X (I expect your next byte to be X+1)." The client sends a final **ACK**: "I acknowledge your Y; go." Three messages, two sequence numbers agreed, both directions initialized.
 
+There is a fourth flag worth having now, because the rest of this act reads off it. **RST** (reset) is
+how TCP says *no* — "there is no connection here, stop." Act I's SYN scan already used one: the scanner
+read the SYN-ACK, learned the port was open, and sent an RST instead of the final ACK to walk away
+before the connection existed. The same flag arrives unasked when you connect to a port nothing is
+listening on, and it is what your shell prints as `connection refused`. So a SYN has exactly three
+possible fates — SYN-ACK, RST, or nothing at all — and that three-way fork is the single most useful
+thing in this lesson.
+
 Why are the ISNs *random* rather than zero? Precisely to kill the ghost. If every connection started at zero, the byte numbers of an old connection and a new one on the same ports would overlap exactly, and a delayed duplicate would slot in perfectly. A random starting number makes the old connection's numbers fall in a different range, so a stray ancient packet lands outside the new connection's window and is discarded. Randomness breaks the ambiguity.
 
 ### What do the three messages look like?

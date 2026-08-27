@@ -2,11 +2,19 @@
 
 The last lesson was a kernel keeping books on its own conversations: a socket this machine opened, a state this machine is in. Now put the machine somewhere else. Put it *in the middle* — a home router, a cloud gateway, a laptop sharing its connection — forwarding other people's packets and rewriting their addresses on the way past. The conversation is no longer its own. It still has to get every reply back to the right place. What does that cost in memory, and where does the kernel write it down?
 
+### First — what is the rewriting, and why does anyone do it?
+
+**Some addresses are agreed to be unroutable on the public internet, so a machine holding one borrows a routable address from the router in front of it.**
+
+Act II gave every machine an address and every destination a route. What it did not say is that three ranges are reserved by agreement for private use — `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` — and there is an asymmetry in your own command history worth noticing. Every address that has belonged to a *machine* in this course came out of those three: `192.168.1.5`, `10.244.6.37`, the container addresses in Act I. Every address you *dialled* — `8.8.8.8`, `1.1.1.1`, `93.184.216.34` — did not. And the private ones are private in a very literal sense: **no router on the internet will carry a reply to one**, because the same `10.0.0.7` exists on millions of networks and none of them is the answer to "which one?"
+
+So the machine in the middle rewrites the packet. `10.0.0.7:41000` leaves as `203.0.113.9:41000`, the router's own routable address, and the reply comes back to an address that genuinely resolves to somewhere. That rewrite is **NAT** — network address translation. **Act IV builds it**, with the `iptables` rules that perform the rewrite and the reason a container gets the same treatment as a laptop. This lesson needs only the fact that the rewrite happens, because the question here is what it *costs*.
+
 ### How does a NAT reply find its way back to the right machine?
 
 **It cannot, unless the kernel wrote the translation down — so it does, in a table called `conntrack`.**
 
-NAT (Act IV's central trick) rewrites a packet's source address so a private machine can appear to send from a public one. But now the reply comes back addressed to the *public* address — and the kernel must somehow know which private machine that reply really belongs to, and rewrite it back.
+Follow the reply. It arrives addressed to `203.0.113.9:41000`, the *public* address — and the kernel has to know which private machine that reply really belongs to, and undo the rewrite. Nothing in the packet says so.
 
 A stateless rewrite cannot do this; there is nothing in the reply packet that says "I was originally for 10.0.0.7." The kernel must *remember* every translation it made, match each returning packet to the original, and reverse the translation. Without that memory, NAT would be a one-way street and no reply could ever find its way home.
 
