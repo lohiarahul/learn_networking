@@ -1164,6 +1164,254 @@ docker exec netlab-control-plane rm -f /var/lib/kubelet/seccomp/profiles/no-mkdi
 docker exec netlab-worker rm -f /var/lib/kubelet/seccomp/profiles/no-mkdir.json
 ```
 
+## Drill 12 — the scan you must act on
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"A manifest arrived from another team for review. Security ran two scanners over it and
+> signed it off. It went out on Tuesday and by Thursday one node was out of memory. Both scanner
+> reports are attached and neither one is wrong."*
+
+No bench. Two containerised tools and the cluster you already have. Both tools are `amd64`-only, so on
+Apple silicon they need `--platform linux/amd64` and run under emulation — slowly, and correctly.
+
+**Reproduce it** (run; don't read):
+
+```bash
+mkdir -p "${TMPDIR:-/tmp}/scanlab" && cd "${TMPDIR:-/tmp}/scanlab"
+
+cat > clean.yaml <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: tidy }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","sleep 600"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 1000
+        capabilities: { drop: ["ALL"] }
+      resources:
+        requests: { cpu: 50m, memory: 32Mi }
+        limits:   { cpu: 200m, memory: 128Mi }
+EOF
+
+cat > unbounded.yaml <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: unbounded }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","sleep 600"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 1000
+        capabilities: { drop: ["ALL"] }
+EOF
+
+cat > risky.yaml <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: risky }
+spec:
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","sleep 600"]
+      securityContext:
+        privileged: true
+      volumeMounts:
+        - { name: host, mountPath: /host }
+  volumes:
+    - name: host
+      hostPath: { path: / }
+EOF
+
+kubesec()    { docker run --rm --platform linux/amd64 -i kubesec/kubesec:v2 scan /dev/stdin < "$1"; }
+kubelinter() { docker run --rm --platform linux/amd64 -v "$PWD":/m stackrox/kube-linter:latest lint "/m/$1"; }
+
+for f in clean unbounded risky; do
+  printf '\n===== %s =====\n' "$f"
+  kubesec "$f.yaml" | python3 -c 'import json,sys; d=json.load(sys.stdin)[0]; print("kubesec    :", d["message"])'
+  kubelinter "$f.yaml" 2>&1 | tail -1
+done
+```
+
+**The symptom:**
+
+```
+===== clean =====
+kubesec    : Passed with a score of 8 points
+No lint errors found!
+
+===== unbounded =====
+kubesec    : Passed with a score of 4 points
+Error: found 2 lint errors
+
+===== risky =====
+kubesec    : Failed with a score of -30 points
+Error: found 7 lint errors
+```
+
+**Your move.** The two tools agree about the first and third manifests and **disagree about the second**,
+and the middle row is the one that took the node down. Before you decide which tool is right, work out
+what question each one is answering — and then answer the question the ticket is actually asking, which
+is not *which scanner was wrong*. Question 4 of this act's method is the one to reach for.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+Get the whole verdict rather than the headline, because kubesec's headline hides the finding:
+
+```bash
+kubesec unbounded.yaml | python3 -c "
+import json,sys
+d=json.load(sys.stdin)[0]
+print('score:', d['score'], '|', d['message'])
+for k in ('critical','advise','passed'):
+    print(' ', k, [x['id'] for x in (d['scoring'].get(k) or [])])"
+```
+
+```
+score: 4 | Passed with a score of 4 points
+  critical []
+  advise ['ApparmorAny', 'ServiceAccountName', 'SeccompAny', 'AutomountServiceAccountToken',
+          'RunAsGroup', 'RunAsUser', 'LimitsCPU', 'LimitsMemory', 'RequestsCPU', 'RequestsMemory']
+  passed ['RunAsNonRoot', 'CapDropAny', 'CapDropAll', 'ReadOnlyRootFilesystem']
+```
+
+**kubesec saw it.** `LimitsMemory`, `LimitsCPU`, `RequestsCPU` and `RequestsMemory` are all sitting in
+`advise` — on the clean manifest those same four are in `passed`, which is the entire difference between
+a score of 8 and a score of 4. So the scanner noticed the missing limits, priced them at four points,
+and printed **"Passed"**.
+
+That is the answer to "what question is each one answering":
+
+- **kubesec scores.** It adds and subtracts points against a security rubric and compares the total to
+  a threshold. A finding it dislikes but does not consider critical costs points and passes.
+- **kube-linter lints.** Every check is a rule with a name and a boolean outcome, and
+  `unset-memory-requirements` is as much a failure as `privileged-container`:
+
+```
+container "c" has cpu request 0    (check: unset-cpu-requirements)
+container "c" has memory limit 0   (check: unset-memory-requirements)
+```
+
+Neither is wrong. They are different instruments, and reading a *score* as a *gate* is the mistake —
+the same one [lesson 07](07-the-doors-left-open.md) makes about `kube-bench`: a scanner tells you what
+it checked, not what is true. Here it is sharper, because this scanner told you *and passed it anyway*.
+
+**And now the part that makes it a drill rather than a tool comparison.** Question 4 — *if this control
+stopped working, what would be different?* — has an uncomfortable answer for both tools: **nothing.**
+Neither one is in the write path. They ran in review, produced text, and a human signed the text. The
+manifest that took the node down was **approved by both processes working exactly as designed**, because
+a scanner's finding is not a control until something refuses on it.
+
+So gate it. This needs no policy engine — the mechanism is
+[lesson 04](04-deciding-before-it-exists.md)'s `ValidatingAdmissionPolicy`, which is built in:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata: { name: gate-the-scan }
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+  validations:
+    - expression: "object.spec.containers.all(c, !has(c.securityContext) || !has(c.securityContext.privileged) || c.securityContext.privileged == false)"
+      message: "refused: a container asks for privileged (kubesec: Privileged, -30)"
+    - expression: "!has(object.spec.volumes) || object.spec.volumes.all(v, !has(v.hostPath))"
+      message: "refused: a hostPath volume (kube-linter: sensitive-host-mounts)"
+    - expression: "object.spec.containers.all(c, has(c.resources) && has(c.resources.limits) && 'memory' in c.resources.limits)"
+      message: "refused: a container has no memory limit (kube-linter: unset-memory-requirements — and kubesec passed this manifest)"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata: { name: gate-the-scan }
+spec:
+  policyName: gate-the-scan
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels: { scanlab: "true" }
+EOF
+kubectl create ns scanlab && kubectl label ns scanlab scanlab=true
+sleep 15                        # the CEL compile cache, from lesson 04
+for f in clean unbounded risky; do
+  printf '\n--- %s ---\n' "$f"; kubectl -n scanlab apply -f "$f.yaml" 2>&1 | tail -2
+done
+```
+
+```
+--- clean ---
+pod/tidy created
+
+--- unbounded ---
+The pods "unbounded" is invalid: : ValidatingAdmissionPolicy 'gate-the-scan' with binding
+'gate-the-scan' denied request: refused: a container has no memory limit
+(kube-linter: unset-memory-requirements — and kubesec passed this manifest)
+
+--- risky ---
+The pods "risky" is invalid: : ValidatingAdmissionPolicy 'gate-the-scan' with binding
+'gate-the-scan' denied request: refused: a container asks for privileged (kubesec: Privileged, -30)
+```
+
+**The manifest both scanners looked at and one of them passed is now refused by the cluster.** That is
+the whole difference between a report and a control, and it cost three CEL expressions.
+
+Three things worth taking from the shape of that policy.
+
+**It encodes the union of the two tools, not either one.** The first two expressions are kubesec's
+criticals; the third is a kube-linter rule kubesec would have passed. A gate is a decision about which
+findings you are willing to refuse on, and that decision is yours — neither scanner can make it,
+because neither knows what your cluster is for.
+
+**The message is where the scanner's finding survives.** A CEL expression is unreadable at 3am; the
+message that quotes the check name is the thing that turns a refusal into a fix. This is the
+`kube-bench`-finding-to-control pipeline in one line of YAML.
+
+**And what this still does not close.** The policy reads the object, so it catches what is *in* the
+manifest and nothing about the image inside it — which is [drill 3](#drill-3--the-signature-gate-that-refuses-everything)'s
+whole subject and the reason a signature check cannot be a CEL policy. Two of these three expressions
+would also be satisfied by a Pod that sets a 4 GiB memory limit, which is not the same as a Pod that
+needs one.
+
+**Neither tool is on the exam's allowed-documentation list**, incidentally — see
+[exam-prep](../../exam-prep/README.md). Plan on `--help`, which is why the commands above are worth
+having typed once.
+
+**Tear down:**
+
+```bash
+kubectl delete ns scanlab --ignore-not-found
+kubectl delete validatingadmissionpolicybinding gate-the-scan --ignore-not-found
+kubectl delete validatingadmissionpolicy gate-the-scan --ignore-not-found
+rm -rf "${TMPDIR:-/tmp}/scanlab"
+```
+
+</details>
+
+**Verify it:** Run this **after the tear-down**. It rebuilds the three manifests and the gate in a
+namespace of its own, so it checks that the gate you wrote actually refuses the middle manifest.
+
+```bash
+tools/verify-drill.sh act-10 12 "what a score is not"
+```
+
 ---
 
 > **The reflex to carry out of these drills.** Every one of them had a healthy cluster, a successful command and a control reporting itself fine. So the question that found the bug was never "what is broken" — it was **what would be different if this control were doing nothing?** If you cannot answer that for a control you own, you do not yet know whether it is working, and neither does anyone else.
