@@ -856,7 +856,7 @@ The fixes are all narrowing. Scope `rules` to the resources and operations the r
      busybox:1.36 ................ ALLOWED
      docker.io/library/busybox:1.36  DENIED   <- same bytes.
      nothing normalises .image. your policy sees a typed string.
-     the real fix is a DIGEST + a signature. that is lesson 08.
+     the real fix is a DIGEST + a signature. that is lessons 08/08b.
 
    THE FAILURE MODE, MEASURED BOTH WAYS
      webhook scaled to 0:

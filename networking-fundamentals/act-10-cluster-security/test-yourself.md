@@ -4,7 +4,7 @@ Thirty questions. Same rule as every act: answer out loud or on paper *before* o
 
 This act has a particular trap for self-assessment, and it is worth naming. Almost every question below can be answered with a YAML field, and almost none of them are *about* a YAML field. If your answer is the name of a setting, you have probably answered a different question — the one this act keeps asking is **when does this refuse, what did it know then, and what got past it**.
 
-Questions 1–4 are lesson 01, 5–7 lesson 02, 8–10 lesson 03, 11–13 lesson 04, 14–15 lesson 05, 16–18 lesson 06, 19–20 lesson 07, 21–24 lesson 08, 25–26 lesson 09, 27–28 lesson 10, 29–30 lesson 11.
+Questions 1–4 are lesson 01, 5–7 lesson 02, 8–10 lesson 03, 11–13 lesson 04, 14–15 lesson 05, 16–18 lesson 06, 19–20 lesson 07, 21–22 lesson 08, 23–24 lesson 08b, 25–26 lesson 09, 27–28 lesson 10, 29–30 lesson 11.
 
 ---
 
@@ -324,7 +324,7 @@ So: mint a ServiceAccount token with `--audience` set to the external service. I
 
 That is IRSA, GKE Workload Identity and workload identity federation, all three. It also retires the act's oldest loose end: the projected token volume lesson 04 found on every Pod, that nobody asked for and nobody can opt out of, is the bootstrap credential — good precisely because it is short-lived, audience-scoped, UID-bound, and verifiable by a party that has never spoken to your cluster.
 
-And it is lesson 08's shape again: **a signature is how a claim survives leaving the system that made it.**
+And it is lesson 08b's shape again: **a signature is how a claim survives leaving the system that made it.**
 
 </details>
 

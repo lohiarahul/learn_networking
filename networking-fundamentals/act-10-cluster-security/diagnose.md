@@ -231,7 +231,7 @@ tools/verify-drill.sh act-10 2 "the plugin that rewrote a field you never wrote"
 
 **Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 
-**This one is on paper, and it says so.** Lesson 08 uninstalls Kyverno on its last page, so unless you
+**This one is on paper, and it says so.** Lesson 08b uninstalls Kyverno on its last page, so unless you
 skipped that step there is no policy engine in your cluster to reproduce this against. The error string
 below is the real one that lesson's bench produced, and diagnosing from a message alone is the drill.
 If you would rather run it, put the engine back first — it needs **Kyverno 1.15 or newer**, because
@@ -294,7 +294,7 @@ tools/verify-drill.sh act-10 3 "what it could not establish to the registry"
 
 ```bash
 kubectl delete ns drill --ignore-not-found
-# only if you reinstalled Kyverno for drill 3 — put the cluster back as lesson 08 left it
+# only if you reinstalled Kyverno for drill 3 — put the cluster back as lesson 08b left it
 kubectl delete -f https://github.com/kyverno/kyverno/releases/download/v1.19.0/install.yaml \
   --ignore-not-found 2>/dev/null
 docker rm -f registry

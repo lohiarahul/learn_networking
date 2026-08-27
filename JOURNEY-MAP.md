@@ -24,7 +24,7 @@ reconcile** in the cloud.
 > | **7.2, 7.4, 7.6–7.8** — workloads, scheduling, storage, config, Helm/Kustomize, CRDs/operators, autoscaling | Act VII | ✅ **built & teaching** — 11 lessons + all supporting pages, every lesson run against a real cluster and corrected |
 > | **4** — cryptography & trust | Act VIII | ✅ **built & teaching** — 6 lessons + all supporting pages; needs no cluster, every claim verified on a real openssl |
 > | **5** — identity & access: authn vs authz, tokens & sessions, JWT, token verification, OAuth2/OIDC, RBAC vs ABAC | Act IX | ✅ **built & teaching** — 6 lessons + all supporting pages, every command run against a real cluster and a real identity provider |
-> | **7.5, 7.9** — CKS security: workload hardening, seccomp/AppArmor, Pod Security Admission, admission control and policy engines, etcd encryption, the cluster's own open doors, supply chain, Pod-to-Pod encryption, audit and runtime detection, external secret stores | Act X | ✅ **built & teaching** — 11 lessons + all supporting pages, every lesson run against a real cluster |
+> | **7.5, 7.9** — CKS security: workload hardening, seccomp/AppArmor, Pod Security Admission, admission control and policy engines, etcd encryption, the cluster's own open doors, supply chain, Pod-to-Pod encryption, audit and runtime detection, external secret stores | Act X | ✅ **built & teaching** — 12 lessons + all supporting pages, every lesson run against a real cluster |
 > | **8** — AWS networking | *(none yet)* | 🔜 **roadmap** |
 > | **9** — AWS security | *(none yet)* | 🔜 **roadmap** |
 >

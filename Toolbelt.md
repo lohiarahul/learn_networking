@@ -182,7 +182,8 @@ and when you're building, you wield the modern one without ceremony.
 **Security (CKS)**
 - `OPA Gatekeeper` and `Kyverno` (policy — both taught, Act X [`05-policy-as-a-product.md`](networking-fundamentals/act-10-cluster-security/05-policy-as-a-product.md)) ·
   `kube-bench` (CIS — taught, Act X [`07-the-doors-left-open.md`](networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md)) ·
-  `Trivy` and `cosign` (posture and provenance — both taught, Act X [`08-what-you-shipped.md`](networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md)) ·
+  `Trivy` (posture — Act X [`08-what-you-shipped.md`](networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md)) and
+  `cosign` (provenance — Act X [`08b-who-says-so.md`](networking-fundamentals/act-10-cluster-security/08b-who-says-so.md)) ·
   `Falco` (runtime — taught, Act X [`10-seeing-it-happen.md`](networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md)) ·
   `External Secrets` (taught, Act X [`11-secrets-from-outside.md`](networking-fundamentals/act-10-cluster-security/11-secrets-from-outside.md), against its `fake` provider so no account is needed) ·
   `kubescape` / `Polaris` · `kubeseal`/Sealed Secrets · a real secret store behind External Secrets.

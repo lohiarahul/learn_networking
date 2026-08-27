@@ -273,7 +273,7 @@ The workflow every cloud provider builds on this is the same three steps, whatev
 
 Which retires this act's oldest complaint. Lesson 04 measured that every Pod comes back with a token volume you never requested and cannot opt out of, and lesson 07 spent a section on the blast radius of that token. This is what it is *for*: **the projected token is the bootstrap credential**, and it is a good one precisely because it is short-lived, audience-scoped, tied to a UID, and verifiable by a party that has never spoken to your cluster.
 
-Notice the shape, because it is lesson 08's shape exactly. There, `BUILD` made a signed claim and `ADMIT` checked it, and the point was that you do not beat the trade-off between deciding early and knowing enough — you carry verifiable evidence forward. Here the cluster makes a signed claim about a workload and an unrelated service checks it, with no channel between them. **A signature is how a claim survives leaving the system that made it**, and that sentence covers a certificate, a JWT, a signed image and this, which is most of what Acts VIII, IX and X were about.
+Notice the shape, because it is lesson 08b's shape exactly. There, `BUILD` made a signed claim and `ADMIT` checked it, and the point was that you do not beat the trade-off between deciding early and knowing enough — you carry verifiable evidence forward. Here the cluster makes a signed claim about a workload and an unrelated service checks it, with no channel between them. **A signature is how a claim survives leaving the system that made it**, and that sentence covers a certificate, a JWT, a signed image and this, which is most of what Acts VIII, IX and X were about.
 
 ### Prediction (d): why almost none of this is examinable
 

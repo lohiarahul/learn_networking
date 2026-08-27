@@ -1,6 +1,6 @@
 # Encryption between Pods
 
-Act VIII spent six lessons building the machinery that makes bytes trustworthy, and lesson 08 used half of it: a signature over a digest, checked before anything ran. That was Act VIII applied to an artifact **at rest**.
+Act VIII spent six lessons building the machinery that makes bytes trustworthy, and lesson 08b used half of it: a signature over a digest, checked before anything ran. That was Act VIII applied to an artifact **at rest**.
 
 The other half was about bytes **in flight**, and it stopped at the cluster's edge. Act V terminated TLS at an Ingress and then handed plaintext to a Pod. Act VI found the cluster running an entire certificate authority — `ca.crt`, `ca.key`, a serving certificate for every component — and used it to explain why the kubelet can talk to the API server at all. Ten acts, and not one packet between two of *your* Pods has ever been encrypted.
 
@@ -570,4 +570,4 @@ kubectl delete ns wire --ignore-not-found
 
 ---
 
-↑ **[Act X overview](README.md)** · Prev: **[What you shipped](08-what-you-shipped.md)** · Next: **[Seeing it happen](10-seeing-it-happen.md)** →
+↑ **[Act X overview](README.md)** · Prev: **[Who says so](08b-who-says-so.md)** · Next: **[Seeing it happen](10-seeing-it-happen.md)** →

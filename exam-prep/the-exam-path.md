@@ -14,7 +14,7 @@ Route B is not a shortcut through the material. It is a *split* of it, and the h
 this:
 
 > **You can sit CKA having read 58% of the course.** The CKA path is 218,884 words. CKS is the other
-> 123,373. Only 30,801 words — 8.2% — sit outside both curricula, and those are gated as an
+> 124,056. Only 30,801 words — 8.2% — sit outside both curricula, and those are gated as an
 > [optional track](#the-optional-track) rather than removed.
 
 That is a smaller saving than it sounds like and a bigger one than it looks like. Smaller, because
@@ -24,7 +24,7 @@ with a date three weeks out and no idea which of the remaining 150k words are ex
 answers that question.
 
 > **A correction to the audit that produced this page.** [`AUDIT.md`](../AUDIT.md) §G estimated Route
-> B at "roughly 240k against 358k". Measured, it is **342,257 against 376,651** — the saving is 9%,
+> B at "roughly 240k against 358k". Measured, it is **342,940 against 377,334** — the saving is 9%,
 > not 33%. §G's estimate and §F's own inventory of off-syllabus material (~31k) never reconciled, and
 > §F was the one telling the truth. The consequence matters: **the length of this course is not a
 > sequencing problem and cannot be fixed by routing.** If it needs to be shorter, that has to come
@@ -50,8 +50,8 @@ the part that transfers to an exam.
 | **7** | [`exam-prep/`](README.md) — the domain maps, [`kubectl-speed.md`](kubectl-speed.md), [`exam-day.md`](exam-day.md), [`authoring-sprint.md`](authoring-sprint.md) — then killer.sh | 16,636 *(not counted below)* | 7 items | Speed and recall, which the course deliberately refuses to train. The authoring sprint is the one that finds gaps: every item is something the course made you read and never made you write. |
 | | **→ sit CKA** | **218,884** course words | **43** | |
 | **8** | **Act VIII** 05, 06 — certificates, TLS opened | 19,505 | 6 | Now, not earlier. CKS's Ingress-TLS bullet and the whole `cosign` half of Act X rest on these two, and Act III's TLS cliffhanger has been open since step 2. |
-| **9** | **Act IX** 01–04 · **Act X** · Act IX's remaining drills | 103,868 | 15 | The entire CKS syllabus plus the identity material that CKS assumes. Act X is 84k of this and there is no way round it. |
-| | **→ sit CKS** | **342,257** course words | **64** | |
+| **9** | **Act IX** 01–04 · **Act X** · Act IX's remaining drills | 104,551 | 15 | The entire CKS syllabus plus the identity material that CKS assumes. Act X is 84k of this and there is no way round it. |
+| | **→ sit CKS** | **342,940** course words | **64** | |
 
 **43 of the 64 drills are on the CKA path**, and every one of them ends in a verifier that exits
 non-zero if your fix is wrong — see [`drills/README.md`](../drills/README.md). That is the part of

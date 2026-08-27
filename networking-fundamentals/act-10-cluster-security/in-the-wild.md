@@ -27,11 +27,11 @@ The useful audit is therefore always the *complement*, and it is the same query 
 
 ## Supply chain: what SLSA is actually for
 
-Lesson 08 signed a digest and had a cluster verify it. Production adds one idea, and it is worth naming because the acronym is everywhere and the idea is simple.
+Lesson 08b signed a digest and had a cluster verify it. Production adds one idea, and it is worth naming because the acronym is everywhere and the idea is simple.
 
 A signature says *the holder of this key asserts something about these bytes*. It does not say what the assertion is. **Provenance** — the SLSA framework's contribution — is a structured attestation of *how the artifact was built*: which source commit, which builder, which parameters. Signed provenance lets a verifier ask a much better question than "is it signed": it can ask "was this built by our CI, from our repository, on a protected branch, without a human step".
 
-Which turns the admission rule from "signed by us" into a predicate over build facts, and closes the attack lesson 08 could not: a developer with push access to the registry and a copy of the signing key cannot forge provenance naming a commit that does not exist.
+Which turns the admission rule from "signed by us" into a predicate over build facts, and closes the attack lesson 08b could not: a developer with push access to the registry and a copy of the signing key cannot forge provenance naming a commit that does not exist.
 
 Two things to know about it in practice. It moves the trust root to your CI system's identity, which is why the keyless flow matters — the certificate's subject is the workflow, not a person. And the infamous mistake is verifying the *issuer* without pinning the *subject*: trust GitHub's Fulcio without checking `sub`, and every repository on GitHub can produce artifacts your cluster accepts. That is Act IX's audience attack with a nine-figure blast radius, and it has happened.
 

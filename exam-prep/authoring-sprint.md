@@ -468,7 +468,7 @@ assume: this proves the bytes match **what that URL said they should be**, and t
 same connection from the same host as the binary. It defends against a corrupted or truncated download
 and against a mirror that changed one of the two. It does not defend against anyone who can serve both,
 which is the gap a *signature* closes and a checksum cannot —
-[Act X lesson 08](../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md)'s whole
+[Act X lesson 08b](../networking-fundamentals/act-10-cluster-security/08b-who-says-so.md)'s whole
 subject, and the reason `cosign` exists.
 
 </details>
