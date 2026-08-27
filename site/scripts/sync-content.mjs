@@ -29,8 +29,39 @@ const OUT = path.resolve(HERE, '../src/content/docs');
 
 /** Base path when the site is served from a subdirectory (e.g. a GitHub Pages project site). */
 const BASE = (process.env.BASE_PATH ?? '').replace(/\/+$/, '');
-/** Optional: e.g. https://github.com/you/learn_networking — targets we can't map on-site go there. */
-const SOURCE_REPO_URL = (process.env.SOURCE_REPO_URL ?? '').replace(/\/+$/, '');
+/**
+ * Where a link that has no on-site page should point instead.
+ *
+ * A handful of targets are real files in the repository that are deliberately *not* pages: the audit,
+ * `drills/lib.sh`, the drill scripts themselves. Left alone, those links reached the built HTML as
+ * `href="../AUDIT.md"` — a relative path to a file the web server does not have, i.e. a 404 that looks
+ * like a working link until it is clicked. The env var has been read here since the site was built,
+ * but nothing ever set it, so the fallback never fired and thirteen links shipped dead.
+ *
+ * Deriving it from `origin` fixes that without asking whoever builds the site to know a flag, and it
+ * stays correct in a fork, where a hardcoded URL would silently send every reader to someone else's
+ * repository. An explicit SOURCE_REPO_URL still wins. Outside a git checkout, or with a non-GitHub
+ * remote, the value is empty and those links are left exactly as they were — the previous behaviour.
+ */
+function sourceRepoUrl() {
+  const fromEnv = (process.env.SOURCE_REPO_URL ?? '').replace(/\/+$/, '');
+  if (fromEnv) return fromEnv;
+  let remote;
+  try {
+    remote = execFileSync('git', ['remote', 'get-url', 'origin'], {
+      cwd: REPO,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return '';
+  }
+  // git@github.com:owner/repo.git and https://github.com/owner/repo(.git) both land on the same URL.
+  const m = remote.match(/^(?:git@github\.com:|https?:\/\/(?:[^@/]*@)?github\.com\/)(.+?)(?:\.git)?$/);
+  return m ? `https://github.com/${m[1]}` : '';
+}
+
+const SOURCE_REPO_URL = sourceRepoUrl();
 
 /**
  * When each source file was last committed, so every page can say when it was last true.
@@ -117,8 +148,14 @@ const SINGLES = [
   ['reference/05-per-act-commands.md', 'reference/per-act-commands.md', 6],
   ['reference/06-derive-it.md', 'reference/derive-it.md', 7],
   [`${COURSE_DIR}/code/README.md`, 'reference/build-the-lab-image.md', 8],
-  ['JOURNEY-MAP.md', 'reference/journey-map.md', 10],
-  ['Toolbelt.md', 'reference/toolbelt.md', 11],
+  // The drill index is linked from every act's `diagnose.md` and from both exam routes — twelve
+  // inbound links, and until it was listed here every one of them 404'd on the site. It reads as
+  // reference (how the grading works, why the expected answer is stored as a hash) rather than as a
+  // lesson, and it sits after the lab image because that is the order a reader needs them: build the
+  // thing, then be graded on it.
+  ['drills/README.md', 'reference/the-drill-verifiers.md', 10],
+  ['JOURNEY-MAP.md', 'reference/journey-map.md', 11],
+  ['Toolbelt.md', 'reference/toolbelt.md', 12],
   // exam-prep is deliberately NOT a course act — it is rehearsal for a timed exam, which is the
   // banking the course refuses to do. It publishes under its own section so a reader can find it
   // without it ever appearing beside the lessons.
@@ -356,7 +393,7 @@ const REFERENCE_DIRS = [
 ];
 
 async function buildRoutes() {
-  const routes = SINGLES.map(([src, dest, order]) => ({ src, dest, order }));
+  const routes = SINGLES.map(([src, dest, order]) => ({ src, dest, order, handOrdered: true }));
 
   for (const wing of REFERENCE_DIRS) {
     const dir = path.join(REPO, wing.srcDir);
@@ -414,6 +451,27 @@ async function buildRoutes() {
     if (seen.has(r.url)) throw new Error(`URL collision at ${r.url}: ${seen.get(r.url)} + ${r.src}`);
     seen.set(r.url, r.src);
   }
+
+  // Two pages in the same sidebar group claiming the same `order` do not error — Starlight silently
+  // breaks the tie alphabetically, which is how `reference/the-code.md` and the drill index both sat
+  // at 9 and happened to come out in the intended order by luck. Adding a page above either of them
+  // would have reshuffled the group with nothing to say why. So: hand-written orders must be unique
+  // within their group.
+  //
+  // Only `handOrdered` routes are checked. The eighty generated tool pages deliberately *share* one
+  // order per group — there is no reading order inside a tool roster, and alphabetical is the point —
+  // so a blanket check would fire on the one case where a tie is correct. CODE_PAGE is included by
+  // adding its slot below, because it is hand-written even though it is assembled elsewhere.
+  const slots = new Map([[`reference:${CODE_PAGE.order}`, CODE_PAGE.dest]]);
+  for (const r of routes) {
+    if (!r.handOrdered) continue;
+    const key = `${path.posix.dirname(r.dest)}:${r.order}`;
+    if (slots.has(key)) {
+      throw new Error(`sidebar order ${r.order} claimed twice in ${path.posix.dirname(r.dest)}: ${slots.get(key)} + ${r.dest}`);
+    }
+    slots.set(key, r.dest);
+  }
+
   return routes;
 }
 
@@ -1163,7 +1221,8 @@ async function main() {
 
   if (unresolved.length) {
     const shown = new Set();
-    console.warn(`sync: ${unresolved.length} link(s) point outside the site:`);
+    const dest = SOURCE_REPO_URL ? `sent to ${SOURCE_REPO_URL}/blob/main/` : 'LEFT DEAD';
+    console.warn(`sync: ${unresolved.length} link(s) point outside the site, ${dest}:`);
     for (const u of unresolved) {
       const key = `${u.from} -> ${u.target}`;
       if (shown.has(key)) continue;
@@ -1171,7 +1230,8 @@ async function main() {
       console.warn(`  ${key}`);
     }
     if (!SOURCE_REPO_URL) {
-      console.warn('  Set SOURCE_REPO_URL=https://github.com/<you>/learn_networking to point these at GitHub.');
+      console.warn('  No GitHub `origin` remote to fall back to: these ship as relative .md hrefs that 404.');
+      console.warn('  Set SOURCE_REPO_URL=https://github.com/<you>/learn_networking to point them somewhere real.');
     }
     if (process.argv.includes('--strict')) process.exit(1);
   }

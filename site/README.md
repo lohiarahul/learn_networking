@@ -30,9 +30,24 @@ adds only what Starlight needs:
 | `sidebar.order` from the filename (`01b-` → 12), supporting pages after lessons | Preserves each act's reading order without a hand-maintained list |
 | Wraps the course's recurring blockquotes in `.callout--<kind>` divs | See below |
 
-Mermaid fences, `<details>` answer reveals, code blocks and prose all pass through untouched. If a
-relative link can't be mapped to a page, the script lists it at the end of the run rather than emitting
-a dead link; `node scripts/sync-content.mjs --strict` turns that into a non-zero exit for CI.
+Mermaid fences, `<details>` answer reveals, code blocks and prose all pass through untouched.
+
+A relative link with no page behind it is **sent to GitHub**, at a URL derived from the `origin` remote
+(`SOURCE_REPO_URL` overrides it; a non-GitHub remote or no checkout disables the fallback). That matters
+because some link targets are real repository files that are deliberately not pages — `AUDIT.md`,
+`drills/lib.sh` — and for a long time the fallback existed but nothing set the variable, so thirteen
+links reached the built HTML as `href="../AUDIT.md"`: a relative path to a file the web server does not
+have, which is a 404 that looks like a working link until it is clicked. Every run still lists them, and
+now says where they went; `node scripts/sync-content.mjs --strict` turns the list into a non-zero exit
+for CI.
+
+A document that lives **outside** `../networking-fundamentals/` gets no page unless it is in `SINGLES`.
+That is how `exam-prep/authoring-sprint.md` and `drills/README.md` were both invisible on the site while
+being linked from a dozen places. Hand-written `sidebar.order` values must also be unique within their
+group — `buildRoutes` throws if two claim the same slot, because Starlight otherwise breaks the tie
+alphabetically and the group silently reshuffles the next time a page is added above them. The eighty
+generated tool pages are exempt and *do* share one order per group, which is why the check is scoped to
+the hand-listed routes rather than all of them.
 
 Adding a lesson needs no changes here — drop the file in the act directory with a numeric prefix and
 re-run. It will not get a stack rail unless you also put it in `LAYER_BY_PATH` (`src/lib/layers.ts`),
