@@ -885,26 +885,12 @@ The fixes are all narrowing. Scope `rules` to the resources and operations the r
      a later stage's job. you need both.
 ```
 
-> **You understand this when you can:**
->
-> - list the stages a write passes through in order, and name a refusal or a mutation you have personally observed at each
-> - prove from one bare `kubectl run` that mutating admission has been rewriting every Pod you ever created, then install a mutation of your own and watch it fire
-> - explain what a rule needs in order to be checkable, and why that rules out RBAC, namespace labels and the kernel for "no `:latest`"
-> - write a `ValidatingAdmissionPolicy` and its binding, and demonstrate why they are two objects by denying in one namespace and warning in another
-> - express the *comparison* Act IX proved RBAC cannot make — a field of the object against the identity of the caller — and then say precisely how the rule you wrote is narrower than Act IX's, and what a `DELETE` would have to be handed instead
-> - explain in terms of *inputs* why admission can do what RBAC cannot
-> - say what happens when you reference `now()`, and explain from first principles why CEL has no clock, tying it to Act IX's distinction between a syntax gap and an interface gap
-> - use optional chaining, say what a label-less Pod does without it, and what `failurePolicy` turns that into
-> - name the three `validationActions`, and why a policy change takes a few seconds to bite
-> - build a webhook end to end and say what `caBundle`, the SAN, the echoed `uid` and `sideEffects` are each for, and show a server-side dry run getting a real verdict without creating anything
-> - say why that Deployment needs a `readinessProbe`, and what the reader sees if it does not have one
-> - demonstrate that an image allowlist matching on strings is defeated by writing the same image differently, and name the mechanism that actually fixes it
-> - state both failure modes of a webhook that is down, having measured each, and say which one is invisible — and why your own webhook could be scaled to zero at all
-> - argue why `ValidatingAdmissionPolicy` is operationally safer than a webhook regardless of the rule
-> - write a `MutatingAdmissionPolicy` that makes a naive Pod compliant with `restricted`, explain how `ApplyConfiguration`'s partial-object types get their names, and say what happens to the second container
-> - explain why mutation must run before validation, and name what you would measure to prove it on a cluster too old for `MutatingAdmissionPolicy`
-> - say why `capabilities.drop` needs `JSONPatch`, and why that mistake — like a misspelled partial-object type — is caught on every write rather than at `apply` the way `now()` is
-> - state what mutation can never do on purpose, using `runAsUser: 0` to show that a literal `ApplyConfiguration` is a floor rather than a default, and `harden2` to show the one way a mutator does refuse
+> **You understand this when you can** name the stages a write passes through, with a refusal or a
+> mutation you watched at each; prove from one bare `kubectl run` that mutating admission has
+> always rewritten your Pods; say what makes a rule checkable, and why that rules out RBAC,
+> namespace labels and the kernel; state both failure modes of a webhook that is down, and which
+> is invisible; and say why `runAsUser: 0` proves a mutator is a floor, not a default, and can
+> never refuse.
 
 **Which raises:** you have now written a policy engine — a certificate, a server, a Service, a registration object, and a `failurePolicy` decision you had to reason about for an entire section. For one rule about image prefixes, which you then proved was defeated by typing the same image name differently. Nobody runs a cluster this way, and the reason is not that the mechanism is wrong; the mechanism is exactly right and is what everything else is built on. What nobody wants to hand-write is the *hundred rules*, the library of them somebody else already debugged, the reporting on what would have failed, and the operational hardening of a service that can take the cluster down. **So what do the two projects that own this space actually add on top of what you just built — and does either of them give you something CEL genuinely cannot express?**
 

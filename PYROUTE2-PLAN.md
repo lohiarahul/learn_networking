@@ -4,6 +4,23 @@
 `svinota/pyroute2@0.9.6`, and four demos run inside `nicolaka/netshoot` (the base of the course's own
 lab image) with `--privileged`. Nothing here is inferred from documentation.*
 
+> **This is a record, not a proposal. The recommendation shipped.** The eight-interface taxonomy this
+> document argues for is now [`reference/tools/`](reference/tools/README.md) — one directory per kernel
+> interface, each led by its own page, with a page per tool underneath. So read the tense below as past:
+> where it says "add an `Interface` column", that became the directory structure instead, which is the
+> stronger version of the same idea.
+>
+> **Two filenames in the body no longer exist**, and are left as written because the claims around them
+> were true of those files and are not true of what replaced them. `reference/03-the-index.md` is now
+> `reference/tools/README.md`, and it is no longer "sorted by what a tool is *for*" — that was the defect
+> this document diagnosed. `reference/02-the-state-map.md` was deleted; its `/proc` and `/sys` path
+> material lives in [`reference/tools/procfs/README.md`](reference/tools/procfs/README.md). Line numbers
+> quoted against `site/scripts/sync-content.mjs` are from August 2026 and have moved.
+>
+> Kept at the repo root rather than deleted because it is the evidence behind a design decision that is
+> otherwise unexplained: *why* the reference wing is sorted by kernel interface, measured against 71
+> tools, rather than asserted.
+
 ---
 
 ## The short answer

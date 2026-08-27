@@ -41,6 +41,9 @@
 > | **P1** — 357k words, ~50k outside both curricula; §G's fix is "publish two routes" | **Closed**, as [`exam-prep/the-exam-path.md`](exam-prep/the-exam-path.md), linked from every entry point. Route A stays the JOURNEY-MAP. Route B is nine steps in exam order with measured per-step counts and drill counts. |
 > | **P1** — the ~50k of non-curriculum material sits on the critical path | **Closed.** Ten lessons now carry an optional-track banner naming what is examined, what depends on them, and when to read them: Act VIII 01–04, Act IX 05, Act II 01b/02b/03c, and Act III 04/05. Nothing was deleted. |
 > | **P2** — 45 of 83 illustrations are referenced by nothing; **delete or annex** | **Declined, and gated instead.** See below. |
+> | **P2** — "the seven bloated understanding-checks in Acts VIII–X, ~2,600 words, cut to ≤80 each" | **Closed on one block, and the count was wrong.** See below. |
+> | **P3** — `PYROUTE2-PLAN.md` is a planning document at the repo root, citing two files that no longer exist | **Closed by labelling it, not by moving it.** See below. |
+> | **P3** — "`AUDIT.md`, `AUDIT-2.md`, this file — ~110,000 words at the repo root, move to `audits/`" | **Declined; the premise is off by 11×.** See below. |
 >
 > **§G's arithmetic does not survive measurement, and the correction matters more than the fix.** §G
 > claimed Route B was "roughly 240k against 358k" — a third off. Measured, it is **342,257 against
@@ -50,6 +53,46 @@
 > other. What Route B genuinely delivers is a *split* — you can sit CKA having read 58% of the course,
 > and 43 of the 64 drills fall on that path — not a reduction. Any real reduction has to come out of
 > on-syllabus prose (Act X's 84k, Act VII's 48k), which is a compression job nobody has started.
+>
+> **"Seven bloated checks, ~2,600 words" is one bloated check and 395 surplus words.** Measuring all 90
+> milestone blocks in the course: the median is **74 words**, the maximum is **86**, and the distribution
+> stops dead just short of a ninety-word ceiling nobody ever wrote down. Twenty-five blocks sit at 81–86,
+> a few words over §F's stated 80 — that is authors aiming at a cap, not bloat. **One block is 475
+> words**: `act-10/04-deciding-before-it-exists.md`, 18 bullets where every other milestone in the course
+> is prose, and the only bullet-form block in Acts VII–X. A reader cannot self-assess against 18 claims;
+> they skim, which is the same outcome as having no check at all. It is now 86 words of prose, keeping the
+> five discriminators — the stages in order, the bare `kubectl run` that proves mutating admission has
+> always rewritten your Pods, what makes a rule checkable, both webhook-down failure modes, and
+> `runAsUser: 0` as a floor rather than a default. Nothing was lost: the lesson body still teaches all of
+> it and `test-yourself.md` still tests it. A milestone block is a check, not a table of contents.
+>
+> `check_ladder` had always asserted such a block *exists*; nothing asserted it was still short, which is
+> how one grew to five times the norm unnoticed. `check_milestone_length` now caps it at **100** — above
+> every block that exists, with headroom for a legitimate edit, and it catches the 475. Round-tripped in
+> both directions, including on `the-whole-stack.md`, which carries a milestone and is not a numbered
+> lesson.
+>
+> **`PYROUTE2-PLAN.md` was worse than §F said, and the repair is not the one §F proposed.** §F noticed the
+> two dead filenames. It missed the actual defect: the document's **recommendation shipped**. The
+> eight-interface taxonomy it argues for is `reference/tools/`, one directory per kernel interface — so a
+> reader met a live-sounding proposal ("add an `Interface` column") for work that was already done in a
+> stronger form, citing files that no longer exist. Moving it to a different directory would not have
+> fixed a word of that. It now opens with a status banner: what shipped, where each dead filename went,
+> and that quoted `sync-content.mjs` line numbers have moved. The body is deliberately **not** rewritten
+> — "78 rows sorted by what a tool is *for*" was true of `03-the-index.md` and is not true of
+> `tools/README.md`, so swapping the filename alone would leave the surrounding claims reading as current
+> and wrong. It stays at the root because it is the only record of *why* the reference wing is sorted by
+> kernel interface, measured against 71 tools rather than asserted.
+>
+> **The 110,000 words of audits at the repo root are 9,960 words in one file.** `AUDIT-2.md` does not
+> exist and never did in this checkout; "this file" and `AUDIT.md` are the same document. So §F's largest
+> single line item by word count is off by **11×** and names two files that are not there. Moving one 10k
+> file — and updating six inbound links, one of them from the exam path — buys nothing a reader would
+> notice, so it is declined rather than done. Recorded because the pattern by now has a name. Of the four
+> §F line items examined closely, **three overstate their own measurement** — the bloated checks by 6.6×,
+> `PYROUTE2-PLAN.md`'s length by 1.6×, the root audits by 11× — and the fourth, the illustrations, gave no
+> number and got the recommendation backwards. Every error runs in the same direction: the problem is
+> smaller than the audit says, and in two cases the repository had already solved it.
 >
 > **The illustration recommendation was wrong, and finding that out took one diff.** §F called the 45
 > unplaced SVGs "ongoing maintenance for zero learner contact" and said to delete or annex them. But
