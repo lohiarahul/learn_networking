@@ -859,30 +859,8 @@
     "standing": {
       "level": "default"
     },
-    "caps": [
-      [
-        "Below what ip link can reach",
-        [
-          [
-            "devlink dev show",
-            "the hardware devices behind the netdevs"
-          ],
-          [
-            "devlink port show",
-            "physical ports and their split configuration"
-          ],
-          [
-            "devlink dev param show",
-            "device-level tunables"
-          ],
-          [
-            "devlink monitor",
-            "stream device events"
-          ]
-        ]
-      ]
-    ],
-    "course": []
+    "course": [],
+    "caps": []
   },
   "dig": {
     "name": "\"domain information groper\" *(folklore — BIND's docs do not expand it)*",
@@ -1903,30 +1881,8 @@
     "standing": {
       "level": "default"
     },
-    "caps": [
-      [
-        "Sets iptables can match in one step",
-        [
-          [
-            "ipset create bad hash:ip",
-            "a hash set of addresses"
-          ],
-          [
-            "ipset add bad 10.0.0.1",
-            "populate"
-          ],
-          [
-            "ipset list bad",
-            "read it back"
-          ],
-          [
-            "iptables -A INPUT -m set --match-set bad src -j DROP",
-            "one rule instead of thousands"
-          ]
-        ]
-      ]
-    ],
-    "course": []
+    "course": [],
+    "caps": []
   },
   "iptables": {
     "name": "IP tables",
@@ -2149,40 +2105,8 @@
     "standing": {
       "level": "default"
     },
-    "keys": [
-      [
-        "-c",
-        "the *connection* table rather than the service table — which real backend each client actually landed on"
-      ],
-      [
-        "--stats",
-        "per-service packet and byte counters, which is how you see one backend taking nothing"
-      ]
-    ],
-    "caps": [
-      [
-        "The IPVS tables",
-        [
-          [
-            "ipvsadm -L -n",
-            "virtual services and their real servers, with weights"
-          ],
-          [
-            "ipvsadm -L -n --stats",
-            "per-service packet and byte counters"
-          ],
-          [
-            "ipvsadm -l -n -c",
-            "the live connection table — which client is pinned to which backend"
-          ],
-          [
-            "cat /proc/net/ip_vs_conn",
-            "the same table, as a file"
-          ]
-        ]
-      ]
-    ],
-    "course": []
+    "course": [],
+    "caps": []
   },
   "jq": {
     "name": "JSON query",
@@ -3924,83 +3848,8 @@
     "standing": {
       "level": "default"
     },
-    "keys": [
-      [
-        "-s",
-        "per-qdisc statistics, including `dropped` and `overlimits` — the numbers that say whether your shaper is the thing hurting you"
-      ]
-    ],
-    "caps": [
-      [
-        "See the queueing discipline",
-        [
-          [
-            "tc qdisc show",
-            "every qdisc on every device"
-          ],
-          [
-            "tc -s qdisc show dev <dev>",
-            "with drop and backlog counters — where loss actually appears"
-          ],
-          [
-            "tc class show dev <dev>",
-            "the class hierarchy under a classful qdisc"
-          ],
-          [
-            "tc filter show dev <dev>",
-            "the classifiers, including attached eBPF programs"
-          ]
-        ]
-      ],
-      [
-        "Reproduce a bad network — nothing else can do this",
-        [
-          [
-            "tc qdisc add dev <dev> root netem delay 100ms 20ms",
-            "100ms latency with 20ms jitter"
-          ],
-          [
-            "tc qdisc add dev <dev> root netem loss 5%",
-            "drop one packet in twenty"
-          ],
-          [
-            "tc qdisc add dev <dev> root netem reorder 25% 50%",
-            "reorder — the one that breaks naive protocols"
-          ],
-          [
-            "tc qdisc add dev <dev> root netem duplicate 1%",
-            "duplicates"
-          ],
-          [
-            "tc qdisc del dev <dev> root",
-            "undo it — know this one before you run the others"
-          ]
-        ]
-      ],
-      [
-        "Rate limiting",
-        [
-          [
-            "tc qdisc add dev <dev> root tbf rate 1mbit burst 32kbit latency 400ms",
-            "a token bucket"
-          ],
-          [
-            "tc qdisc add dev <dev> root handle 1: htb default 10",
-            "hierarchical shaping, the classful route"
-          ]
-        ]
-      ],
-      [
-        "Watch it change",
-        [
-          [
-            "tc monitor",
-            "stream qdisc and filter events"
-          ]
-        ]
-      ]
-    ],
-    "course": []
+    "course": [],
+    "caps": []
   },
   "tcpdump": {
     "name": "TCP dump",

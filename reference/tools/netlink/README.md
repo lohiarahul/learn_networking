@@ -7,10 +7,14 @@ leans on hardest. Everything on this page is shared by all of them — which is 
 repeated on the individual tool pages.
 
 [`ip`](ip.md) · [`ss`](ss.md) · [`bridge`](bridge.md) ·
-[`tc`](tc.md) · [`conntrack`](conntrack.md) · [`nft`](nft.md) ·
-[`ipset`](ipset.md) · [`ipvsadm`](ipvsadm.md) ·
-[`ethtool`](ethtool.md) · [`devlink`](devlink.md) · [`wg`](wg.md) ·
+[`conntrack`](conntrack.md) · [`nft`](nft.md) ·
+[`ethtool`](ethtool.md) · [`wg`](wg.md) ·
 [`iptables`](iptables.md) · [`iptables-save`](iptables-save.md)
+
+`tc` · `ipvsadm` · `ipset` · `devlink` are the other four, and they have no page — they are rows on
+[the roster](../README.md#the-honest-tally) and everything on *this* page is what they have in common
+with the nine above. Which is most of what there was to say about them: the grammar below, the sub-family
+each sits in, and the blind spot all thirteen share.
 
 ---
 

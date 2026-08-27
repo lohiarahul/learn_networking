@@ -105,7 +105,7 @@ which file to check.
 | `/proc/net/dev` | per-interface counters | `ip -s link` |
 | `/proc/net/route`, `fib_trie` | the routing table | `ip route` |
 | `/proc/net/nf_conntrack` | the flow table | [`conntrack -L`](../netlink/conntrack.md) |
-| `/proc/net/ip_vs`, `ip_vs_conn` | IPVS services and connections | [`ipvsadm`](../netlink/ipvsadm.md) |
+| `/proc/net/ip_vs`, `ip_vs_conn` | IPVS services and connections | `ipvsadm -L -n`, `ipvsadm -l -n -c` |
 | `/proc/net/snmp`, `netstat` | protocol counters | [`nstat`](nstat.md) |
 | `/proc/<pid>/status` | `CapEff` — the capability bitmask | [`capsh --decode`](capsh.md) · [`getpcaps`](getpcaps.md) |
 | `/proc/<pid>/ns/` | one magic symlink per namespace | [`readlink`](readlink.md) — see [`nsapi`](../nsapi/README.md) |

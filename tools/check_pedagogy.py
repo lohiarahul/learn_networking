@@ -323,11 +323,18 @@ def check_iface_rosters(_files):
     So it gets the same bidirectional treatment as the eight-interfaces summary on the roster: a
     tool the roster puts in this directory must be linked from the page, and the page may not link
     a tool the roster puts somewhere else. Both directions, or the summary is free to drift.
+
+    A row can also be *only* a row — an unlinked name on the roster, meaning the tool has no page
+    (see `gen-tool-pages.py`). The membership claim still has to hold for those, so the check is over
+    *placement* rather than over links: a paged tool must be linked, an unpaged one must be named in a
+    code span, and an unpaged one must **not** be linked, because that link is a 404 the moment the
+    orphan sweep runs. Without the third clause, compressing a tool to a row would leave its sibling
+    list pointing at a file this repository deletes on every generator run.
     """
     if not os.path.exists(INDEX_MD):
         return []
     rows = index_tool_rows(read(INDEX_MD))
-    by_iface = {}
+    by_iface, rowonly = {}, {}
     for r in rows:
         iface = re.split(r"[·&]", r["Speaks"], maxsplit=1)[0].strip()
         names = re.findall(r"`([^`]+)`", r["Tool"])
@@ -336,7 +343,8 @@ def check_iface_rosters(_files):
             # first name, and `` [`findmnt`](mount.md) `` is a correct link wearing an alias as its
             # label — so the comparison has to be over filenames, which is the thing that either
             # exists or does not.
-            by_iface.setdefault(iface, set()).add(page_slug(names[0]))
+            target = rowonly if not re.search(r"\]\([^)]+\.md\)", r["Tool"]) else by_iface
+            target.setdefault(iface, set()).add(page_slug(names[0]))
     issues = []
     for iface, path in sorted(IFACE_MD.items()):
         if not os.path.exists(path):
@@ -351,9 +359,22 @@ def check_iface_rosters(_files):
         for m in sorted(actual - listed):
             issues.append(("WARN", f"iface-roster: `{m}` speaks {iface} on the roster but "
                                    f"{rel(path)} does not link it"))
-        for e in sorted(listed - actual):
+        bare = rowonly.get(iface, set())
+        for e in sorted(listed - actual - bare):
             issues.append(("WARN", f"iface-roster: {rel(path)} links `{e}`, which the roster "
                                    f"does not place in {iface}"))
+        # A tool with no page still has to be placed, and must not be linked. "Placed" has to mean
+        # *in the sibling list*, not merely mentioned: every one of these is discussed somewhere in
+        # its interface page's prose anyway, so a whole-body scan would pass on an incidental
+        # backtick and guarantee nothing. The list is the header — everything above the first rule.
+        named = set(re.findall(r"`([^`]+)`", body.split("\n---", 1)[0]))
+        for m in sorted(bare):
+            if m in listed:
+                issues.append(("WARN", f"iface-roster: {rel(path)} links `{m}.md`, which does not "
+                                       f"exist — the roster gives `{m}` a row and no page"))
+            elif m not in named:
+                issues.append(("WARN", f"iface-roster: `{m}` speaks {iface} on the roster but "
+                                       f"{rel(path)} never names it"))
     return issues
 
 def index_tool_rows(text):

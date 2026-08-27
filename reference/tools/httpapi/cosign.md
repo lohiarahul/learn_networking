@@ -6,7 +6,7 @@ Whether an image is signed *by a key you trust* — and the trap that any attack
 |---|---|
 | **Speaks** | [`httpapi`](README.md) · verb-obj |
 | **Mode** | mutate |
-| **Taught in** | [what you shipped](../../../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md) |
+| **Taught in** | [who says so](../../../networking-fundamentals/act-10-cluster-security/08b-who-says-so.md) |
 | **In the lab** | ❌ not installed in `netlab:latest` — you will meet this one outside the lab |
 | **Blind spot** | `httpapi` cannot tell you what the kernel actually did. Every one of these reports *intent*, and Acts V–X exist because intent and mechanism diverge |
 | **Also here** | [the roster](../README.md) · [by question](../../04-by-question.md) |

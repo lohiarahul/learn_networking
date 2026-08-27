@@ -105,6 +105,7 @@ question about which namespace you are standing in.
 | Is it policy rather than plumbing? | `kubectl get networkpolicy -A` — and remember a namespace with any ingress policy denies everything not matched |
 | Is the Service's backend list actually populated? | `kubectl get endpointslices -l kubernetes.io/service-name=<svc>` — empty means the selector matches nothing |
 | Is `kube-proxy` programming what I expect? | `iptables-save \| grep <clusterIP>` on the node |
+| …and if this cluster inherited IPVS mode? | `ipvsadm -L -n` for the services and their real servers, `ipvsadm -l -n -c` for which client is pinned to which backend — or `cat /proc/net/ip_vs_conn`, the same table as a file (roster only) |
 
 **The trap:** a ClusterIP answers from nowhere. It is not a host, nothing listens on it, and pinging it
 proves nothing at all — it exists only as a rewrite rule.
@@ -173,6 +174,13 @@ the honest answer is that most of the instruments below are
 | Is the NIC dropping before the stack sees it? | `ethtool -S <dev>` | roster only |
 | Is the conntrack table full? | `cat /proc/sys/net/netfilter/nf_conntrack_{count,max}` | ✅ |
 | Is it the application, not the network? | `strace -c`, or `bpftrace` on a live box | `strace` ✅ · `bpftrace` roster only |
+| Is a queueing discipline on this device the thing hurting me? | `tc -s qdisc show dev <dev>` — read `dropped` and `overlimits` | roster only |
+| Can I *reproduce* what the customer is seeing? | `tc qdisc add dev <dev> root netem delay 100ms 20ms` — also `loss 5%`, `reorder 25% 50%`, `duplicate 1%` — and `tc qdisc del dev <dev> root` to undo it | roster only |
+
+**Learn the `del` before the `add`.** `netem` is the one instrument here that makes things worse on
+purpose, and it is the only way anything in this reference can reproduce a bad network — eBPF has no
+equivalent, because `netem` is a qdisc and eBPF replaced `tc`'s *classifier*, not its queues. Type it on
+a device you can afford to lose, and know how to take it off before you put it on.
 
 `nf_conntrack_count` approaching `nf_conntrack_max` is worth checking early: the failure it produces is
 intermittent, load-dependent, and looks exactly like a flaky network.

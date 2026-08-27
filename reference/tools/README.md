@@ -13,6 +13,9 @@ at **[by question](../04-by-question.md)** instead. If you want to *derive* a co
   guess a subcommand. `obj-verb` = noun first; `verb-obj` = verb first; `flags` = a conventional getopt
   tool; *filter* = it has an expression language of its own. The eight interfaces are defined below, each
   by a syscall you can see in `strace` — so this column is measurable, not a matter of taste.
+- **The tool** — a link when the tool has a page, and a bare name when it does not. Four rows are bare
+  (`tc`, `ipvsadm`, `ipset`, `devlink`), and that is a statement rather than an omission: see
+  [the honest tally](#the-honest-tally).
 - **In the course** — a link to the lesson that runs it, or **roster only**. `roster only` means
   [`Toolbelt.md`](../../Toolbelt.md) names it and **no lesson runs it** — it is here as territory, not as
   something you have been taught. Verified by grep against the lesson sources.
@@ -129,7 +132,7 @@ tell you.
 | [`sysctl`](procfs/sysctl.md) | Every kernel tunable by name, and `-a` makes it searchable | procfs · flags | [conntrack](../../networking-fundamentals/act-3-the-internet/02b-conntrack.md) |
 | [`nstat`](procfs/nstat.md) | Protocol counters from `/proc/net/snmp` and `netstat`, *as deltas since last call* — retransmits, listen overflows, drops | procfs · flags | **roster only** |
 | [`ethtool`](netlink/ethtool.md) | The NIC's own truth: link speed, ring sizes, offloads (`-k`), and per-queue hardware counters (`-S`). Explains why `tcpdump` shows a 64 KB "packet" on a 1500-byte link | netlink · flags | **roster only** |
-| [`devlink`](netlink/devlink.md) | Hardware-level device and port config below what `ip link` can reach | netlink · obj-verb | **roster only** |
+| `devlink` | Hardware-level device and port config below what `ip link` can reach | netlink · obj-verb | **roster only** |
 | [`bpftool`](probe/bpftool.md) | What eBPF programs and maps are loaded and where they are attached. `bpftool net show` covers xdp/tc/tcx per device; **`bpftool cgroup tree` covers the cgroup hooks, which is where Cilium's socket-level load balancing actually lives.** The inventory command for an eBPF datapath, with no substitute | probe · obj-verb | **roster only** |
 
 ## Filtering, NAT and traffic shaping
@@ -139,9 +142,9 @@ tell you.
 | [`iptables`](netlink/iptables.md) | The legacy rule syntax that most of the internet's documentation, and `kube-proxy`'s default mode, still speaks. **Run `iptables -V` first:** since 1.8 the same CLI sits over two different kernel backends and prints either `(nf_tables)` or `(legacy)`. Never mix the legacy and nft tools — both subsystems become active and the evaluation order between them is undefined | netlink&nbsp;† · flags (`-t -A -m -j`) | [iptables and NAT](../../networking-fundamentals/act-4-one-pretends-many/03-iptables-and-nat.md) |
 | [`iptables-save`](netlink/iptables-save.md) | The whole ruleset in one atomic, diffable text dump — the only sane way to read a large ruleset | netlink&nbsp;† · flags | [services](../../networking-fundamentals/act-5-kubernetes/03-services.md) |
 | [`nft`](netlink/nft.md) | One tool and one grammar for IPv4, IPv6, ARP and bridge (the `inet` family), plus the sets and maps that iptables needed `ipset` for. In-kernel since 3.13; netfilter's own wiki has called the xtables tools legacy since 2018, RHEL 10 no longer ships the legacy `ip_tables` module at all, and Docker Engine 29 has an experimental native nftables backend it intends to make the default | netlink · verb-obj | [iptables and NAT](../../networking-fundamentals/act-4-one-pretends-many/03-iptables-and-nat.md) |
-| [`ipset`](netlink/ipset.md) | Hash sets of addresses/ports that iptables can match in one step instead of rule-by-rule. Now largely historical: nftables has native sets and maps, and `ipset` is unmaintained and slated for removal on RHEL | netlink · verb-obj | **roster only** |
-| [`tc`](netlink/tc.md) | Queueing, rate limits, and — via `netem` — deliberately injected loss, delay, reordering and duplication. **The only way to *reproduce* a bad network**, and `netem` has no eBPF equivalent. eBPF did not replace `tc`; it replaced one thing that used to hang off it, the packet classifier. Modern eBPF datapath programs attach straight to a device's ingress and egress (an interface called TCX, since kernel 6.6) instead of hanging off one of `tc`'s queueing disciplines | netlink · obj-verb (qdisc/class/filter) | **roster only** |
-| [`ipvsadm`](netlink/ipvsadm.md) | The IPVS connection and destination tables (`/proc/net/ip_vs`, `ip_vs_conn`) when `kube-proxy` runs in IPVS mode — still the right way to read a cluster that inherited it. Note the split: **IPVS in Linux is not deprecated; `kube-proxy`'s IPVS *mode* is** — deprecated in Kubernetes 1.35, with removal targeted at 1.43. `kube-proxy`'s nftables mode went GA in 1.33, though iptables remains the default | netlink · flags | **roster only** |
+| `ipset` | Hash sets of addresses/ports that iptables can match in one step instead of rule-by-rule. Now largely historical: nftables has native sets and maps, and `ipset` is unmaintained and slated for removal on RHEL | netlink · verb-obj | **roster only** |
+| `tc` | Queueing, rate limits, and — via `netem` — deliberately injected loss, delay, reordering and duplication. **The only way to *reproduce* a bad network**, and `netem` has no eBPF equivalent. eBPF did not replace `tc`; it replaced one thing that used to hang off it, the packet classifier. Modern eBPF datapath programs attach straight to a device's ingress and egress (an interface called TCX, since kernel 6.6) instead of hanging off one of `tc`'s queueing disciplines | netlink · obj-verb (qdisc/class/filter) | **roster only** |
+| `ipvsadm` | The IPVS connection and destination tables (`/proc/net/ip_vs`, `ip_vs_conn`) when `kube-proxy` runs in IPVS mode — still the right way to read a cluster that inherited it. Note the split: **IPVS in Linux is not deprecated; `kube-proxy`'s IPVS *mode* is** — deprecated in Kubernetes 1.35, with removal targeted at 1.43. `kube-proxy`'s nftables mode went GA in 1.33, though iptables remains the default | netlink · flags | **roster only** |
 
 ## Capture and packet-level inspection
 
@@ -221,7 +224,7 @@ tell you.
 | Tool | The one thing only it shows you | Speaks | In the course |
 |---|---|---|---|
 | [`trivy`](httpapi/trivy.md) | Known vulnerabilities and an SBOM for an image you are about to ship | httpapi · verb-obj | [what you shipped](../../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md) |
-| [`cosign`](httpapi/cosign.md) | Whether an image is signed *by a key you trust* — and the trap that any attacker can sign with theirs | httpapi · verb-obj | [what you shipped](../../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md) |
+| [`cosign`](httpapi/cosign.md) | Whether an image is signed *by a key you trust* — and the trap that any attacker can sign with theirs | httpapi · verb-obj | [who says so](../../networking-fundamentals/act-10-cluster-security/08b-who-says-so.md) |
 | [`crane`](httpapi/crane.md) | A registry's raw content: digests, manifests, layers, without pulling the image | httpapi · verb-obj | [what you shipped](../../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md) |
 | [`kube-bench`](local/kube-bench.md) | The cluster's own config scored against the CIS benchmark, file by file | local · flags | [the doors left open](../../networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md) |
 | [`falco`](probe/falco.md) | Syscall-level events *as they happen* — the runtime half that no scanner can give you | probe · rules + flags | [seeing it happen](../../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) |
@@ -265,6 +268,18 @@ are planned.
 the encouraging half. They share an interface with the `ip`, `ss`, `bridge` and `conntrack` the course does
 teach, so the grammar and the failure modes transfer: a tool no lesson runs is still *derivable* once you
 know its interface.
+
+**And four of those five are rows and nothing more.** `tc`, `ipvsadm`, `ipset` and `devlink` have no page,
+because a page for them was mostly furniture: a facet table whose blind-spot row is the one every netlink
+tool shares, and a *"4 commands, grouped by what you are trying to find out"* preamble over four commands
+you can derive from [the grammar](../01-the-grammar.md) once you know the interface is `netlink` and the
+shape is `obj-verb`. `devlink` is not even installed in the lab image and `ipset` is unmaintained and
+slated for removal on RHEL, so a reader following a link to either was being sent somewhere for no reason.
+The sentence in the row above **is** the entry. What did not survive derivation moved to where a reader
+actually arrives — holding a symptom, not a name: `tc -s qdisc` and `netem` are under
+[*"it's slow, but nothing is broken"*](../04-by-question.md#its-slow-but-nothing-is-broken), the IPVS
+connection table is under [*"it works from the node but not from the Pod"*](../04-by-question.md#it-works-from-the-node-but-not-from-the-pod),
+and `tc monitor` / `devlink monitor` are in [`netlink`](netlink/README.md#what-streams-here) with the other five streamers.
 
 **One gap has no row at all.** `ssh` is in [`Toolbelt.md`](../../Toolbelt.md) as assumed knowledge and no
 lesson runs it — defensible for `ssh` the login shell, indefensible for `ssh` the networking tool, since

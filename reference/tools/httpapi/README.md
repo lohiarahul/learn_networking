@@ -88,6 +88,7 @@ Taught in: [pod networking](../../../networking-fundamentals/act-5-kubernetes/02
 [services](../../../networking-fundamentals/act-5-kubernetes/03-services.md) ·
 [static pods](../../../networking-fundamentals/act-6-control-plane/02-static-pods.md) ·
 [etcd backup and restore](../../../networking-fundamentals/act-6-control-plane/05-etcd-backup-and-restore.md) ·
-[what you shipped](../../../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md)
+[what you shipped](../../../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md) ·
+[who says so](../../../networking-fundamentals/act-10-cluster-security/08b-who-says-so.md)
 
 Next: [`netlink`](../netlink/README.md) — the mechanism this interface reports intentions about.

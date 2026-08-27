@@ -14,6 +14,15 @@ safe because it has no hand-written half: everything worth writing lives in
 `Speaks` column is guarded by `check_index_facets`. Never hand-edit a *tool* page — the next run
 overwrites it. Edit the JSON.
 
+Not every row gets a page, and the roster decides which do. A row whose **Tool** cell is a link claims
+a page; a row whose Tool cell is a bare code span is a row and nothing more, and this generator deletes
+any page it finds for one. That exists because a page-per-tool is right for the tools a lesson actually
+runs and dishonest for a tool with no route through the course at all: `devlink` is not even installed
+in the lab image, and a facet table plus a "4 commands, grouped by what you are trying to find out"
+preamble is more furniture than content. The roster row already carries the sentence that matters — the
+one thing only that tool shows you — so the row *is* the entry, and any command on it worth keeping
+moves to `reference/04-by-question.md`, where a reader arrives holding a symptom rather than a name.
+
 Each page is assembled from what the JSON says about the tool: what its name expands to, what it can
 do to the world, its standing, the handful of flags that carry their weight, its capability surface,
 and how this course drives it — in roughly the order the questions arrive in.
@@ -139,6 +148,11 @@ def read_index():
         sp = r["Speaks"].split("·", 1)
         out.append({
             "id": names[0], "names": names,
+            # A linked name claims a page; a bare code span is a row and nothing more. The roster is
+            # already the hand-written input that decides which tools exist, so it is the right place
+            # to decide which of them earn a page — and de-linking a row is the whole edit, because
+            # the orphan sweep in `main()` then deletes the file.
+            "page": bool(re.search(r"\]\([^)]+\.md\)", r["Tool"])),
             "one": (r.get("The one thing only it shows you")
                     or r.get("Why it is in a networking reference", "")).strip(),
             "iface": re.sub(r"&nbsp;.*", "", sp[0]).strip(),
@@ -228,7 +242,10 @@ def sibling_link(target, from_iface, rows):
     # `ip`, so resolve on the first word and keep the full phrase as the link text.
     binary = target.split()[0]
     row = next((r for r in rows if r["id"] == binary), None)
-    if row is None:
+    # No row, or a row that is only a row: either way there is nothing to link to, and a plain code
+    # span is the honest rendering. Without this, compressing a tool to a row would silently turn
+    # every sibling's supersession link into a 404.
+    if row is None or not row["page"]:
         return f"`{target}`"
     path = f"{slug(binary)}.md" if row["iface"] == from_iface \
         else f"../{row['iface']}/{slug(binary)}.md"
@@ -368,6 +385,8 @@ def main(argv):
     os.makedirs(OUT, exist_ok=True)
     stale, written = [], 0
     for t in rows:
+        if not t["page"]:
+            continue
         d = os.path.join(OUT, t["iface"])
         os.makedirs(d, exist_ok=True)
         path = os.path.join(d, slug(t["id"]) + ".md")
@@ -384,7 +403,7 @@ def main(argv):
     # README.md files are the exception and have to be named explicitly: they are hand-written
     # *input* to this generator — the roster it reads, and the interface page each directory leads
     # with — and an orphan sweep that deleted its own source would be a memorable afternoon.
-    keep = {os.path.join(t["iface"], slug(t["id"]) + ".md") for t in rows}
+    keep = {os.path.join(t["iface"], slug(t["id"]) + ".md") for t in rows if t["page"]}
     keep.add("README.md")
     keep |= {os.path.join(i, "README.md") for i in {t["iface"] for t in rows}}
     orphans = []
@@ -400,11 +419,14 @@ def main(argv):
             print("stale: %s" % ", ".join(stale) if stale else "", file=sys.stderr)
             print("orphaned: %s" % ", ".join(orphans) if orphans else "", file=sys.stderr)
             return 1
-        print("%d tool pages up to date" % len(rows))
+        print("%d tool pages up to date (%d rows)"
+              % (sum(1 for t in rows if t["page"]), len(rows)))
         return 0
     for f in orphans:
         os.remove(os.path.join(OUT, f))
-    print("%d tool pages (%d rewritten, %d orphans removed)" % (len(rows), written, len(orphans)))
+    paged = sum(1 for t in rows if t["page"])
+    print("%d tool pages for %d rows (%d rewritten, %d orphans removed)"
+          % (paged, len(rows), written, len(orphans)))
     return 0
 
 
