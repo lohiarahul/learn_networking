@@ -268,7 +268,12 @@ kubectl get pods -A | grep -q metrics-server && echo "still there" || echo "gone
 
 **Read that last line before you run it.** Leaving metrics-server installed is harmless, and [the sixth diagnostic drill](diagnose.md) needs it — so if you are going straight on to those, skip the `delete -f`. Come back and run it afterwards: lesson 04's `kubectl top` failure is load-bearing for anyone reading this act a second time, and a lab where that command quietly works has lost the beat.
 
-> **You understand this when you can** explain why a cluster cannot autoscale without installing something first, and why usage data does not live in the same store as objects; say which certificate in Act VI's PKI is never issued, read the `no IP SANs` error as a *name* check rather than a *trust* check, and say what `--kubelet-insecure-tls` waives beyond the error you were shown; state what the HPA divides by and derive from that why a Deployment created with a one-liner can never autoscale on utilisation, without an error ever appearing; compute a desired replica count from current, actual and target, and explain why the result is a jump rather than a step; derive why the scale-down window is long and the scale-up window is zero; and distinguish the three autoscalers by which field each one writes, including why one of them cannot act on a running Pod and why another one's input is a Pod that will not schedule.
+> **You understand this when you can** explain why a cluster cannot autoscale without installing
+> something first, and why usage data does not live in the store objects do; read the `no IP SANs`
+> error as a *name* check rather than a *trust* check; state what the HPA divides by, and derive
+> why a Deployment created with a one-liner can never autoscale on utilisation; derive why the
+> scale-down window is long and the scale-up window zero; and distinguish the three autoscalers by
+> the field each writes.
 
 **Which raises:** you now have the whole shape — objects describing work, loops reading them, measurements feeding some of those loops, and your own kinds where the built-in ones fall short. And in three acts of writing to this cluster, **nothing has ever once refused you on the grounds of who you are.** You created a CRD, patched a control-plane component's Deployment, read a private key off a node, and deleted a namespace, and the only objections you ever met were about arithmetic and syntax.
 

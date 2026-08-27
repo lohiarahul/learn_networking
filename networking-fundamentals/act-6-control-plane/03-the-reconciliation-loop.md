@@ -178,7 +178,11 @@ docker exec netlab-control-plane ls /etc/kubernetes/manifests/    # confirm all 
 
 That last check matters. If you interrupted this lesson partway through, a manifest may still be sitting in `/tmp` — and a control plane missing its scheduler is a cluster that looks healthy right up to the moment something needs placing.
 
-> **You understand this when you can** explain why a controller needs no queue of pending work and can be restarted freely — the current state of the store is its entire input; say what a `READY` count that never changes *and no longer agrees with `kubectl get pods`* tells you about which process is absent, and why that disagreement is possible at all; and describe the three-loop handoff from `kubectl create deployment` to a running container in terms of the one field each loop reads or writes, and where the pipeline stalls if each is stopped.
+> **You understand this when you can** explain why a controller needs no queue of pending work and
+> can be restarted freely; say what a `READY` count that never changes *and no longer agrees with*
+> `kubectl get pods` tells you about which process is absent; and describe the three-loop handoff
+> from `kubectl create deployment` to a running container in terms of the one field each loop
+> reads or writes.
 
 **Which raises:** you have been running `etcdctl` and reading `/etc/kubernetes/manifests` with nothing more than a shell on a node. Every one of those commands needed certificates, and you supplied them from a directory sitting on that same disk. Who issued them, what happens when they expire, and what exactly does holding them let someone do?
 

@@ -312,7 +312,12 @@ kubectl delete -f https://github.com/kubernetes-sigs/gateway-api/releases/downlo
 
 Two details in that block. `--ignore-not-found` is there because the install's `nginx-gateway-cert-generator` Job sets `ttlSecondsAfterFinished: 30` and has always deleted itself by the time you get here — without the flag the command exits non-zero on a resource that was *supposed* to disappear. And note there are three `delete`s for three `apply`s: forget the NGF CRD line and you leave eleven `gateway.nginx.org` CRDs behind for the next lesson.
 
-> **You understand this when you can** say why a traffic weight was impossible to express in an Ingress without a vendor annotation, and name the three things that annotation lacked which `HTTPRoute.spec.rules.backendRefs.weight` has; say which of `GatewayClass`, `Gateway` and `HTTPRoute` a platform team keeps and which it delegates, and how `parentRefs` and `allowedRoutes` make that delegation mutual rather than a free-for-all; and explain why an HTTPRoute that applies with exit code 0 can still move no traffic at all — including which `.status` condition you read first to tell an unreconciled Gateway apart from a refused route.
+> **You understand this when you can** say why a traffic weight was impossible to express in an
+> Ingress without a vendor annotation, and name what that annotation lacked which a field has; say
+> which of `GatewayClass`, `Gateway` and `HTTPRoute` a platform team keeps and which it delegates,
+> and how `parentRefs` and `allowedRoutes` make that mutual; and explain why an HTTPRoute that
+> applies with exit code 0 can still move no traffic, naming the `.status` condition you read
+> first.
 
 **Which raises:** an unreconciled object is invisible to `kubectl get`, and you have now seen two of them — a Gateway nobody programmed, and a NetworkPolicy nobody enforced. The second one is next, and this time the silence has teeth: the rule that isn't running is the one that was supposed to keep traffic *out*.
 

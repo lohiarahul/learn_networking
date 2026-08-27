@@ -339,7 +339,12 @@ rm -rf ~/pkg ~/demo
 kubectl get ns | grep -q staging && echo "still there" || echo "gone"
 ```
 
-> **You understand this when you can** explain why no object in a cluster can be identified as Helm-managed or Kustomize-managed by the API server, and what that implies about where to look when something is wrong; say what `kubectl kustomize` and `helm template` have in common and why running them first is a habit worth having; explain what a `configMapGenerator`'s hash accomplishes that lesson 05 said you would otherwise have to remember to do by hand; say where a Helm release's state is stored and why it had to be stored in a kind that already existed; explain why `helm rollback` restores a manifest while `kubectl rollout undo` scales a ReplicaSet, and why neither is an undo log; and state the one thing Helm can express that Kustomize cannot, and the one guarantee Kustomize gives that Helm cannot.
+> **You understand this when you can** explain why no object can be identified as Helm- or
+> Kustomize-managed by the API server, and what that implies about where to look when something is
+> wrong; say what `kubectl kustomize` and `helm template` have in common; explain what a
+> `configMapGenerator`'s hash accomplishes; say where a Helm release's state is stored and why it
+> had to be a kind that already existed; and state the one thing each tool can express that the
+> other cannot.
 
 **Which raises:** everything in this lesson reduced to POSTing kinds the server already serves. But Act V's Gateway lesson told you, in one sentence you may have walked past, that `Gateway` and `HTTPRoute` were *not* built in — they were "a kind the API server did not ship with, taught to it at runtime." It even told you what happens when such a kind exists and nothing watches it. So there is a mechanism here that is genuinely not client-side, and a claim of Act V's that you have never actually tested. What does it take to teach the server a kind — and what, exactly, do you get when you do?
 

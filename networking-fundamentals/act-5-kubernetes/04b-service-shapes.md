@@ -235,7 +235,12 @@ kubectl delete deployment web
 kubectl delete pod db-0 db-1 db-2
 ```
 
-> **You understand this when you can** say why putting a default ClusterIP in front of three non-interchangeable replicas is worse than no Service at all, and what `clusterIP: None` removes in *two* subsystems — the DNS answer becomes N Pod IPs instead of one VIP, and the node's NAT table stops containing the Service at all; explain what a named port and an SRV record buy you that an A record cannot; say why session affinity needs its own `recent` rules rather than riding on conntrack, and what that implies about clients behind a shared NAT; derive why `externalTrafficPolicy: Local` preserves a source IP and why a node with no local Pod then *hangs* rather than refusing; and state what an `ExternalName` Service does to a client's TLS handshake, and why.
+> **You understand this when you can** say why a default ClusterIP in front of three non-
+> interchangeable replicas is worse than no Service, and what `clusterIP: None` removes in *two*
+> subsystems; explain what a named port and an SRV record buy that an A record cannot; say why
+> session affinity cannot ride on conntrack, and what that means for clients behind a shared NAT;
+> and derive why `externalTrafficPolicy: Local` preserves a source IP and why a node with no local
+> Pod then *hangs*.
 
 **Which raises:** every shape here hands out Pod IPs, and headless Services depend completely on every Pod IP being routable from every other Pod. But nothing so far has said *who assigns those addresses*, or who strings the wire that makes a Pod on one node reachable from another. Act IV left that question open on purpose.
 

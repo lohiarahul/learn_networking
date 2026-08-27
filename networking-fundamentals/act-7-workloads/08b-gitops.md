@@ -324,13 +324,11 @@ its next pass — which is one last demonstration of the only property that was 
      prune with a considered blast radius · app-of-apps = the loop on itself.
 ```
 
-> **You understand this when you can** write a GitOps reconciler in four lines and say why `unchanged` is
-> the correct output on every pass after the first; explain what self-heal actually guarantees and state it
-> as a bound rather than a prevention; get `kubectl diff -f` to report `OutOfSync` and say which of `-` and
-> `+` is the cluster; predict what happens to an object whose manifest is deleted from the repo, *and* what
-> the drift check says about it, and name the flag that changes both and the argument it cannot work
-> without; and say why two clusters synced to the same commit can be running different code, using the
-> three lines of `image`, `spec.containers[].image` and `imageID` to prove it.
+> **You understand this when you can** write a GitOps reconciler in four lines and say why
+> `unchanged` is the correct output on every pass after the first; state what self-heal guarantees
+> as a bound rather than a prevention; get `kubectl diff -f` to report `OutOfSync` and say which
+> of `-` and `+` is the cluster; predict what happens to an object whose manifest is deleted, and
+> name the flag that changes it; and say why two clusters on one commit can run different code.
 
 **Which raises:** every object in that repo was a kind the API server already knew. The loop worked because
 `apply` had somewhere to put a `Deployment`. So what happens when the thing you want to reconcile is not a

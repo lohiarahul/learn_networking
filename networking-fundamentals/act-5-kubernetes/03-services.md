@@ -274,7 +274,11 @@ dmesg | grep -i conntrack                          # the complaint you produced 
 
 A node hammering many short-lived connections through Services — a chatty sidecar, a load test, a client retry-storm — walks toward that ceiling, and the two numbers above are the whole warning system. When it is reached you get the Act III symptom, now spread across every Service on the node at once: packets vanishing under load, connections timing out, and not one application error to point at. The fix is operational (raise the limit, fix the churn). The thing worth carrying is that a Service's reliability is bounded by the size of a kernel table, because a Service *is* entries in that table — and that IPVS and eBPF, whatever else they change, do not change this one.
 
-> **You understand this when you can** trace a packet from a Pod's `write()` to a ClusterIP through iptables to a destination Pod's `read()`, naming every rule it hits — `KUBE-SERVICES`, then `KUBE-SVC-<hash>`, then `KUBE-SEP-<hash>`, then the `DNAT` — name the object kube-proxy reads to know which `KUBE-SEP` chains to write and the two reasons it can be empty, explain why the reply finds its way back without a single rule for the return path, and defend each of the three complaints that make this design run out of road: the chain is a list walked in order (you counted it), the match fields stop at L4 so no HTTP rule is expressible (you derived it), and the balancing keeps no state (you reasoned it out) — then say which two of those three IPVS addresses, and which one nothing at this layer can.
+> **You understand this when you can** trace a packet from a Pod's `write()` to a ClusterIP and
+> back, naming every rule it hits and the object kube-proxy reads to write them; give the two
+> reasons that object can be empty; explain why the reply needs no return-path rule; and name the
+> three complaints that make this design run out of road, saying which two IPVS addresses and
+> which one nothing at this layer can.
 
 ---
 

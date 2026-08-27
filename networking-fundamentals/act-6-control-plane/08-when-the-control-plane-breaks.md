@@ -273,7 +273,11 @@ kubectl get nodes                                                  # both Ready
 kubectl -n kube-system get pods                                    # all Running
 ```
 
-> **You understand this when you can** say what each of the five questions needs to be working before it can answer, and why that ordering guarantees you reach ground — and why a silent tool means *descend* rather than *pass*; explain why `logs --previous` is the right log for a restarting component and why `ImagePullBackOff` has no logs to read at all, having caused both; and given a control-plane component that will not start, use one `crictl ps -a` to decide whether the evidence is in `crictl logs` or in `journalctl -u kubelet`, and say what an empty result at each layer tells you.
+> **You understand this when you can** say what each of the five questions needs to be working
+> before it can answer, and why that ordering guarantees you reach ground; explain why `logs
+> --previous` is the right log for a restarting component and why `ImagePullBackOff` has no logs
+> at all; and given a component that will not start, use one `crictl ps -a` to decide whether the
+> evidence is in `crictl logs` or in `journalctl -u kubelet`.
 
 **Which raises:** you can now operate a cluster below `kubectl` — start it, break it, restore it, and find out why it will not start. But every object you have used to do that was one the cluster came with. You have never made Kubernetes run *your* software: not a Deployment you designed, not storage that outlives a Pod, not configuration kept out of the image. Act V taught you how traffic reaches a workload and this act taught you what runs it. What have you still never said about the workload itself?
 

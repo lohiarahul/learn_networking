@@ -377,7 +377,12 @@ rm -f /tmp/website-controller.sh
 kubectl get crd 2>/dev/null | grep -q example.com && echo "still there" || echo "gone"
 ```
 
-> **You understand this when you can** explain how a cluster gains a kind, and why that does not contradict the last lesson's finding that Helm and Kustomize add none; say what a custom resource's etcd key has that a Deployment's does not, and why that asymmetry can never be tidied up; list what a CRD gives you without any code and say which of those things is enforced server-side; explain why an object of your own kind can be created and validated while absolutely nothing happens, and connect that to Act VI's split between the store and the loops; say why `status` is a separate subresource and what that makes possible; describe a controller in three words and explain why re-deriving state every pass is more robust than handling events; and diagnose a custom object with an empty status and no events without guessing.
+> **You understand this when you can** explain how a cluster gains a kind, and why that does not
+> contradict the last lesson's finding; say what a custom resource's etcd key has that a
+> Deployment's does not; explain why an object of your own kind can be created and validated while
+> nothing happens at all, and connect it to Act VI's split between the store and the loops;
+> describe a controller in three words; and diagnose a custom object with an empty status and no
+> events.
 
 **Which raises:** you gave your own kind a `/scale` endpoint, and `kubectl scale` used it — which means something can change a replica count without knowing what it is scaling. You have been typing those counts by hand all act. So what would it take for the cluster to choose the number itself, and what would it have to measure to do that honestly?
 

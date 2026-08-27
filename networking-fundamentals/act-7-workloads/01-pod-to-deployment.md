@@ -193,7 +193,11 @@ kubectl delete pod solo --ignore-not-found
 kubectl get nodes                       # both Ready, neither SchedulingDisabled
 ```
 
-> **You understand this when you can** say what a bare Pod does and does not survive, why the kubelet restarting a container is a different guarantee from anything replacing a Pod, and why `drain` demanded `--force` for one and not for the others; explain why a rolling update needs *two* ReplicaSets and therefore a third object to conduct them, and what `pod-template-hash` prevents; name the field that links the three and what a controller uses it for; and say which of the three objects chooses a node, and what that means for where you look when a replica will not schedule.
+> **You understand this when you can** say what a bare Pod does and does not survive, and why the
+> kubelet restarting a container is a different guarantee from anything replacing a Pod; explain
+> why a rolling update needs *two* ReplicaSets and therefore a third object to conduct them, and
+> what `pod-template-hash` prevents; and say which of the three objects chooses a node, and what
+> that means for where you look when a replica will not schedule.
 
 **Which raises:** you have just seen two ReplicaSets exist at once, one of them scaled to zero with its template still intact — and the Deployment moved traffic between them without your saying how fast, how many at a time, or what "ready" even means. Those are all fields you did not write. What did it assume, and what happens when the new version is broken?
 

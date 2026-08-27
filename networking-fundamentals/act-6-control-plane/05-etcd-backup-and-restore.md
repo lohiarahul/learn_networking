@@ -449,7 +449,12 @@ kubectl get nodes                                                  # both Ready
 docker exec $CP ls /etc/kubernetes/manifests/                      # all four
 ```
 
-> **You understand this when you can** take a snapshot, say why it must be written inside the `hostPath`, and verify it by something other than the file existing; say from any etcd operation alone whether it needs `etcdctl` or `etcdutl`, and why neither is on the node; explain why a cluster whose store has been wiped answers `Forbidden` rather than refusing to connect, and which credential still works and why; describe what a restore does *not* undo — using both a node that joined after the snapshot and a workload that is still serving traffic — and name the one command that resolves both; and, from `member list` and `endpoint health` alone, say how many members may be lost, why four is never worth building, why losing quorum is worse than filling the disk, and what `member remove` protects you from.
+> **You understand this when you can** take a snapshot and verify it by something other than the
+> file existing; say from any etcd operation alone whether it needs `etcdctl` or `etcdutl`;
+> explain why a cluster whose store was wiped answers `Forbidden` rather than refusing to connect,
+> and which credential still works; describe what a restore does *not* undo and name the one
+> command that resolves it; and say from `member list` alone how many members may be lost and why
+> four is never worth building.
 
 **Which raises:** you have now stopped the control plane deliberately and put it back, twice, and both times every component returned at exactly the version it left at. But a cluster that lives long enough gets upgraded, and an upgrade is the case where the components come back *different*, one at a time, while the cluster keeps serving. What is allowed to be out of step with what, and for how long?
 

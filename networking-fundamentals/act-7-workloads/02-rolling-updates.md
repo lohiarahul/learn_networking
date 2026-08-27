@@ -206,7 +206,11 @@ kubectl delete deployment web
 kubectl get rs -A -l app=web       # nothing left behind
 ```
 
-> **You understand this when you can** compute the peak and floor Pod counts for a rollout from `maxSurge`/`maxUnavailable` and say which way each rounds and why; explain what `rollout undo` actually does to which objects, and why `revisionHistoryLimit` is a limit on your ability to roll back rather than on disk; say why a broken image is a *safe* failed deploy and name the condition and default deadline that ends it; and describe the one kind of bad deploy that rolling updates cannot protect you from, and the two fields that decide whether you are exposed to it.
+> **You understand this when you can** compute the peak and floor Pod counts for a rollout from
+> `maxSurge`/`maxUnavailable`, and say which way each rounds; explain what `rollout undo` does to
+> which objects, and why `revisionHistoryLimit` limits your ability to roll back; say why a broken
+> image is a *safe* failed deploy, and name the condition and default deadline that ends it; and
+> describe the one bad deploy rolling updates cannot protect you from.
 
 **Which raises:** twice now the answer has come down to what "ready" means, and both times it was a default you did not choose — a container is ready because it started. That cannot be right for anything that opens a database connection or loads a cache. So who is asking the question, how often, and what happens to a container that answers wrongly?
 

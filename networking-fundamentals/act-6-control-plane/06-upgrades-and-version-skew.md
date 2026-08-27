@@ -350,7 +350,11 @@ As for danger: none of it is *dangerous* in the sense of losing data. The kubele
    ORDER IS FORCED: control plane first (nothing may be newer than the API server).
 ```
 
-> **You understand this when you can** say why the API server is the version everything else is measured against, arguing it from which component holds a credential into the store rather than from having been told; explain why `kubectl` is allowed to be newer when a controller is not, and why "three versions behind" is a deadline rather than a resting place; say where each of the five processes on a control-plane node records its version, and — having changed one and put it back — which one cannot be changed by editing a file at all; and give the per-node upgrade order, naming the interval that draining exists to make safe.
+> **You understand this when you can** say why the API server is the version everything else is
+> measured against, arguing it from which component holds a credential into the store; explain why
+> `kubectl` may be newer when a controller may not, and why "three versions behind" is a deadline
+> rather than a resting place; say which of the five component versions cannot be changed by
+> editing a file; and give the per-node upgrade order.
 
 **Which raises:** two steps of that sequence are still missing, and they are the two that touch running workloads rather than binaries. Moving every Pod off a node sounds like it should be one command — but the Pods have opinions, some of them are supposed to run on every node including this one, and something in the cluster is allowed to refuse. What actually happens when you tell a node to stop working?
 

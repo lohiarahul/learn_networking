@@ -218,7 +218,11 @@ Finally your own credential: `admin.conf` embeds a certificate that was also ren
    renew:  kubeadm certs renew all            (then RESTART the static Pods, and re-copy admin.conf)
 ```
 
-> **You understand this when you can** say where the API server gets the username and group for a request that carried no password, name the field each comes from, and say why the cluster ships two administrator credentials rather than one; explain why `ca.key` is the most dangerous file on a control-plane node and why nothing can revoke a certificate minted with it; and describe, for a cluster whose certificates have expired, why `kubeadm certs renew all` alone does not fix it and what two further steps do.
+> **You understand this when you can** say where the API server gets the username and group for a
+> request that carried no password, and name the field each comes from; explain why `ca.key` is
+> the most dangerous file on a control-plane node, and why nothing can revoke a certificate minted
+> with it; and say why `kubeadm certs renew all` alone does not fix an expired cluster, and what
+> two further steps do.
 
 **Which raises:** the certificates protect the door. But you have also seen that the thing behind the door is a few hundred keys in one directory on one node's disk, mounted into a static Pod by a `hostPath`. A credential that expires is an outage you recover from. What is the recovery when the *store itself* is gone?
 

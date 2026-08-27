@@ -240,7 +240,10 @@ Go back to the router's queue. It does not drop the instant it is oversubscribed
 
 That is **bufferbloat**, and it is why "my connection is fast" and "my connection feels awful" are both true at once. You can measure it on your own line at the bottom of this page.
 
-> **You understand this when you can** point at one `ss -ti` line plus one `tcpdump` ACK and name each limit separately — the receiver's ceiling from the `win` field (and its consequence in `Send-Q`, or the `tx_queue` hex converted to decimal), and the sender's own guess from `cwnd`, in segments — then say which of the two you would expect to change when the reader stops reading, which when a router starts dropping, and why a large `Send-Q` on its own does not tell you which of the two is to blame.
+> **You understand this when you can** point at one `ss -ti` line and one `tcpdump` ACK and name
+> the two limits separately — the receiver's ceiling from `win`, the sender's guess from `cwnd`;
+> say which one changes when the reader stops reading and which when a router starts dropping; and
+> explain why a large `Send-Q` on its own cannot tell you which is to blame.
 
 ### What will this ask of you in a cluster?
 

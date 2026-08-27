@@ -307,7 +307,12 @@ kubectl delete ns polns other
 # ...and kubectl config use-context kind-netlab, if you ran this on netcni
 ```
 
-> **You understand this when you can** write, from a blank file, a policy that permits exactly *Pods labelled `app=api` in namespaces labelled `tier=frontend`* — and say what the same two selectors permit when you add one hyphen; explain why a bare `podSelector` in a peer means "this namespace" and a `namespaceSelector` therefore *replaces* rather than extends that scope; say why `ipBlock` may not share a peer with a selector, and why an `ipBlock` naming a client's real network silently fails to match traffic that arrived through a NodePort; and predict, before running it, the two things a `policyTypes: [Egress]` document with no `egress:` list breaks — naming which one presents as a DNS fault and which label lets you allow it back.
+> **You understand this when you can** write, from a blank file, a policy permitting exactly *Pods
+> labelled `app=api` in namespaces labelled `tier=frontend`* — and say what the same two selectors
+> permit with one hyphen moved; explain why a bare `podSelector` in a peer means "this namespace"
+> and a `namespaceSelector` therefore *replaces* that scope; say why an `ipBlock` naming a
+> client's real network silently fails behind a NodePort; and predict the two things an empty
+> `Egress` policy breaks.
 
 ---
 

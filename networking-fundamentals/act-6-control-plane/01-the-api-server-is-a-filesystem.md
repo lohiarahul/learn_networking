@@ -327,7 +327,11 @@ That is not a hypothetical. Three facts you now have, taken together, should mak
 kubectl get pods
 ```
 
-> **You understand this when you can** explain why a Pod cannot be found on the disk of the node that runs it, and what `kubectl get pod` is doing instead — a `GET` on a path, against a tree whose keys are literally `/registry/<kind>/<namespace>/<name>`; say what the API server computes its answers *from*, and why YAML is a rendering rather than the record; and describe what an `etcdctl watch` shows you when you label a Pod, including why writes you did not perform appear alongside the one you did — and, given a rejected `apply`, name the stage that rejected it from the wording alone: `401`, `is forbidden`, `unknown field`, or `is invalid`.
+> **You understand this when you can** explain why a Pod cannot be found on the disk of the node
+> that runs it, and what `kubectl get pod` is doing instead; say what the API server computes its
+> answers *from*, and why YAML is a rendering rather than the record; say why an `etcdctl watch`
+> shows writes you did not perform; and, given a rejected `apply`, name the stage that rejected it
+> from the wording alone.
 
 **Which raises:** those extra writes came from somewhere. Something is watching this store and acting on what it sees — and if that is how a Pod gets a deletion stamp, it may also be how a Pod gets *scheduled to a node at all*. Before you can watch one of those watchers stop, you need to know where they run. You have never seen the API server as a *process*.
 

@@ -293,7 +293,11 @@ kubectl get nodes                                                  # both Ready,
 docker exec netlab-control-plane ls /etc/kubernetes/manifests/     # all four, as ever
 ```
 
-> **You understand this when you can** say what `cordon` actually writes — one field — and name the two independent things that then read it, having proved one of them wrote the taint by stopping it; explain why `drain` is neither a field nor a controller but a loop in your terminal, citing the per-Pod `eviction` requests you watched leave your own machine, and what that implies for a drain you interrupt; say why drain refuses to touch DaemonSet Pods, and why the refusal from a real drain is more expensive than from a dry run; and tell a drain blocked by a PodDisruptionBudget from a drain waiting on a Pod that will not die, using only what each prints — then say what a PDB does *not* constrain.
+> **You understand this when you can** say what `cordon` actually writes — one field — and name
+> the two independent things that read it; explain why `drain` is neither a field nor a controller
+> but a loop in your terminal, and what that implies for a drain you interrupt; say why drain
+> refuses to touch DaemonSet Pods; and tell a drain blocked by a PodDisruptionBudget from one
+> waiting on a Pod that will not die, then say what a PDB does *not* constrain.
 
 **Which raises:** you now have the whole planned-maintenance sequence, and every step of it assumed you could ask the cluster questions. But this act has broken the API server twice, and both times `kubectl` went silent along with it. A node that will not come `Ready`, a control-plane component that crash-loops, a cluster that answers nothing at all — what is left to look at, and in what order?
 
