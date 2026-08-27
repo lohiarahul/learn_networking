@@ -1,5 +1,11 @@
 # Delegation without handing over a password
 
+> **Optional track — examined by neither CKA nor CKS.** Kubernetes OIDC authentication appears in
+> neither curriculum and is configured by hand rarely. This is also the only lesson in the repository
+> that needs a live external service, which makes it the most expensive page here to set up and the
+> least likely to be tested. The [exam path](../../exam-prep/the-exam-path.md) skips it. It is, however, the lesson most likely to
+> matter at work.
+
 Every credential in this act so far has come from the thing that would consume it. The cluster minted a token for use against the cluster; you verified it against a key the cluster published. Issuer and audience were the same party, which made the whole arrangement easy in a way you probably did not notice.
 
 Now break that. You want some tool — a reporting script, a CI job, a third-party dashboard — to read your repositories on your behalf. It is honest and well-meaning, and its request is the obvious one: *give me your password.*

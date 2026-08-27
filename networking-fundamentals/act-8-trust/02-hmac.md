@@ -1,5 +1,11 @@
 # A hash only certain people can compute
 
+> **Optional track — examined by neither CKA nor CKS.** **Act VIII 01–04 is a cryptography short
+> course** — 12,323 words — sitting underneath the two lessons of this act that *are* on the exam
+> path (`05` certificates, `06` TLS opened). Those two stand on their own: what they assert, these
+> four prove. The [exam path](../../exam-prep/the-exam-path.md) skips straight to `05`. Route A — the
+> course — does not, and this is the material the repository is proudest of.
+
 Last lesson ended with a colleague's proposal and a claim that it was wrong. This lesson is about taking that proposal seriously enough to break it, because the break is more instructive than the objection.
 
 Their scheme: sign an API request by mixing a shared secret into the body and hashing the result.

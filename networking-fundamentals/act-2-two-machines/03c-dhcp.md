@@ -1,5 +1,10 @@
 # DHCP — how a host gets its address in the first place
 
+> **Optional track — examined by neither CKA nor CKS.** This is a CCNA topic with zero exam surface.
+> Note the contrast with `03b` (MTU and fragmentation), which stays *on* the exam path because VXLAN
+> in Act IV pays it off directly — the b-lessons of this act are not one category. The
+> [exam path](../../exam-prep/the-exam-path.md) routes around this one; Route A does not.
+
 Every machine in this act has had an IP address, a subnet mask, a default gateway, and a DNS server — and we've quietly assumed they were just *there*. The MTU file even leaned on it out loud.
 
 ![A newly joined host handed its addressing settings](../../illustrations/06-core-services/dhcp.svg)

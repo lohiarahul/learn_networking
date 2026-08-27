@@ -123,10 +123,12 @@ const SINGLES = [
   // banking the course refuses to do. It publishes under its own section so a reader can find it
   // without it ever appearing beside the lessons.
   ['exam-prep/README.md', 'exam-prep/index.md', 1],
-  ['exam-prep/cka-domain-map.md', 'exam-prep/cka-domain-map.md', 2],
-  ['exam-prep/cks-domain-map.md', 'exam-prep/cks-domain-map.md', 3],
-  ['exam-prep/kubectl-speed.md', 'exam-prep/kubectl-speed.md', 4],
-  ['exam-prep/exam-day.md', 'exam-prep/exam-day.md', 5],
+  ['exam-prep/the-exam-path.md', 'exam-prep/the-exam-path.md', 2],
+  ['exam-prep/cka-domain-map.md', 'exam-prep/cka-domain-map.md', 3],
+  ['exam-prep/cks-domain-map.md', 'exam-prep/cks-domain-map.md', 4],
+  ['exam-prep/kubectl-speed.md', 'exam-prep/kubectl-speed.md', 5],
+  ['exam-prep/exam-day.md', 'exam-prep/exam-day.md', 6],
+  ['exam-prep/authoring-sprint.md', 'exam-prep/authoring-sprint.md', 7],
 ];
 
 /**

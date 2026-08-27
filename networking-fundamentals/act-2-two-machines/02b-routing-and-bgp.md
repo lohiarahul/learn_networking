@@ -1,5 +1,10 @@
 # Routing protocols and BGP — who fills the table
 
+> **Optional track — examined by neither CKA nor CKS.** This is a CCNA topic with zero exam surface.
+> Note the contrast with `03b` (MTU and fragmentation), which stays *on* the exam path because VXLAN
+> in Act IV pays it off directly — the b-lessons of this act are not one category. The
+> [exam path](../../exam-prep/the-exam-path.md) routes around this one; Route A does not.
+
 The last file left you reading a routing table and predicting which row wins by longest-prefix match. It never asked the obvious question: *who put those rows there?* And it left a loose thread — how did one ISP's announcement in Pakistan reach routers across the whole planet in minutes? Both have the same answer.
 
 ![Two separate networks peering to exchange reachability](../../illustrations/04-routing-layer3/bgp.svg)

@@ -12,6 +12,11 @@ One question runs through every page here: **how does `write()` on one machine b
 
 ## The acts — read in order
 
+> **Unless you have an exam date booked.** This order earns every idea before it uses one, which is the
+> right way to understand the material and the wrong way to prepare for a timed test. If CKA or CKS is
+> the reason you are here, read **[the exam path](../exam-prep/the-exam-path.md)** first: the same acts
+> re-sequenced, with the 8% that neither curriculum examines marked as optional rather than removed.
+
 Each act is a chain of lessons that ends by pointing at the next, so you never have to guess where to go. After the lessons come three transfer layers: **`test-yourself`** (recall, answers hidden), **`diagnose`** (symptom-first on-call drills — the real job), and **`in-the-wild`** (re-run the act's ideas on your own Mac).
 
 | Act | Question it answers | You leave able to… |

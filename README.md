@@ -4,6 +4,8 @@ A hands-on networking course — *how does `write()` on one machine become `read
 
 This file only covers running that site. Everything about *doing* the course — the Docker lab, building the `netlab` image, Act V's Kubernetes cluster — lives in the course itself: start at [`networking-fundamentals/00-orientation/`](networking-fundamentals/00-orientation/README.md).
 
+There are two published routes through the material. [`JOURNEY-MAP.md`](JOURNEY-MAP.md) is the course in narrative order — every idea earned before it is used. [`exam-prep/the-exam-path.md`](exam-prep/the-exam-path.md) is the same material in CKA/CKS order, with measured word counts per step and an explicit optional track. Pick one deliberately; they are for different goals.
+
 ## Running the site
 
 ```bash

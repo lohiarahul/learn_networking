@@ -1,5 +1,10 @@
 # HTTP
 
+> **Off the exam path, but nothing later replaces it.** HTTP is examined only indirectly — and yet
+> Act V teaches Ingress and Gateway API without ever once opening a request. So if header-and-method
+> routing is not already yours, this lesson is not optional at all: read it before Act V. The
+> [exam path](../../exam-prep/the-exam-path.md) says the same thing in the row for this act.
+
 TCP hands you a reliable, ordered stream of bytes between two processes. But a stream of bytes is not a *conversation* — it has no notion of "here is a request," "here is where the reply begins," "here is how long the body is." Something has to impose structure on the stream so that a client can ask for a thing and a server can answer with that thing and know where the answer ends. The web's answer is almost shockingly simple: write the structure in plain text, with a few rules about punctuation. That is HTTP.
 
 ![A request and its response, each split by a blank line into headers and body](../../illustrations/11-application-layer/http-exchange.svg)

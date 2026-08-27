@@ -1,5 +1,11 @@
 # A function that destroys information on purpose
 
+> **Optional track — examined by neither CKA nor CKS.** **Act VIII 01–04 is a cryptography short
+> course** — 12,323 words — sitting underneath the two lessons of this act that *are* on the exam
+> path (`05` certificates, `06` TLS opened). Those two stand on their own: what they assert, these
+> four prove. The [exam path](../../exam-prep/the-exam-path.md) skips straight to `05`. Route A — the
+> course — does not, and this is the material the repository is proudest of.
+
 Start with a problem that has nothing to do with secrecy.
 
 You have a file. It travelled across the internet — Act III taught you how many strangers' routers that involves — and you want to know whether it arrived as it left. You cannot compare it against the original, because if you had the original you would not need the copy.

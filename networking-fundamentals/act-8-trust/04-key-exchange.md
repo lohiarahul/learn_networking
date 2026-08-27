@@ -1,5 +1,11 @@
 # Agreeing on a secret in public
 
+> **Optional track — examined by neither CKA nor CKS.** **Act VIII 01–04 is a cryptography short
+> course** — 12,323 words — sitting underneath the two lessons of this act that *are* on the exam
+> path (`05` certificates, `06` TLS opened). Those two stand on their own: what they assert, these
+> four prove. The [exam path](../../exam-prep/the-exam-path.md) skips straight to `05`. Route A — the
+> course — does not, and this is the material the repository is proudest of.
+
 Three mechanisms, three promises kept, and every experiment so far has cheated in the same place. Go back and look at any of them: the key was a variable in a script that played both parties. `SECRET = b'correct-horse'`. `key = os.urandom(16)`. Both ends of the conversation were the same process, so the key never had to go anywhere.
 
 On a real network it does. Act III showed you exactly how many strangers' machines a packet crosses, and every one of them can read every byte. So:

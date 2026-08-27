@@ -55,6 +55,21 @@ reconcile** in the cloud.
 > If you came here *for* those exams, read [`exam-prep/`](exam-prep/README.md) first — it maps every
 > CKA and CKS competency to the lesson that covers it, and marks honestly the ones nothing covers yet.
 
+> ## ⚑ This map is Route A. There is a Route B.
+>
+> Everything below is the course **in the order it was written**, which is the order in which each idea
+> is earned before it is used. That is the right order to *understand* networking and it is not the
+> shortest path to a certificate. Both are published, and neither pretends to be the other:
+>
+> - **Route A — this map.** Narrative order, all 376,651 words, nothing skipped.
+> - **Route B — [the exam path](exam-prep/the-exam-path.md).** The same material in exam order: nine
+>   steps, the 58% you need before CKA, the 43 of 64 drills that fall on that path, and an explicit
+>   optional track for the 8% neither curriculum examines.
+>
+> Route B saves less than you would hope — 9% of the words, not a third — because almost all of this
+> course is on one syllabus or the other. What it saves is the *guessing*, which is the thing that
+> actually strands people in Act VIII with a date three weeks out.
+
 ## How we learn here — seek, don't receive
 
 This is a journey of inquiry, not a catechism. We never hand you an answer to a question you don't yet

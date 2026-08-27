@@ -14,8 +14,11 @@ see the roadmap banner in `JOURNEY-MAP.md`. Fill those next; don't rewrite Acts 
 There are two sibling tracks, both deliberately **not** acts and neither held to the lesson
 invariants — see `tools/README.md` on how `is_lesson()` scopes that:
 
-- `exam-prep/` (CKA/CKS domain maps, kubectl speed, exam-day) — rehearsal for a timed test, which is
-  banking by design.
+- `exam-prep/` (the exam path, CKA/CKS domain maps, kubectl speed, exam-day, the authoring sprint) —
+  rehearsal for a timed test, which is banking by design. `the-exam-path.md` is the one file there that
+  is *about* the lessons below rather than about the exam: it re-sequences every act into exam order and
+  marks the material neither curriculum examines. If you add, move or split a lesson, its step table and
+  word counts go stale — regenerate them.
 - `reference/` — the instrument panel: the naming grammar that makes an unfamiliar command guessable,
   the `/proc` and `/sys` state map, a tool index marked **taught** or **roster only**, a symptom→tool
   router, the per-act command breakdowns for Acts I–IV, and generation drills. Consulted *after* the

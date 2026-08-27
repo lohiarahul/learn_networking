@@ -29,6 +29,42 @@
 > The audit's one-sentence finding was that this repository's self-knowledge exceeded its self-repair.
 > Two of those three defects were things the repository had already written down somewhere else and not
 > acted on — which is the same finding, one level down.
+>
+> ### Round two — §F and §G, the learning-efficiency findings
+>
+> These were never in the remediation queue above, and they were the audit's **lowest score** (5.0/10).
+> Worse: the first round moved that one number the wrong way. The course was 357,717 words when this
+> audit was written and is **376,651** now — the repairs added ~19k while every other dimension improved.
+>
+> | Finding | Status |
+> |---|---|
+> | **P1** — 357k words, ~50k outside both curricula; §G's fix is "publish two routes" | **Closed**, as [`exam-prep/the-exam-path.md`](exam-prep/the-exam-path.md), linked from every entry point. Route A stays the JOURNEY-MAP. Route B is nine steps in exam order with measured per-step counts and drill counts. |
+> | **P1** — the ~50k of non-curriculum material sits on the critical path | **Closed.** Ten lessons now carry an optional-track banner naming what is examined, what depends on them, and when to read them: Act VIII 01–04, Act IX 05, Act II 01b/02b/03c, and Act III 04/05. Nothing was deleted. |
+> | **P2** — 45 of 83 illustrations are referenced by nothing; **delete or annex** | **Declined, and gated instead.** See below. |
+>
+> **§G's arithmetic does not survive measurement, and the correction matters more than the fix.** §G
+> claimed Route B was "roughly 240k against 358k" — a third off. Measured, it is **342,257 against
+> 376,651**: a **9%** saving. §G's estimate and §F's own inventory of off-syllabus material (~31k) never
+> reconciled with each other, and §F was the one telling the truth. So: **the length of this course is
+> not a sequencing problem and cannot be fixed by routing**, because 92% of it is on one syllabus or the
+> other. What Route B genuinely delivers is a *split* — you can sit CKA having read 58% of the course,
+> and 43 of the 64 drills fall on that path — not a reduction. Any real reduction has to come out of
+> on-syllabus prose (Act X's 84k, Act VII's 48k), which is a compression job nobody has started.
+>
+> **The illustration recommendation was wrong, and finding that out took one diff.** §F called the 45
+> unplaced SVGs "ongoing maintenance for zero learner contact" and said to delete or annex them. But
+> `illustrations/MANIFEST.md` already inventories all 45 by name under `## Not placed`, with reasons,
+> including an argument for why keyword-placing them would contradict the lessons — and that list
+> measures **exactly right, zero drift in either direction**. They are also deterministic output of a
+> generator the 38 *placed* images need anyway, and the only page serving them is a `noindex`
+> contributor gallery. So deleting them would have removed a documented reserve to save nothing. The
+> maintenance §F correctly smelled was the risk of that list going stale, which is now
+> `check_pedagogy.py::check_illustration_placement` — asserted in both directions, and round-tripped by
+> breaking it each way before it was trusted. The gallery reads the same list, so page and checker
+> cannot disagree.
+>
+> Which is the audit's own finding a third time, and the sharpest instance of it: **the repository had
+> already done this piece of self-knowledge properly, and the audit read the symptom as the defect.**
 
 
 

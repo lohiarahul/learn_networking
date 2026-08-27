@@ -1,5 +1,11 @@
 # Unreadable is not the same as unchangeable
 
+> **Optional track — examined by neither CKA nor CKS.** **Act VIII 01–04 is a cryptography short
+> course** — 12,323 words — sitting underneath the two lessons of this act that *are* on the exam
+> path (`05` certificates, `06` TLS opened). Those two stand on their own: what they assert, these
+> four prove. The [exam path](../../exam-prep/the-exam-path.md) skips straight to `05`. Route A — the
+> course — does not, and this is the material the repository is proudest of.
+
 Two lessons in and nothing has been hidden. A hash summarises a message that anyone can read; an HMAC travels *beside* a message that anyone can read. Both promises were about detection after the fact, and neither of them concealed a byte.
 
 So: **confidentiality.** Make the bytes meaningless to anyone but the intended reader. This is the promise most people think cryptography *is*, and it is by far the oldest of the four — people were doing it two thousand years before anyone thought to ask "did this change?"

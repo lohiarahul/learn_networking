@@ -1,5 +1,10 @@
 # TLS
 
+> **Deferred, not optional.** Act VIII `05` (certificates) and `06` (TLS opened) cover this ground
+> with the cryptography to back it, and the [exam path](../../exam-prep/the-exam-path.md) reads them there instead. This lesson is
+> the cliffhanger version — accurate, but it ends by naming what it cannot yet explain. Route A reads
+> it here, five acts before the answer arrives, on purpose.
+
 HTTP is a conversation in plain text, and that was its genius — anyone could read it, debug it, implement it. But "anyone could read it" is also a catastrophe, because the conversation crosses dozens of routers owned by strangers, any of which can read every byte and change it. Your password, sent as `password=hunter2` in a request body, is visible to every machine on the path. The web needed a way to keep the simple text model while making the bytes on the wire unreadable and untamperable to everyone except the intended server. That is TLS.
 
 ![Keys and a certificate exchanged before the channel is locked](../../illustrations/07-security/tls-ssl-handshake.svg)

@@ -1,5 +1,10 @@
 # VLANs — one wire, many separate networks
 
+> **Optional track — examined by neither CKA nor CKS.** This is a CCNA topic with zero exam surface.
+> Note the contrast with `03b` (MTU and fragmentation), which stays *on* the exam path because VXLAN
+> in Act IV pays it off directly — the b-lessons of this act are not one category. The
+> [exam path](../../exam-prep/the-exam-path.md) routes around this one; Route A does not.
+
 The last file ended on an uncomfortable thought. ARP works by shouting onto a wire that *every* card hears, and *any* card may answer. For a roomful of colleagues that's fine.
 
 ![One switch carrying two isolated groups of ports](../../illustrations/03-switching-layer2/vlans.svg)

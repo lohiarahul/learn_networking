@@ -229,6 +229,19 @@ place of them.
 
 ## Not placed
 
+> **This list is now gated.** `tools/check_pedagogy.py::check_illustration_placement` asserts it in
+> both directions on every run: nothing named below may actually be in use by a lesson, and nothing
+> unreferenced may be missing from below. Place an illustration and forget to delete its line here and
+> the check says so. A hand-written inventory of what is unused is worth having only if it cannot go
+> quietly stale, which this one previously could.
+>
+> **`AUDIT.md` §F recommended deleting or annexing these 45. That was declined.** They are
+> deterministic output of the generator in `_build/`, which the 38 placed images need anyway, so
+> deleting the SVGs removes no build step and saves no maintenance; and the only page that serves them
+> is a `noindex` contributor gallery, so they cost a learner nothing. The audit scored them as
+> "ongoing maintenance for zero learner contact" — the maintenance was the risk of this list drifting,
+> and that is now a check rather than a deletion.
+
 The remaining 45 of the original 76 are built and served (visit `/illustrations/`) but sit on no
 lesson, because the course does not teach those topics. 21 of them are not mentioned anywhere in the
 course prose at all — the whole wireless category, spanning tree, RIP, route summarisation, ACLs,
