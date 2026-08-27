@@ -1,5 +1,36 @@
 # Audit — first-principles CKA/CKS competence
 
+> ## Remediation status — everything below has been actioned
+>
+> This document is the assessment as written. It is kept unedited, because an audit rewritten after the
+> fact stops being evidence. What follows is what happened to it.
+>
+> | Finding | Status |
+> |---|---|
+> | **P0** — nothing verifies the learner's fix | **Closed.** All **64** drills now end in `tools/verify-drill.sh`, with a verifier per drill and a `Verify it` block per drill — exact parity. Expected causes are stored as SHA-256 of a normalised form, so the harness is not a second reveal. Three modes: the cluster (Acts V–VII, IX–X), the lab container via `docker exec` (Acts I–IV), and locally against an openssl PKI (Act VIII). |
+> | **P0** — five headline failure classes have no drill | **Closed.** `NotReady` became three drills rather than one, because pairing them yields the `Ready=Unknown` / `Ready=False` branch for free. Image-pull, volume-mount and the three resource enforcers followed. Act VI went 8 → 11 drills, Act VII 7 → 10. |
+> | **P0** — no route to a real multi-node cluster | **Closed with a caveat that is stated on the page.** [`act-6/09-two-machines-from-nothing.md`](networking-fundamentals/act-6-control-plane/09-two-machines-from-nothing.md) covers `init` → `join` → in-place upgrade → `controlPlaneEndpoint`. It is **the one page in the course its author has not run** — it needs two VMs and a hypervisor the authoring environment did not have — and it says so at the top, as does every domain-map row citing it. |
+> | **P1** — the NetworkPolicy mechanism claim is false on the lab's own CNI | **Closed**, and it paid better than expected: measuring kindnet's `queue flags bypass to 101` produced a teaching point nothing else in the course has — a policy engine is a process, and `bypass` decides that it fails **open** when that process dies. |
+> | **P1** — `nftables` appears in no lesson | **Closed** in `act-4/03`, as the store both grammars write to: a native `nft` rule is invisible to `iptables-save` and loaded all the same. |
+> | **P1** — the scheduler's own loop is never taught | **Closed** in `act-7/04`, measured. Filter is readable (the `FailedScheduling` tally), score is *absent* on a two-node cluster with one tainted node and the lesson says so rather than faking it, and bind is a write — a hand-bound Pod runs with no `Scheduled` event and no `default-scheduler` in its history. |
+> | **P1** — §E lab 7, the named-but-never-authored gaps | **Closed** by [`exam-prep/authoring-sprint.md`](exam-prep/authoring-sprint.md). Six of seven items applied to the live cluster; the Gateway HTTPS listener is marked expected-not-measured. |
+> | **P1** — §E lab 8, a scan that must be acted on | **Closed** as Act X drill 12, built on the measured disagreement between kubesec and kube-linter and closed with a `ValidatingAdmissionPolicy` rather than a report. |
+> | **P2** — the understanding-checks in Acts VIII–X are unusable | **Closed, and extended past the finding.** All **89** checks in the course are now at or under 80 words with 3–5 independently checkable clauses — Acts V–VII were levelled too, since capping only VIII–X would have left the loosest checks in the middle of the course. |
+> | **P2** — the capstone walks one path | **Closed.** A second, north-south descent, measured: the only hop in the course that routes on the payload, the client IP erased twice, and `externalTrafficPolicy: Local` producing `000 in 6.004s` against `200 in 0.007s`. |
+> | **P3** — `cgroups` skips `pids` | **Closed** in `act-4/01b`: three limits, three symptoms — killed, slowed, **refused** — and no `resources.pids` field to ask for the third with. |
+>
+> **Three defects were found by the remediation that the audit did not catch**, all of them because the
+> drills were *run* rather than read: Act II drill 4's cleanup used `sed -i` on `/etc/hosts`, which cannot
+> work in a container; Act III drill 4 could take the reader's whole Docker VM down and now says so; and
+> six commands derived a gateway or uplink from `ip route show default`, which prints **nothing** on
+> Docker Desktop. Two Acts I–IV drills also turn out not to reproduce their symptom there at all, which
+> both drills now state, with the environment check.
+>
+> The audit's one-sentence finding was that this repository's self-knowledge exceeded its self-repair.
+> Two of those three defects were things the repository had already written down somewhere else and not
+> acted on — which is the same finding, one level down.
+
+
 
 ## A. Executive assessment
 
