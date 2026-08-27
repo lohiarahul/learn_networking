@@ -418,7 +418,12 @@ Suppose `server.key` leaks tomorrow. The certificate is still valid, still signe
 cd "${TMPDIR:-/tmp}" && rm -rf pki
 ```
 
-> **You understand this when you can** state the two separate requirements for accepting a stranger's public key and say which one no mechanism can supply; explain why a signature gives non-repudiation where an HMAC cannot, and why an X25519 key refuses to make one; say why signing a digest rather than a message makes collision resistance load-bearing; explain in your own words why Bob signing his own public key achieves nothing; list the three components of a certificate; explain why `openssl verify` gives opposite answers for the same file and what that says about where verification lives; say what a self-signed root proves and where a trust anchor's authority actually comes from; distinguish `error 20`, `error 7`, `error 79`, `error 62` and `error 10` by what each one means about the certificate; explain why `CA:TRUE` can only be checked and never enforced; explain why the trust check and the name check are separate, and say what Act VII's `no IP SANs` message did *not* tell you about the kubelet's certificate; describe how the same mechanism run backwards becomes client authentication, and why that makes a control-plane `ca.key` more dangerous than it looks; and explain why revocation has never worked and what the industry did instead.
+> **You understand this when you can** state the two separate requirements for accepting a
+> stranger's public key and say which one no mechanism can supply; explain why Bob signing his own
+> public key achieves nothing; explain why `openssl verify` gives opposite answers for the same
+> file, and what that says about where verification lives; explain why `CA:TRUE` can only be
+> checked and never enforced; and say why revocation has never worked and what the industry did
+> instead.
 
 **Which raises:** all four promises are now kept, and you have every part. Integrity from a hash. Authenticity from a signature over a digest. Confidentiality and tamper-detection from an AEAD. A shared key from an ephemeral exchange. An identity from a certificate chained to an anchor. That is the complete inventory — and Act III handed you a string that names three of them in one line, `TLS_AES_256_GCM_SHA384`, which you have been carrying unopened for five acts. **There is nothing left to introduce.** So the last lesson introduces nothing: it watches a real handshake happen, names which of these mechanisms is doing what at each step, and asks the only question left — in what *order* must they run, given that at the start of a connection the two parties share nothing at all and cannot yet encrypt the messages they need to send in order to be able to encrypt?
 

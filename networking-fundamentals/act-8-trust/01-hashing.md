@@ -219,7 +219,11 @@ Work out what somebody could do with that before the next lesson, because it is 
 cd "${TMPDIR:-/tmp}" && rm -f f_a f_c one.bin two.bin doc1 doc2
 ```
 
-> **You understand this when you can** say what problem a hash solves and why the answer has to be small; explain from the sizes involved why a hash cannot be reversed, and why that makes "we hash your passwords" a claim about destruction rather than concealment; state what the avalanche effect is and why *half* is the right number rather than all; distinguish the three resistance properties by which attacker each one defends against, and say which of them MD5 lost; derive from the birthday bound why collision resistance is half the output bits, and give the number for SHA-256; and explain what an MD5 collision does and does not let an attacker do.
+> **You understand this when you can** explain from the sizes involved why a hash cannot be
+> reversed, and why "we hash your passwords" is a claim about destruction rather than concealment;
+> distinguish the three resistance properties by which attacker each one defends against, and say
+> which one MD5 lost; derive from the birthday bound why collision resistance is half the output
+> bits; and say what an MD5 collision does and does not let an attacker do.
 
 **Which raises:** every use in this lesson quietly assumed the reader gets the hash from somewhere trustworthy. Publish a file and its hash on the same page, and anyone who can change the file can change the hash beside it — so the check proves only that a tamperer was thorough. What is needed is a hash that **only certain people can compute**, so that matching it is evidence about *who*, not merely about *what*. And the obvious way to do that — mixing a secret into the input — turns out to have a hole you have already seen.
 

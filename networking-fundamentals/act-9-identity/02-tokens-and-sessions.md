@@ -173,7 +173,12 @@ Tokens reached the identical conclusion by the identical argument. It is why the
 kubectl delete sa victim --ignore-not-found
 ```
 
-> **You understand this when you can** give three separate reasons a password is the wrong credential to present repeatedly, one of which is about the *cost* of checking it; state the difference between a handle and a signed claim in terms of questions and answers rather than "stateful and stateless"; say which one is always current and which is always a photograph, and what each one costs; describe the experiment that measures the gap and say why every check inside the window was nonetheless correct; explain what setting a credential cache to zero buys, what it costs, and the new failure mode it creates; state the freshness-versus-availability trade in one sentence; and explain why short-lived credentials plus a renewal mechanism is the same answer the certificate world reached, and why neither field could design around it.
+> **You understand this when you can** state the difference between a handle and a signed claim in
+> terms of questions and answers rather than "stateful and stateless"; describe the experiment
+> that measures the gap, and say why every check inside the window was nonetheless correct;
+> explain what setting a credential cache to zero buys, what it costs, and the new failure it
+> creates; and explain why short-lived credentials plus renewal is the answer the certificate
+> world also reached.
 
 **Which raises:** you have been handed a signed claim and told it contains facts. That should be uncomfortable, because a credential you can *read* is a credential whose contents you might be tempted to *believe* — and it is sitting in a shell variable right now, nine hundred characters of something. **So what is actually in it, who can read it, and what happens if you edit it?**
 

@@ -260,7 +260,12 @@ Keep the shape of that argument, because a later lesson runs it again against a 
 cd "${TMPDIR:-/tmp}" && rm -f alice.pem alice.pub bob.pem bob.pub mallory.pem mallory.pub
 ```
 
-> **You understand this when you can** derive `n(n-1)/2` from the requirement that no third party can listen, and say why that made pre-shared keys a dead end; explain in one line of algebra why Alice and Bob reach the same number, and state precisely which value neither of them knows; name the problem an attacker would have to solve and give a sense of the forward-versus-backward cost from the numbers you measured; say what a key pair is and why "public" means publishable; explain the two jobs a KDF does on a raw shared secret and why binding a purpose into the derivation matters; describe the man-in-the-middle attack precisely enough to say what Mallory holds at the end of it and why neither party can detect her; explain forward secrecy in terms of a key stolen *after* the traffic was recorded, and why TLS 1.3 stopped offering a choice; and state, for each of this act's four mechanisms so far, the promise it keeps and the one it does not.
+> **You understand this when you can** derive `n(n-1)/2` from the requirement that no third party
+> can listen, and say why pre-shared keys were a dead end; explain in one line of algebra why
+> Alice and Bob reach the same number, and state precisely which value neither of them knows;
+> describe the man-in-the-middle attack precisely enough to say what Mallory holds at the end and
+> why neither party can detect her; and explain forward secrecy in terms of a key stolen *after*
+> the traffic was recorded.
 
 **Which raises:** the hole is now sharply shaped, which is progress. Mallory succeeded for one reason: **`bob.pub` arrived with nothing attached to it saying it was Bob's.** It was 32 bytes on a wire, and 32 bytes look the same whoever sent them. So what is needed is a way for a public key to carry a *claim about who it belongs to* — and for that claim to be checkable by someone who has never met Bob, cannot phone him, and is holding nothing but the bytes in front of them. Which sounds like it needs a trusted party who has met Bob, and immediately raises the obvious objection: how does *that* party's claim reach you unforged? The answer is the last mechanism in the act, and it is the one that turns everything you have built into something you have used every day for years without looking inside.
 

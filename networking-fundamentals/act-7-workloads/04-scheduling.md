@@ -96,6 +96,141 @@ That is the real content of those two columns: **a node's requests total and its
 kubectl delete pod guaranteed burstable besteffort --wait=false
 ```
 
+### The loop that does the choosing
+
+You have been reading the *inputs* to a decision without looking at the decision. And it is worth
+looking, because the scheduler is a smaller thing than its reputation: it is a loop that watches for
+Pods with no `spec.nodeName`, and for each one it does three things in a fixed order.
+
+```
+  FILTER   which nodes COULD take this Pod?      -> a yes/no per node, per plugin
+  SCORE    of the survivors, which is BEST?      -> a number per node
+  BIND     write spec.nodeName on the Pod        -> and stop. it does not start anything.
+```
+
+> **Predict first —** you send a Pod that no node can possibly take. Which of the three steps produces
+> the message you get, and will that message name *one* reason or *several*? Then: a Pod that lands
+> successfully — at the instant `spec.nodeName` appears, is the container running?
+
+**Filter is the phase you can read directly**, because its output is the `FailedScheduling` message,
+and the message is a tally rather than an error:
+
+```bash
+kubectl create namespace schedlab
+kubectl -n schedlab run impossible --image=busybox:1.36 --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"c","image":"busybox:1.36","command":["true"],"resources":{"requests":{"cpu":"64"}}}]}}'
+sleep 6
+kubectl -n schedlab get events --field-selector reason=FailedScheduling \
+  -o jsonpath='{.items[0].message}{"\n"}'
+```
+
+```
+0/2 nodes are available: 1 Insufficient cpu, 1 node(s) had untolerated taint(s).
+no new claims to deallocate, preemption: 0/2 nodes are available:
+2 Preemption is not helpful for scheduling.
+```
+
+**Two nodes and two different reasons.** That is the shape to recognise: each filter plugin voted on
+each node, and the message is those votes grouped. The Pod asked for 64 CPUs, so the worker failed
+`Insufficient cpu` — but the control-plane node never got as far as arithmetic, because a *different*
+plugin rejected it on a taint first. A `FailedScheduling` message with three clauses is not three
+problems; it is one Pod and three nodes.
+
+**Score is the phase you cannot see here, and the reason is worth having.** Give the cluster four
+replicas with no constraints at all and watch where they go:
+
+```bash
+kubectl -n schedlab create deployment spread --image=busybox:1.36 --replicas=4 -- sh -c 'sleep 300'
+kubectl -n schedlab rollout status deployment/spread --timeout=120s
+kubectl -n schedlab get pods -l app=spread -o jsonpath='{range .items[*]}{.spec.nodeName}{"\n"}{end}' \
+  | sort | uniq -c
+```
+
+```
+   4 netlab-worker
+```
+
+All four on one node, and **nothing was scored.** `kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints[*].key` says why — the control-plane node carries
+`node-role.kubernetes.io/control-plane`, so the filter phase left exactly one survivor and there was no
+choice to make. Which is the honest state of this lab: **a two-node cluster where one node is tainted
+has no scoring phase at all**, and any story you tell yourself about how the scheduler "balanced" those
+four Pods is a story about a decision that never happened. On a cluster with two schedulable nodes the
+default `PodTopologySpread` scoring would separate them, and you would see 2 and 2.
+
+**Bind is a write, and that is the whole finding.** Watch the field appear:
+
+```bash
+kubectl -n schedlab run gap --image=busybox:1.36 --restart=Never --command -- sh -c 'sleep 60'
+for i in $(seq 1 12); do
+  kubectl -n schedlab get pod gap \
+    -o jsonpath='{.spec.nodeName}{"  phase="}{.status.phase}{"  ready="}{.status.containerStatuses[0].ready}{"\n"}'
+  sleep 1
+done
+```
+
+```
+netlab-worker  phase=Pending  ready=false
+netlab-worker  phase=Running  ready=true
+```
+
+There is a moment — brief here, long if the image has to be pulled — where the Pod **has a node and is
+not running.** The scheduler finished at the first line. Everything after it is the kubelet on that
+node noticing a Pod addressed to it, which is Act VI's reconciliation loop and not the scheduler at all.
+
+And now the experiment that settles what the scheduler *is*. Write `spec.nodeName` yourself:
+
+```bash
+kubectl -n schedlab apply -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata: { name: selfbound }
+spec:
+  nodeName: netlab-worker
+  containers:
+    - name: c
+      image: busybox:1.36
+      command: ["sh","-c","sleep 60"]
+EOF
+sleep 8
+kubectl -n schedlab get events --field-selector involvedObject.name=selfbound \
+  -o custom-columns='REASON:.reason,FROM:.source.component' --no-headers
+kubectl -n schedlab get events --field-selector involvedObject.name=gap \
+  -o custom-columns='REASON:.reason,FROM:.source.component' --no-headers
+```
+
+```
+Pulled      kubelet          <- selfbound
+Created     kubelet
+Started     kubelet
+
+Scheduled   default-scheduler   <- gap
+Pulled      kubelet
+Created     kubelet
+Started     kubelet
+```
+
+The hand-bound Pod runs perfectly and **the scheduler never spoke.** No `Scheduled` event, no
+`default-scheduler` anywhere in its history — because the only thing the scheduler was ever going to do
+for it was fill in a field that was already filled in. Filter and score are advice; the *product* is one
+string written to one field, and anything that can write that field has scheduled a Pod.
+
+That is why `nodeName` is a scheduling hint rather than a permission, which Act X's
+[encryption lesson](../act-10-cluster-security/09-encryption-between-pods.md) leans on to put an
+observer on a node of its choosing. It is also why a stopped scheduler leaves Pods `Pending` with
+`Events: <none>` — [Act VI drill 1](../act-6-control-plane/diagnose.md) — rather than producing an
+error: nothing failed, nobody wrote.
+
+```bash
+kubectl delete namespace schedlab
+```
+
+**Kubernetes sees this as** — every mechanism in the rest of this lesson is a *plugin* in one of those
+two phases, and knowing which one tells you what its failure looks like. `nodeSelector`,
+`requiredDuringScheduling` affinity and taints are **filter** plugins, so getting them wrong produces a
+`Pending` Pod and a tally. `preferredDuringScheduling` affinity and topology spread are **score**
+plugins, so getting them wrong produces a Pod that runs in a place you did not want, with no event, no
+warning and nothing in the object to say a preference was considered and lost.
+
 ### Narrowing the choice
 
 The scheduler picks *a* node that fits. Everything else in this lesson is about telling it which.
@@ -308,7 +443,12 @@ kubectl get pods                                   # empty, or Terminating on it
 kubectl describe node netlab-worker | grep -A2 Taints    # no maintenance taint
 ```
 
-> **You understand this when you can** state the difference between what enforces a `limit` and what enforces a `request`, and explain how a node can be full and idle at the same time; say where `qosClass` comes from and what it decides; explain what a toleration does *not* do; name the effect that acts on already-running Pods and connect it to the five minutes before a lost node's Pods move; and read a `FailedScheduling` message as a per-node tally rather than an error, distinguishing it from `Events: <none>`.
+> **You understand this when you can** say what enforces a `limit` versus a `request`, and how a
+> node can be full and idle at once; explain what a toleration does *not* do; read a
+> `FailedScheduling` message as a per-node tally and name the phase that produced it; say of any
+> mechanism here whether it filters or scores, and therefore whether getting it wrong leaves a Pod
+> `Pending` or merely misplaced; and explain why a Pod you bound by hand runs with the scheduler
+> never having spoken.
 
 **Which raises:** you have now written a Pod's compute claims and its placement rules, and every one of them was a value typed into the Pod itself. But the image is built once and runs in ten places — dev, staging, production — and each needs different settings and different credentials. Baking them in means rebuilding the image to change a log level, and Act I showed you what baking a secret into a layer actually costs. So where does configuration live, if not in the image and not in the spec?
 

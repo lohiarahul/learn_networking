@@ -322,7 +322,11 @@ Miss any one and the other three are theatre. **A signature answers "was this ma
 kubectl delete sa probe --ignore-not-found
 ```
 
-> **You understand this when you can** describe how a verifier gets from a token to the key that signed it, and name the field that links them; explain why a JWKS is a set and what `kid` makes possible; say who may fetch this cluster's keys, name the object that decides it, and argue against both making it public and making it control-plane-only; verify a signature by hand and explain why the signed data is the base64 text rather than the decoded JSON; explain the `alg: none` attack and state the fix as a rule about who chooses the algorithm; describe an attack that uses a completely genuine token and name the claim that prevents it; connect that claim to Act VIII's four appearances of the same idea, and say what makes this one different from all of them; and list the four checks that make up verification, and say what a signature alone does and does not tell you.
+> **You understand this when you can** describe how a verifier gets from a token to the key that
+> signed it, and name the field that links them; explain the `alg: none` attack and state the fix
+> as a rule about who chooses the algorithm; describe an attack that uses a completely genuine
+> token and name the claim that prevents it; and list the four checks that make up verification,
+> saying what a signature alone does and does not tell you.
 
 **Which raises:** every credential so far has arrived from the thing that will consume it — the cluster minted a token for use against the cluster. Now suppose the credential must be *accepted* by someone who did not issue it: you want a third-party tool to read your repositories, and its honest request is "give me your password." **That is intolerable, and it is not obvious what to do instead** — the tool needs to act as you, at some service that has never heard of it, without ever holding what makes you you, and with you able to change your mind later.
 

@@ -575,7 +575,12 @@ curl -s -X POST $IDP/token -d grant_type=password -d username=rahul \
 docker rm -f idp
 ```
 
-> **You understand this when you can** give four distinct reasons a password is the wrong thing to delegate with, one of which is about attribution; state the requirement that forces the credential to be issued rather than shared, and explain why that requirement puts you in direct contact with the issuer; derive all four hops of the authorization code flow, naming the specific leak each one prevents; explain why the returned code must be a handle rather than a token, and what `state` is for; say why a code used twice destroys the whole session, and contrast that fail-closed choice with OCSP's; predict which of the three tokens is HMAC'd from the audience alone, and explain why `aud` and `alg` agree; say why sending an id_token to an API is a vulnerability rather than a shortcut; describe an experiment in which local verification and introspection disagree about the same token at the same instant, and argue that both answers are correct; explain what PKCE proves and what it does not; and explain why the password grant cannot be detected by anything downstream of the issuer.
+> **You understand this when you can** derive all four hops of the authorization code flow, naming
+> the leak each one prevents; explain why the returned code must be a handle rather than a token,
+> and what `state` is for; say why a code used twice destroys the whole session, and contrast that
+> fail-closed choice with OCSP's; describe local verification and introspection disagreeing about
+> one token at one instant, and argue both are correct; and say why the password grant is
+> undetectable downstream of the issuer.
 
 **Which raises:** you have a token containing `sub`, `azp`, and a `scope` naming `openid`, `email` and `profile`. Every one of those is a **string**. Verification proved a string arrived unaltered from an issuer you trust — and had, and could have, no opinion whatsoever about what the string permits. So somewhere a system holds rules that turn `rahul` and `openid email profile` into *yes* or *no*. **Before the next lesson, try to say how many fundamentally different shapes such a rule set can have** — not how many products exist, but how many ways there are to write a function down at all. The answer is smaller than you would guess, the two shapes fail in opposite directions, and almost every argument you have ever heard about IAM is an argument about which one somebody is using.
 

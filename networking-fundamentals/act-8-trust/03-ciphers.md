@@ -336,7 +336,12 @@ Hence the name. A nonce is a **n**umber used **once**, and the discipline is the
 cd "${TMPDIR:-/tmp}" && rm -f rep.bin
 ```
 
-> **You understand this when you can** explain why the one-time pad is unbreakable and why that makes it useless; derive from XOR why reusing a pad reveals the XOR of the plaintexts and hands over the second message given the first; say what AES actually does and why a "mode of operation" is a separate decision; explain what ECB leaks and why that is the mode's fault and not the cipher's; state how CBC decryption uses the previous block, and from that derive why an attacker who can edit the IV can flip chosen bits of plaintext without the key; explain why encryption is not integrity in one sentence an engineer would act on; name the four things that must be right in a hand-built encrypt-then-MAC and what each one prevents; say what an AEAD's output contains beyond ciphertext and why `openssl enc` refuses to produce it; explain what associated data is for, and give the failure it prevents that is *not* header tampering — a valid, correctly-tagged ciphertext moved somewhere it was never written; say what an AEAD tag does and does not prove about who produced a message, and why that is no better than lesson 02 managed; and explain why nonce reuse returns you to the first failure in this lesson.
+> **You understand this when you can** derive from XOR why reusing a pad hands over the second
+> message given the first; state how CBC decryption uses the previous block, and derive from it
+> why an attacker who can edit the IV flips chosen plaintext bits without the key; explain why
+> encryption is not integrity in one sentence an engineer would act on; give the failure
+> associated data prevents that is *not* header tampering; and explain why nonce reuse returns you
+> to this lesson's first failure.
 
 **Which raises:** three promises are now kept, and every single experiment in all three lessons began by assuming a key was already shared. The one-time pad needed a key as long as the message and you dismissed it for exactly that reason — but AES needs a key too, and you have quietly been passing it around by writing it into both halves of the same script. On a real network there is no both-halves-of-the-same-script. There is a wire that every router in Act III can read, two parties who have never met, and no shared secret of any kind. **They must end up agreeing on a key while an eavesdropper watches every byte they exchange.** That sounds impossible — and the reason it is not is the single most surprising result in this act.
 

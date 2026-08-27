@@ -297,7 +297,12 @@ So the useful question about any encrypted system is never "is it TLS?" but **wh
 cd "${TMPDIR:-/tmp}" && pkill -f 's_server -cert' ; rm -rf tls
 ```
 
-> **You understand this when you can** walk both candidate orderings of a handshake and name what each one exposes, say why no ordering protects its own first message, and state which one TLS 1.3 chose and what that buys; read `TLS_AES_256_GCM_SHA384` field by field and name the lesson each field came from; say what the suite name deliberately omits and why each omission is an improvement; describe what is sent in the clear and what is not, and identify the exact moment encryption begins; explain why an unauthenticated key exchange is safe to perform first, and why relaying the real certificate does not help an attacker; say what `CertificateVerify` signs and why signing the transcript rather than the identity is the load-bearing choice; derive downgrade protection from that same signature; explain what a hybrid key-exchange group is for and why the threat it answers is not the one forward secrecy answers; describe mTLS as a symmetric application of the same mechanisms and connect it to how `kubectl` authenticates; explain why a failing client certificate shows up as success on the client and a failure on the server; and say where TLS stops, with two examples from earlier acts.
+> **You understand this when you can** walk both candidate orderings of a handshake, name what
+> each exposes, and say why no ordering protects its own first message; explain why an
+> unauthenticated key exchange is safe to perform first, and why relaying the real certificate
+> does not help an attacker; say what `CertificateVerify` signs and why the transcript rather than
+> the identity is load-bearing; explain why a failing client certificate reads as success on the
+> client; and say where TLS stops.
 
 **Which raises:** the act is finished and the lock is open. Look at what you can now do, though, and notice how narrow it is. You can prove that a connection reaches the party named in a certificate, and you can read a name out of `depth=0` — `CN=rahul`, `O=kubeadm:cluster-admins`. **And then what?** A name is not a permission. Nothing in five lessons of cryptography has any opinion about what `rahul` may do, and that group string means anything at all only because something *outside* the certificate treats it as meaningful. Act VI has already shown you that a cluster does this in more than one way — one group is granted its power by a rule you can read and edit, and another is hardwired into the API server and consults no rule whatsoever. Cryptography cannot tell those two apart. It put a string in a field, correctly, and stopped.
 

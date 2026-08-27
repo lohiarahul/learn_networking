@@ -292,7 +292,11 @@ This is not a reason to avoid HMAC. It is a reason to know what you bought. Insi
 cd "${TMPDIR:-/tmp}" && rm -f extend.py m.txt
 ```
 
-> **You understand this when you can** state what a length-extension attack needs and what it does not need, and explain why publishing `SHA256(secret + body)` publishes a resumable computation rather than a summary; name the property of a Merkle–Damgård hash that makes this possible; say why the padding bytes have to appear inside the forged message and what that implies about which receivers are vulnerable; explain why swapping the concatenation order kills length extension and what weaker property it then depends on instead; write out HMAC's two-pass shape and say specifically what the outer hash accomplishes that the inner one cannot; say why `ipad` and `opad` are two different constants rather than one; say what a one-bit change to the *key* does to the output and why that matters to an attacker who is guessing; explain what happens to a key longer than the block size and why no library will warn you about it; and explain why a shared secret cannot give non-repudiation no matter how strong the hash is.
+> **You understand this when you can** state what a length-extension attack needs and what it does
+> not, and explain why publishing `SHA256(secret + body)` publishes a resumable computation;
+> explain why swapping the concatenation order kills it and what weaker property it then leans on;
+> write HMAC's two-pass shape and say what the outer hash accomplishes that the inner one cannot;
+> and explain why a shared secret cannot give non-repudiation however strong the hash.
 
 **Which raises:** you now have integrity and you have authenticity, and between them they have not concealed a single byte. An HMAC travels *beside* the message, in the clear, and the message is as readable as it ever was — lesson 01's promise table said as much, but it lands differently now that you have watched a tag verify a plaintext instruction to move money. So the next question is the one everybody assumes cryptography is about in the first place: **making the bytes unreadable to anyone but the intended reader.** That turns out to be a much older problem than the two you just solved, and in one specific sense an easier one — there is a scheme for it that is not merely infeasible to break but provably impossible, which is a sentence that will not appear again in this act. The interesting part is what it costs, and what people do to avoid paying.
 

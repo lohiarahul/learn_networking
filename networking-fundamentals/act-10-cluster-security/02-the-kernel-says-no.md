@@ -498,7 +498,11 @@ for n in netlab-control-plane netlab-worker; do
 done
 ```
 
-> **You understand this when you can** say why capabilities were never a container boundary and give a syscall that proves it; read `Seccomp:` from `/proc/self/status` and say what `0` and `2` mean; state which of Docker and Kubernetes filters syscalls by default, and give the reason the other one does not; demonstrate with `unshare` that capabilities and seccomp block disjoint sets of operations; write a `Localhost` profile, say which directory it must live in and why `localhostProfile` has no leading slash, and explain why one logical operation needs four syscall names; prove that the filter is consulted before the capability check; explain why `Operation not permitted` cannot distinguish the two walls and name the one-line check that can; predict what a `defaultAction: SCMP_ACT_ERRNO` profile with four allowed syscalls does, and say whose code dies; explain why an allowlist cannot be derived by reading your own source; describe the fleet-consistency problem a `Localhost` profile introduces and the two ways it is solved; say why seccomp cannot filter on a path and which mechanism can; write an `appArmorProfile` stanza, name the annotation it replaced and what happens if you use both; distinguish a sandboxed runtime from a filter in one sentence; and, given a refusal, say which of the five stages it came from and whether waiting will help.
+> **You understand this when you can** say why capabilities were never a container boundary and
+> give a syscall that proves it; demonstrate that capabilities and seccomp refuse disjoint sets of
+> operations; prove the filter is consulted *before* the capability check; explain why `Operation
+> not permitted` cannot tell the two walls apart and name the one-line check that can; and, given
+> any refusal in this act, say which of the five stages produced it and whether waiting will help.
 
 **Which raises:** every protection in these two lessons had to be *written on the Pod* — a `securityContext` here, a `seccompProfile` there, and a Pod that omits all of them is still perfectly valid and runs as root with fourteen capabilities and no filter. Which means none of it is a property of the cluster; it is a property of whoever last edited the YAML, and it is absent by default. **So how does a cluster refuse a Pod that simply does not say any of this — and where would such a refusal even live, given that the Pod is not wrong about anything?**
 

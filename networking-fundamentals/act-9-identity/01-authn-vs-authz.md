@@ -222,7 +222,11 @@ Note the groups, too, because Act VIII made you build one into a certificate by 
 kubectl delete serviceaccount probe
 ```
 
-> **You understand this when you can** state the two questions in order and say which machinery answers each; predict `401` versus `403` for a bad credential and a valid-but-powerless one, and say which one contains a username; explain why a request with no credential at all returns `403` and what identity it runs as; argue why making "nobody" a name rather than a special case is the safer design; explain why granting permissions can never fix a `401` and re-issuing a credential can never fix a `403`; say why `auth can-i --as` can answer truthfully for an identity whose credential you do not hold; and explain why one authorization system can serve certificates, tokens and anonymous requests alike.
+> **You understand this when you can** predict `401` versus `403` for a bad credential and a
+> valid-but-powerless one, and say which contains a username; explain why a request with no
+> credential at all returns `403`, and what identity it runs as; explain why granting permissions
+> can never fix a `401` and re-issuing a credential can never fix a `403`; and explain why one
+> authorization system can serve certificates, tokens and anonymous requests alike.
 
 **Which raises:** request one worked because you had a token — nine hundred characters that the server unpacked into a name. But look at what you did to get it: you asked the cluster, over an authenticated connection, and it minted one. Which is fine for a script, and hopeless as a description of how *people* log in. A human has a password, and a password is the one credential you must never send twice, never store, and never let anywhere near a log file. **So what does a system hand you instead, the first time you prove who you are — and what does it cost to hand you anything at all?**
 

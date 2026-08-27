@@ -230,7 +230,11 @@ And this is the origin of a whole family of real vulnerabilities, none of which 
 kubectl delete sa probe --ignore-not-found
 ```
 
-> **You understand this when you can** name the three parts of a JWT and say which of them is not JSON; argue from Act VIII why nothing in it is encrypted, and say which promise a signature does and does not keep; explain why `base64 -d` truncates a JWT payload and what to do about it; name `iss`, `sub`, `aud` and `exp` and say what job each does, with `aud`'s job stated as an attack it prevents; explain what a private claim is; say why editing the payload produces `401` rather than `403` and connect that to lesson 01's diagnostic; state the difference between reading a token and verifying it, and connect it to Act VIII's `error 7`; and give the rule for what belongs in a token, with the reason a role is a worse idea than an email address.
+> **You understand this when you can** argue from Act VIII why nothing in a JWT is encrypted, and
+> say which promise a signature does and does not keep; state `aud`'s job as an attack it
+> prevents; say why editing the payload produces `401` rather than `403`, and connect that to
+> lesson 01's diagnostic; and state the difference between reading a token and verifying it,
+> connecting it to Act VIII's `error 7`.
 
 **Which raises:** the API server rejected your forgery, so *it* can tell the difference between reading and verifying. You cannot yet. It holds a key you do not have — except that the header told you the key has a *name*, `kid`, which is a strange thing to publish if nobody is expected to look it up. **So: can you check that signature yourself, with no privileged access at all? And if you can, what stops you also issuing tokens?**
 

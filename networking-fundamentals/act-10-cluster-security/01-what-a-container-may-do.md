@@ -502,7 +502,12 @@ kubectl delete pod d caps pw priv dev dropped capcase bind80 ports \
   mustnotberoot esc-true esc-false ro ro-fixed --ignore-not-found
 ```
 
-> **You understand this when you can** explain why a container process is uid 0 and still cannot set its own hostname; read a `CapEff` mask, count it, and name what its absences and presences mean for a compromised process; say who chose that default set and demonstrate it is not Kubernetes; distinguish `Operation not permitted` from `Read-only file system` and say which one `securityContext` can act on; give four independent measurements that make a privileged container equivalent to root on the host, and say which single one would be enough; write the four-line hardening stanza and say what each line denies an attacker; explain `NoNewPrivs` in terms of `execve` and say which step of an attack it breaks; predict what `readOnlyRootFilesystem` does to `/tmp` and give the fix; say what `fsGroup` is for and why it exists only at pod level; demonstrate that dropping `ALL` does not stop a process binding port 80 on this runtime and explain the sysctl that makes that true; and explain why `runAsNonRoot` cannot be enforced when the Pod is created.
+> **You understand this when you can** explain why a container process is uid 0 and still cannot
+> set its own hostname; distinguish `Operation not permitted` from `Read-only file system` and say
+> which one `securityContext` can act on; say who chose the default capability set and demonstrate
+> it is not Kubernetes; show that dropping `ALL` still lets a process bind port 80 here, and name
+> the sysctl that makes that true; and explain why `runAsNonRoot` cannot be enforced when the Pod
+> is created.
 
 **Which raises:** every restriction in this lesson was about *who the process is* — its uid, its capabilities, its mounts. And each of them gates a handful of operations: fourteen capabilities against a kernel that exposes **more than three hundred syscalls**, the overwhelming majority of which are checked against no capability at all. A process running as uid 1000 with `CapEff: 0` can still call `keyctl`, `unshare`, `ptrace`, `userfaultfd` and every other entry point in that table, and the ones used to break out of containers are mostly in that unguarded majority. **So what stops a process from calling a syscall when there is no capability standing in front of it?**
 
