@@ -85,7 +85,7 @@ Three fields carried you. The row has seventeen, and you should be able to accou
 | 6 | `tr:tm->when` | `00:00000000` | which retransmit/keepalive timer is armed (`00` = none) : ticks until it fires |
 | 7 | `retrnsmt` | `00000000` | retransmissions on this connection |
 | 8 | `uid` | `0` | the user that owns the socket — `0` is root |
-| 9 | `timeout` | `0` | unanswered zero-window probes (the header's name for it is misleading) |
+| 9 | `timeout` | `0` | unanswered *zero-window probes* — nudges to a receiver that has said *my buffer is full, stop sending*. Act III's subject, like fields 13–17; the header's name for it is misleading. |
 | 10 | `inode` | `3209833` | the socket's inode — your join key to the fd tables, used in step 3 |
 | 11 | *(unnamed)* | `1` | reference count on the kernel socket object |
 | 12 | *(unnamed)* | `0000000000000000` | the kernel address of the `struct sock`, printed with `%pK` — masked to zeros unless the host's `kernel.kptr_restrict` lets you see it, so you may instead find a real address like `ffff88810b0d5000` |

@@ -26,7 +26,7 @@ listening on, and it is what your shell prints as `connection refused`. So a SYN
 possible fates — SYN-ACK, RST, or nothing at all — and that three-way fork is the single most useful
 thing in this lesson.
 
-Why are the ISNs *random* rather than zero? Precisely to kill the ghost. If every connection started at zero, the byte numbers of an old connection and a new one on the same ports would overlap exactly, and a delayed duplicate would slot in perfectly. A random starting number makes the old connection's numbers fall in a different range, so a stray ancient packet lands outside the new connection's window and is discarded. Randomness breaks the ambiguity.
+Why are the ISNs *random* rather than zero? Precisely to kill the ghost. If every connection started at zero, the byte numbers of an old connection and a new one on the same ports would overlap exactly, and a delayed duplicate would slot in perfectly. A random starting number makes the old connection's numbers fall in a different range, so a stray ancient packet falls outside the range of numbers the new connection is willing to accept, and is discarded. Randomness breaks the ambiguity.
 
 ### What do the three messages look like?
 
