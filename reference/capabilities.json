@@ -1316,8 +1316,20 @@
         "What a chart renders to, before it is applied",
         [
           [
+            "helm pull <repo>/<chart> --untar",
+            "the chart on disk — Chart.yaml, values.schema.json, and whether it has a crds/ directory at all"
+          ],
+          [
             "helm template <rel> <chart> -f values.yaml",
             "the manifests, locally, with no cluster involved"
+          ],
+          [
+            "helm template <rel> <chart> --include-crds",
+            "the CRDs as well: plain `helm template` omits `crds/` entirely"
+          ],
+          [
+            "helm install <rel> <chart> --dry-run=server",
+            "a render whose `lookup` calls can see the cluster — plain `--dry-run` is client-side and returns empty"
           ],
           [
             "helm get manifest <rel>",
@@ -1330,6 +1342,27 @@
           [
             "helm diff upgrade <rel> <chart>",
             "the change an upgrade would make"
+          ]
+        ]
+      ],
+      [
+        "What state the release is in, and who is holding it",
+        [
+          [
+            "helm status <rel> -o json",
+            "the release's own status word — `deployed`, `failed`, `pending-upgrade`"
+          ],
+          [
+            "kubectl get secret -l owner=helm -o custom-columns=NAME:.metadata.name,STATUS:.metadata.labels.status",
+            "the same word at its source: the release Secret, which is a lock as well as a record"
+          ],
+          [
+            "helm rollback <rel> <rev>",
+            "replays a stored manifest — and is what clears a `pending-upgrade` that no process is holding"
+          ],
+          [
+            "kubectl get crd",
+            "what `helm uninstall` left behind: `crds/` is install-only in both directions"
           ]
         ]
       ]

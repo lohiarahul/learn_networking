@@ -330,10 +330,11 @@ its next pass — which is one last demonstration of the only property that was 
 > of `-` and `+` is the cluster; predict what happens to an object whose manifest is deleted, and
 > name the flag that changes it; and say why two clusters on one commit can run different code.
 
-**Which raises:** every object in that repo was a kind the API server already knew. The loop worked because
-`apply` had somewhere to put a `Deployment`. So what happens when the thing you want to reconcile is not a
-kind Kubernetes ships — and who writes the loop then?
+**Which raises:** every chart in that repo was one you wrote, so you knew what every file in it did.
+The charts you will actually reconcile came from somebody else — and lesson 08 told you a chart is a
+directory of templates and a `values.yaml`. So what is in one of those directories that **is not a
+template at all**, and what does `helm upgrade` do about it?
 
 ---
 
-← Prev: **[Shipping a set of objects](08-shipping-a-set-of-objects.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Adding a kind](09-adding-a-kind.md)** →
+← Prev: **[Shipping a set of objects](08-shipping-a-set-of-objects.md)** · ↑ **[Act VII overview](README.md)** · Next: **[When the chart is not yours](08c-when-the-chart-is-not-yours.md)** →

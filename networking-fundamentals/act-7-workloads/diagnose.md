@@ -1490,11 +1490,454 @@ tools/verify-drill.sh act-7 10 "who made the third decision"
 kubectl delete namespace limitlab
 ```
 
+## Drill 11 — "the upgrade succeeded and the new API version isn't there"
+
+**Target: 8 minutes**, clock starting when the symptom appears.
+
+> **Ticket:** *"We upgraded the operator chart to get the `v1beta1` API. Helm says `deployed`, the
+> release notes say `v1beta1`, and applying a `v1beta1` object fails. Nothing in the upgrade output
+> mentioned a problem. The old objects are all fine, so please do not break them."*
+
+No bench and no image pulls. A two-file chart, built here, whose only interesting property is where
+it keeps its CRD.
+
+**Reproduce it** (run; don't read):
+
+```bash
+mkdir -p "${TMPDIR:-/tmp}/crdlab/crdlab/crds" "${TMPDIR:-/tmp}/crdlab/crdlab/templates"
+cd "${TMPDIR:-/tmp}/crdlab"
+printf 'apiVersion: v2\nname: crdlab\nversion: 0.1.0\n' > crdlab/Chart.yaml
+cat > crdlab/templates/cm.yaml <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: crdlab-version }
+data:
+  chart-version: {{ .Chart.Version | quote }}
+EOF
+cat > crdlab/crds/gadget.yaml <<'EOF'
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata: { name: gadgets.crdlab.example }
+spec:
+  group: crdlab.example
+  scope: Namespaced
+  names: { plural: gadgets, singular: gadget, kind: Gadget }
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                size: { type: string }
+EOF
+
+helm install crdlab ./crdlab -n crdlab --create-namespace
+kubectl -n crdlab apply -f - <<'EOF'
+apiVersion: crdlab.example/v1alpha1
+kind: Gadget
+metadata: { name: keeper }
+spec: { size: large }
+EOF
+```
+
+That is the cluster before. One CRD serving `v1alpha1`, and one `Gadget` called `keeper` that
+somebody cares about. Now ship version 0.2.0, which adds the `v1beta1` API with an extra field and
+moves storage to it:
+
+```bash
+cat > crdlab/crds/gadget.yaml <<'EOF'
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata: { name: gadgets.crdlab.example }
+spec:
+  group: crdlab.example
+  scope: Namespaced
+  names: { plural: gadgets, singular: gadget, kind: Gadget }
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: false
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                size: { type: string }
+    - name: v1beta1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                size:   { type: string }
+                colour: { type: string }
+EOF
+sed -i.bak 's|^version: 0.1.0|version: 0.2.0|' crdlab/Chart.yaml
+
+helm upgrade crdlab ./crdlab -n crdlab
+kubectl -n crdlab apply -f - <<'EOF'
+apiVersion: crdlab.example/v1beta1
+kind: Gadget
+metadata: { name: newshape }
+spec: { size: small, colour: green }
+EOF
+```
+
+**The symptom:**
+
+```
+Release "crdlab" has been upgraded. Happy Helming!
+NAME: crdlab
+STATUS: deployed
+REVISION: 2
+
+error: resource mapping not found for name: "newshape" namespace: "" from "STDIN":
+no matches for kind "Gadget" in version "crdlab.example/v1beta1"
+ensure CRDs are installed first
+```
+
+**Your move.** `helm list` says `deployed`. `helm history` shows revision 2 on chart 0.2.0. The
+ConfigMap in the same chart has the new version in it — check, because it does. And `kubectl` is
+telling you something in its last line that is easy to read past, because the CRDs obviously *are*
+installed; you watched it happen twenty seconds ago. Row 1 of this act's table asks whether the
+object you think you created exists. Ask it about the CRD rather than the Gadget.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+Compare what the chart ships against what the cluster has. Nothing in this comparison is a Helm
+command, which is the first clue:
+
+```bash
+grep -c 'name: v1' crdlab/crds/gadget.yaml
+kubectl get crd gadgets.crdlab.example \
+  -o jsonpath='{range .spec.versions[*]}{.name}{" "}{end}{"\n"}'
+```
+
+```
+2
+v1alpha1
+```
+
+The chart declares two versions and the cluster has one. **`helm upgrade` did not touch the CRD**, and
+it did not fail, warn, or mention it — because the CRD is in `crds/`, and
+[lesson 08c](../act-7-workloads/08c-when-the-chart-is-not-yours.md) measured what that directory is:
+install-only. Helm's own words are *"no support at this time for upgrading or deleting CRDs using
+Helm."* So the CRD in this cluster is the one the original `helm install` put there, and it will be
+that CRD until something other than Helm changes it. The rest of the release upgraded perfectly,
+which is exactly why every status is green.
+
+Confirm the mechanism rather than the symptom, because this is the part that generalises: the stored
+manifest Helm diffs against does not contain the CRD at all.
+
+```bash
+helm get manifest crdlab -n crdlab | grep -c CustomResourceDefinition
+```
+
+```
+0
+```
+
+**Helm has no record that this chart has a CRD.** There is no drift for it to detect, because from
+Helm's point of view the object was never part of the release. That is the difference between this
+and [lesson 08](08-shipping-a-set-of-objects.md)'s drift finding, where the next `upgrade` at least
+*notices*: here no future upgrade will ever notice.
+
+**The fix, and the two ways to get it wrong.**
+
+```bash
+kubectl apply --server-side -f crdlab/crds/
+```
+
+```
+error: Apply failed with 1 conflict: conflict with "helm": .spec.versions
+```
+
+Read that. **Helm is the recorded field manager of `.spec.versions`** — it created the object, so
+server-side apply credits it with owning those fields — on an object Helm has just been established
+never to update again. The tool that will not change this field is the reason you are not allowed to.
+
+```bash
+kubectl apply --server-side --force-conflicts -f crdlab/crds/
+kubectl get crd gadgets.crdlab.example \
+  -o jsonpath='{range .spec.versions[*]}{.name}{"="}{.storage}{" "}{end}{"\n"}'
+kubectl -n crdlab get gadgets
+```
+
+```
+customresourcedefinition.apiextensions.k8s.io/gadgets.crdlab.example serverside-applied
+v1alpha1=false v1beta1=true
+NAME     AGE
+keeper   3m
+```
+
+Now the `v1beta1` apply works, `keeper` is untouched, and reading it through the new version returns
+what it always had (`{"size":"large"}` — conversion is a no-op here because both schemas share the
+field).
+
+**Why `--server-side` and not plain `apply`.** Client-side apply stores the entire previous object in
+a `kubectl.kubernetes.io/last-applied-configuration` annotation, and real CRDs — with full
+`openAPIV3Schema` for several versions — routinely exceed the 256 KB limit on annotations. The
+canonical failure is `metadata.annotations: Too long: may not be more than 262144 bytes`, on a
+perfectly valid CRD. Server-side apply keeps the ownership data in `metadata.managedFields` instead,
+which is not subject to that limit. For CRDs, `--server-side` is not a preference.
+
+**Wrong fix 1: delete and recreate.**
+
+```bash
+kubectl delete crd gadgets.crdlab.example   # DON'T
+```
+
+This produces a cluster where everything works and `keeper` is gone, along with every other `Gadget`
+in every namespace, deleted by the **garbage collector** rather than by you — custom objects are
+owned by their definition. It is the exact data loss Helm's decision was designed to avoid, arrived
+at by hand, in one command, in response to Helm avoiding it. This is why the verifier checks that
+`keeper` still exists.
+
+**Wrong fix 2: `helm uninstall && helm install`.** A fresh install *does* apply `crds/`, so this also
+works. It also deletes the workload to get there, and on a chart with `crds/` and real data it is a
+much worse trade than it looks — the CRD survives the uninstall (install-only in both directions), so
+the reinstall's CRD apply is subject to the same conflict you were avoiding.
+
+**The durable version.** A chart with a `crds/` directory does not have a one-command upgrade. So
+either turn on the chart's own CRD job if it ships one — `kube-prometheus-stack`'s
+`upgradeJob.enabled=true`, which is a `pre-upgrade` hook holding cluster-wide CRD rights and shipped
+`false` — or put the `kubectl apply --server-side` in front of the `helm upgrade` in whatever runs
+your deploys. Both are fine. Assuming `helm upgrade` did it is not.
+
+**The tell to remember:** a controller or `kubectl` complaining `no matches for kind` about an API
+group that the release you just upgraded is supposed to own. `helm list` is a statement about the
+objects Helm manages, and CRDs from `crds/` have never been among them.
+
+**Tear down** — after running the verifier:
+
+```bash
+kubectl delete crd gadgets.crdlab.example --ignore-not-found
+helm uninstall crdlab -n crdlab
+kubectl delete ns crdlab --ignore-not-found
+rm -rf "${TMPDIR:-/tmp}/crdlab"
+```
+
+</details>
+
+**Verify it:** Run this **before the tear-down**, while the release is still installed. It does not
+read the CRD's YAML — it creates an object through the chart's current storage version, checks the
+field that version added survives the write, and checks that `keeper` is still alive.
+
+```bash
+tools/verify-drill.sh act-7 11 "crds are install only"
+```
+
 ---
 
-## What these ten have in common
+## Drill 12 — "helm says another operation is in progress and nothing is running"
 
-Seven of the ten drills had **nothing wrong with the cluster**. In every case an object was accepted, stored, and read by exactly the loop that was supposed to read it — and that loop then did precisely what the field said. Drills 8, 9 and 10 are the exceptions, and they earn their place by going *below* the object — down to where the kubelet is turning a spec into a running process. Between them they teach two things the other seven cannot. **Those failures are ordered**, and the status word tells you which step you are on: no image, an image nobody was allowed to fetch, a volume that will not resolve, an env reference that does not exist, a container that starts and disagrees. Each step is one further from your YAML and one closer to your program, and each is read with a different tool. And **not every enforcer is Kubernetes.** Drill 10's three casualties were taken by three different authorities — the kernel's OOM killer, the kernel's CFS bandwidth controller, and the kubelet's eviction manager — and only the third left a `.status.reason`, because only the third was a decision anyone in Kubernetes made. The middle one leaves nothing but a counter on the node, which is why it is the failure that gets misdiagnosed for weeks.
+**Target: 6 minutes**, clock starting when the symptom appears.
+
+> **Ticket:** *"Deploy is blocked. Every `helm upgrade` says another operation is in progress. There
+> is no other operation — nobody is deploying, CI is idle, and I have checked twice. It has been like
+> this since last night's release was cancelled."*
+
+**Reproduce it** (run; don't read). A chart with a `pre-upgrade` migration hook, and an upgrade whose
+`helm` process does not survive it — a cancelled CI job, a closed laptop, an evicted runner Pod:
+
+```bash
+mkdir -p "${TMPDIR:-/tmp}/hooklab/hooklab/templates"
+cd "${TMPDIR:-/tmp}/hooklab"
+printf 'apiVersion: v2\nname: hooklab\nversion: 0.1.0\n' > hooklab/Chart.yaml
+printf 'replicas: 1\nmigration:\n  seconds: 0\n'         > hooklab/values.yaml
+cat > hooklab/templates/app.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: hooklab }
+spec:
+  replicas: {{ .Values.replicas }}
+  selector: { matchLabels: { app: hooklab } }
+  template:
+    metadata: { labels: { app: hooklab } }
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh","-c","sleep 86400"]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits:   { cpu: 100m, memory: 64Mi }
+EOF
+cat > hooklab/templates/migrate.yaml <<'EOF'
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hooklab-migrate
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: busybox:1.36
+          command: ["sh","-c","echo migrating the schema; sleep {{ .Values.migration.seconds }}; echo done"]
+EOF
+
+helm install hooklab ./hooklab -n hooklab --create-namespace
+kubectl -n hooklab rollout status deploy/hooklab --timeout=120s
+
+# last night's release, cancelled two seconds in
+helm upgrade hooklab ./hooklab -n hooklab \
+  --set replicas=3 --set migration.seconds=300 --timeout 600s &
+HELM=$!; sleep 3; kill -9 $HELM
+```
+
+Now be the person who picks up the ticket this morning:
+
+```bash
+helm upgrade hooklab ./hooklab -n hooklab --set replicas=3
+```
+
+**The symptom:**
+
+```
+Error: UPGRADE FAILED: another operation (install/upgrade/rollback) is in progress
+```
+
+```bash
+helm list -n hooklab
+kubectl -n hooklab get jobs,pods --no-headers
+```
+
+```
+NAME     NAMESPACE  REVISION  STATUS           CHART
+hooklab  hooklab    2         pending-upgrade  hooklab-0.1.0
+
+pod/hooklab-7b597564d5-bbrgx   1/1   Running   0   9s
+```
+
+**Your move.** No Job. One Pod, which is the *old* single replica, running happily. No `helm` process
+anywhere in the cluster or on your machine. The message names three verbs — install, upgrade,
+rollback — and one of them is the way out; work out which by asking what would have to be true for
+that message to be produced, and where the thing that makes it true is stored. You have known where
+since [lesson 08](08-shipping-a-set-of-objects.md).
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+`pending-upgrade` is not a description of an operation. It is a **word in a Secret**:
+
+```bash
+kubectl -n hooklab get secret -l owner=helm \
+  -o custom-columns=NAME:.metadata.name,STATUS:.metadata.labels.status --no-headers
+```
+
+```
+sh.helm.release.v1.hooklab.v1   superseded
+sh.helm.release.v1.hooklab.v2   pending-upgrade
+```
+
+Lesson 08 found this Secret and read it as a *record* — the rendered manifest, gzipped and base64'd
+twice, which is why `helm rollback` is a replay. This drill is the other half of that finding:
+**it is also a lock.** Helm writes `pending-upgrade` before it starts and overwrites it when it
+finishes, and it is a client-side tool, so "when it finishes" means "if the process lives that long".
+Kill the process and the word stays.
+
+And then the part that matters, which is the same question this act asks about every controller:
+**what would clear it?** Nothing. There is no Helm component in the cluster. Nothing holds a lease,
+nothing has a timeout, nothing reconciles a release. The Secret says an upgrade is in progress and it
+will say that in a year. This is the cost of `helm list` being fast and Helm needing no server-side
+install, and it is the same trade-off as lesson 08's drift: the record is only as true as the last
+client that wrote it.
+
+**The fix is the third verb in the error message:**
+
+```bash
+helm rollback hooklab 1 -n hooklab
+helm upgrade hooklab ./hooklab -n hooklab --set replicas=3 --set migration.seconds=2
+kubectl -n hooklab rollout status deploy/hooklab --timeout=120s
+helm history hooklab -n hooklab
+```
+
+```
+Rollback was a success! Happy Helming!
+Release "hooklab" has been upgraded. Happy Helming!
+deployment "hooklab" successfully rolled out
+
+REVISION  STATUS           DESCRIPTION
+1         superseded       Install complete
+2         pending-upgrade  Preparing upgrade
+3         superseded       Rollback to 1
+4         deployed         Upgrade complete
+```
+
+**Revision 2 stays `pending-upgrade` forever**, and that is correct: it is the permanent record that
+a release was cancelled mid-flight on that date. `helm rollback <last-good-revision>` writes a fresh
+revision whose status is `deployed`, and the lock is gone because the lock was only ever the status
+of the newest revision.
+
+**The wrong fix that works.** `kubectl delete secret sh.helm.release.v1.hooklab.v2` also clears it —
+Helm then sees revision 1 as newest and upgrades happily. It is even quite widely recommended. What
+it does is delete the only evidence that last night happened, which on a real incident is the thing
+the post-mortem needed. The verifier checks for a surviving `pending-upgrade` revision for exactly
+this reason. `helm uninstall && helm install` is worse again: it clears the lock by deleting the
+workload, and it will hand you a green `helm list` and an outage.
+
+**The one thing to check before you roll back**, and it is the reason this drill uses a hook rather
+than a plain upgrade. Helm's `--timeout` bounds *Helm's waiting*, not the work:
+
+```bash
+kubectl -n hooklab get jobs
+```
+
+If a hook Job is still `Running`, that migration is executing right now, and Helm gave up on it
+without cancelling it — there is no cancellation, because the Job is a Kubernetes object and the Job
+controller has never heard of Helm. Roll back while it runs and **the rollback and the migration
+proceed concurrently**, which for a schema migration is the worst available outcome. So the order is:
+read `kubectl get jobs` first, let a running hook finish or delete it deliberately, and only then
+`helm rollback`. In this drill the process died before the Job was created, which is why there is
+nothing there — that is the easy case, and it is not the one that hurts.
+
+**The tell to remember:** *"another operation is in progress"* with nothing in progress means a
+client died holding a lock nobody reconciles. Read the release Secret's `status` label, and roll
+back to the last good revision rather than deleting anything.
+
+**Tear down** — after running the verifier:
+
+```bash
+helm uninstall hooklab -n hooklab
+kubectl delete ns hooklab --ignore-not-found
+rm -rf "${TMPDIR:-/tmp}/hooklab"
+```
+
+</details>
+
+**Verify it:** Run this **before the tear-down**. It checks the upgrade actually landed on the
+Deployment's *ready* replicas, and that you repaired the release rather than replacing it — a
+surviving `pending-upgrade` revision is the check that the evidence is still there.
+
+```bash
+tools/verify-drill.sh act-7 12 "the release secret is a lock"
+```
+
+---
+
+## What these twelve have in common
+
+Nine of the twelve drills had **nothing wrong with the cluster**. In every case an object was accepted, stored, and read by exactly the loop that was supposed to read it — and that loop then did precisely what the field said. Drills 8, 9 and 10 are the exceptions, and they earn their place by going *below* the object — down to where the kubelet is turning a spec into a running process. Between them they teach two things the other seven cannot. **Those failures are ordered**, and the status word tells you which step you are on: no image, an image nobody was allowed to fetch, a volume that will not resolve, an env reference that does not exist, a container that starts and disagrees. Each step is one further from your YAML and one closer to your program, and each is read with a different tool. And **not every enforcer is Kubernetes.** Drill 10's three casualties were taken by three different authorities — the kernel's OOM killer, the kernel's CFS bandwidth controller, and the kubelet's eviction manager — and only the third left a `.status.reason`, because only the third was a decision anyone in Kubernetes made. The middle one leaves nothing but a counter on the node, which is why it is the failure that gets misdiagnosed for weeks.
+
+**And drills 11 and 12 add a third authority, which is not in the cluster at all.** Both of them have a healthy cluster, a green `helm list`, and a tool that is telling the truth about its own records and nothing else: in drill 11 Helm has no record that the chart has a CRD, so there is no drift for it to find and no future upgrade will find one; in drill 12 a word in a Secret says an operation is in progress and no component anywhere will ever clear it, because there is no Helm running in the cluster to clear it. Neither is a Kubernetes failure. They are the failure mode of **client-side state**, and the question that finds them is *which of these two things am I reading — the cluster, or a tool's memory of what it sent?*
 
 Which is the diagnostic value of this act's spine. A workload failure is almost never "Kubernetes is broken"; it is a claim being kept faithfully that you did not mean to make. So the productive question is never "what is wrong with it" but **which loop is keeping which promise, and is that the promise I wrote?**
 

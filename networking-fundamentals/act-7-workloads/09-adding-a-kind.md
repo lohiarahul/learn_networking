@@ -388,4 +388,4 @@ kubectl get crd 2>/dev/null | grep -q example.com && echo "still there" || echo 
 
 ---
 
-← Prev: **[GitOps, which you have already built](08b-gitops.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Choosing the number](10-choosing-the-number.md)** →
+← Prev: **[When the chart is not yours](08c-when-the-chart-is-not-yours.md)** · ↑ **[Act VII overview](README.md)** · Next: **[Choosing the number](10-choosing-the-number.md)** →

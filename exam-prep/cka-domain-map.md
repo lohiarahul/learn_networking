@@ -69,10 +69,12 @@ it is before starting: `kubectl get nodes` answering normally means you want the
 
 ## Cluster Architecture, Installation and Configuration — 25%
 
-The domain that changed most in 2025, and the one with the most words spent on it and the worst
-coverage rate — four ✅, three 🟡 and two ❌ across eight bullets. Two of the gaps are honest lab
-limits (bare-metal install, HA), and three are things the course explains without ever making you do:
-the in-place upgrade, Helm's repository workflow, and RBAC at speed.
+The domain that changed most in 2025, and the one with the most words spent on it — six ✅ and two 🟡
+across eight bullets. What is left is an honest lab limit (a real HA control plane needs machines this
+authoring environment did not have) and the in-place upgrade, which the course derives on a live
+cluster but cannot make you do on three nodes. Helm's repository workflow used to be the third item
+here; [lesson 08c](../networking-fundamentals/act-7-workloads/08c-when-the-chart-is-not-yours.md)
+closed it.
 
 | Sub-competency | Coverage | Where | Me |
 |---|---|---|---|
@@ -81,7 +83,7 @@ the in-place upgrade, Helm's repository workflow, and RBAC at speed.
 | Create and manage Kubernetes clusters using kubeadm | ✅ **covered — with the same caveat** | Act VI reads a *real* kubeadm cluster from the inside — [static pods](../networking-fundamentals/act-6-control-plane/02-static-pods.md) · [the cluster's own PKI](../networking-fundamentals/act-6-control-plane/04-the-clusters-own-pki.md) (`kubeadm certs check-expiration`/`renew`) · [etcd backup and restore](../networking-fundamentals/act-6-control-plane/05-etcd-backup-and-restore.md) — and [two machines, from nothing](../networking-fundamentals/act-6-control-plane/09-two-machines-from-nothing.md) now performs the `init` and the `join`. The part of that worth the hour is not the commands: it is that `join` carries **two secrets pointing in opposite directions** (the token authenticates the node to the cluster; the `--discovery-token-ca-cert-hash` authenticates the cluster to the node, over a connection the node cannot yet verify), which is Act VIII's trust-the-first-key problem with the only available answer — you do not derive the first key, you carry it. **Not author-verified**, per the page's own banner | `-` |
 | Manage the lifecycle of Kubernetes clusters | ✅ **covered — with the same caveat** | [upgrades and version skew](../networking-fundamentals/act-6-control-plane/06-upgrades-and-version-skew.md) derives the skew rules rather than memorising them, runs `kubeadm upgrade plan` for real, and covers the failure the skew table cannot predict — a release **removing** an API, found *before* an upgrade with `apiserver_requested_deprecated_apis` (note that `kubectl convert` is **not part of `kubectl`** and should not be planned around). What it could not do was the in-place upgrade itself, because a `kind` node's binaries come from its image. [two machines, from nothing](../networking-fundamentals/act-6-control-plane/09-two-machines-from-nothing.md) now runs it: `upgrade apply` on the control plane, `upgrade node` on the worker, `drain`/`uncordon` around each kubelet restart, and `apt-mark hold` on all three packages — with the note that **the one command name that differs between a control-plane node and a worker is the difference between the task passing and the task doing nothing**. **Not author-verified** | `-` |
 | Implement and configure a highly-available control plane | 🟡 **partial — the reasoning, not the build** | [etcd backup and restore](../networking-fundamentals/act-6-control-plane/05-etcd-backup-and-restore.md) now closes the half that does not need a second node: `member list` and `endpoint health --cluster` as the first two commands, the majority table (1→0, 2→0, 3→1, 4→1, 5→2) and therefore why an even size buys nothing, why losing quorum is *worse* than filling the disk (no leader means linearizable reads fail too, so it is not read-only, it is silent), why `member remove` comes before `member add`, what `IS LEARNER` is for, and how a multi-member restore differs — same snapshot, per-member `--name` and peer URL, shared `--initial-cluster-token`. What is still missing is the build: stacked vs external etcd, a load balancer in front of `controlPlaneEndpoint`, and `kubeadm join --control-plane`. That needs machines this lab does not have | `-` |
-| **Use Helm and Kustomize to install cluster components** | 🟡 **partial — the Kustomize half is solid, the Helm half is not** | [shipping a set of objects](../networking-fundamentals/act-7-workloads/08-shipping-a-set-of-objects.md) contrasts both and is good on what templating *is*, and it runs `helm install`, `list`, `upgrade`, `rollback`, `template`, `uninstall` and `get values` against a chart from `helm create`. The repository workflow is covered too, and not in Act VII — **Act X installs three public charts for real**: [Cilium](../networking-fundamentals/act-10-cluster-security/09-encryption-between-pods.md) (`helm repo add`, then `install --version 1.19.7 --set`, then `upgrade --reuse-values`), [Falco](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) (`install --version 9.1.0 --namespace falco --create-namespace`) and [External Secrets](../networking-fundamentals/act-10-cluster-security/11-secrets-from-outside.md). That is the whole task shape, done three times, on charts that have to actually work afterwards. What genuinely remains is the *read-only* half a task can still hinge on: `helm repo update`, `search repo`, `show values`, `history`, `upgrade --install` and `--skip-crds`. Six commands, and none of them changes a cluster — an hour against any public chart closes the row | `-` |
+| **Use Helm and Kustomize to install cluster components** | ✅ covered | [shipping a set of objects](../networking-fundamentals/act-7-workloads/08-shipping-a-set-of-objects.md) contrasts both and is good on what templating *is*, and it runs `helm install`, `list`, `upgrade`, `rollback`, `template`, `uninstall` and `get values` against a chart from `helm create`. The repository workflow is covered too, and not in Act VII — **Act X installs three public charts for real**: [Cilium](../networking-fundamentals/act-10-cluster-security/09-encryption-between-pods.md) (`helm repo add`, then `install --version 1.19.7 --set`, then `upgrade --reuse-values`), [Falco](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) (`install --version 9.1.0 --namespace falco --create-namespace`) and [External Secrets](../networking-fundamentals/act-10-cluster-security/11-secrets-from-outside.md). That is the whole task shape, done three times, on charts that have to actually work afterwards. And [lesson 08c](../networking-fundamentals/act-7-workloads/08c-when-the-chart-is-not-yours.md) closes the half that used to be missing, on charts you did not write: `helm pull --untar` as the reading primitive, the six read-only verbs in [kubectl-speed](kubectl-speed.md), and **`--skip-crds` derived rather than memorised** — `crds/` is not templated (a `{{ .Chart.Version }}` reaches etcd verbatim), is never touched by `helm upgrade`, and survives `helm uninstall`. Then the measurement that matters for the reported task shape: cert-manager, external-secrets and ingress-nginx have **no `crds/` at all**, so on them `--skip-crds` does nothing and the answer is `--set crds.enabled=false`. Plus `--dry-run` being client-side (only `--dry-run=server` resolves `lookup`), subchart value scoping, and hooks. [Drills 11 and 12](../networking-fundamentals/act-7-workloads/diagnose.md) make it a fix under a clock: an upgrade that reports success with the CRD unchanged, and `another operation is in progress` with nothing in progress | `-` |
 | **Understand extension interfaces (CNI, CSI, CRI, etc.)** | ✅ covered | CNI [in depth](../networking-fundamentals/act-5-kubernetes/05-cni.md) · CRI via `crictl` throughout [Act VI](../networking-fundamentals/act-6-control-plane/08-when-the-control-plane-breaks.md) · CSI derived from the `ExternalExpanding` event in [storage](../networking-fundamentals/act-7-workloads/06-storage.md) | `-` |
 | **Understand CRDs, install and configure operators** | ✅ **covered, above exam depth** | [adding a kind](../networking-fundamentals/act-7-workloads/09-adding-a-kind.md) — write a CRD, discover it adds no behaviour, then write the controller in shell | `-` |
 
@@ -112,6 +114,18 @@ and `helm.sh/docs` being a whitelisted exam doc confirms they are genuinely exam
 CRDs** (`--skip-crds`); `helm template`. Candidates report charts "failing silently without specific
 flags." Drill: `repo add`/`update`, `search repo`, `show values`, `install --set`/`-f`, `--dry-run`,
 `template`, `upgrade --install`, `history`/`rollback`, `--skip-crds`, `-n --create-namespace`.
+
+Three things to have straight before the clock starts, all measured in
+[lesson 08c](../networking-fundamentals/act-7-workloads/08c-when-the-chart-is-not-yours.md):
+
+- **`helm template` omits `crds/` entirely.** If the task says "render the manifest" and the chart has
+  a `crds/` directory, you need `--include-crds` — and `helm install` has no such flag, because it
+  installs them by default.
+- **`--skip-crds` only skips a `crds/` directory.** Charts that render CRDs from `templates/` behind a
+  value ignore it. Check which convention the chart uses (`ls <chart>` after `helm pull --untar`)
+  before answering an "exclude the CRDs" task; the answer may be `--set crds.enabled=false`.
+- **`--dry-run` is client-side.** A chart containing `lookup` renders differently under `--dry-run`
+  than it installs. `--dry-run=server` is the one that sees the cluster.
 
 **Kustomize is the harder of the two, and for a non-obvious reason: `kustomize.io` is not an allowed
 doc.** Your only reference is
@@ -255,7 +269,7 @@ Counting a 🟡 as a half, and stating the arithmetic so you can check it:
 | Domain | Weight | Course covers | ✅ | 🟡 | ❌ |
 |---|---|---|---|---|---|
 | Troubleshooting | 30% | **4½ of 5** — two above exam depth | 4 | 1 | 0 |
-| Cluster Architecture | 25% | **7 of 8** — HA and Helm's read-only half are what is left | 5 | 3 | 0 |
+| Cluster Architecture | 25% | **7 of 8** — HA and the in-place upgrade are what is left | 6 | 2 | 0 |
 | Servicing and Networking | 20% | **5½ of 6** — the Gateway HTTPS listener is authored but not run | 4 | 2 | 0 |
 | Workloads and Scheduling | 15% | **5 of 5** | 5 | 0 | 0 |
 | Storage | 10% | **3 of 3** | 3 | 0 | 0 |
