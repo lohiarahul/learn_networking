@@ -183,21 +183,46 @@ competency and `kubectl` will not help you.
 Reported task shapes: add a repo and render a manifest, and **install a chart while excluding CRDs**.
 
 ```bash
-helm repo add bitnami https://charts.bitnami.com/bitnami && helm repo update
-helm search repo nginx
-helm show values bitnami/nginx | head -40
-helm template rel bitnami/nginx -f values.yaml            # render without installing
-helm install rel bitnami/nginx -n web --create-namespace
-helm install rel bitnami/nginx --skip-crds                # the flag people miss
-helm upgrade --install rel bitnami/nginx --set replicaCount=3
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx && helm repo update
+helm search repo ingress-nginx
+helm show values ingress-nginx/ingress-nginx | head -40
+helm template rel ingress-nginx/ingress-nginx -f values.yaml   # render, no cluster, no install
+helm install rel ingress-nginx/ingress-nginx -n web --create-namespace
+helm upgrade --install rel ingress-nginx/ingress-nginx --set controller.replicaCount=3
 helm list -A
-helm history rel
-helm rollback rel 1
+helm history rel -n web
+helm rollback rel 1 -n web
 helm uninstall rel -n web
 ```
 
+`--skip-crds` needs a chart that actually has CRDs, and — this is the part that catches people — it
+only skips a **`crds/` directory**:
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install mon prometheus-community/kube-prometheus-stack \
+  -n mon --create-namespace --skip-crds
+```
+
+`kube-prometheus-stack` keeps ten CRDs in `charts/crds/crds/`, so the flag removes ten objects from
+the install. **On most other charts it removes nothing.** cert-manager, external-secrets and
+ingress-nginx have no `crds/` directory at all — cert-manager and external-secrets render their CRDs
+from `templates/` behind a value (`crds.enabled`, `installCRDs`), and `--skip-crds` does not look at
+`templates/`. If a task says "install this chart without its CRDs", check which convention the chart
+uses before reaching for the flag; the answer may be `--set crds.enabled=false`.
+[Act VII lesson 08c](../networking-fundamentals/act-7-workloads/08c-when-the-chart-is-not-yours.md)
+derives why the two conventions exist.
+
 `helm.sh/docs` is an allowed doc, so you don't have to memorise flags — but you do have to know the
 verbs exist.
+
+> **Why not Bitnami.** Every Helm walkthrough written before 2025 — including this one, until it was
+> checked — starts `helm repo add bitnami https://charts.bitnami.com/bitnami`. That URL now 302s to
+> `repo.broadcom.com/bitnami-files`, and since **28 August 2025** `docker.io/bitnami/*` keeps only
+> community-tier `latest` tags: the versioned tags the charts pin moved to `docker.io/bitnamilegacy`
+> (archived, unsupported) or the paid `docker.io/bitnamisecure`. `helm template` still renders,
+> because it never pulls — but `helm install` can hand you an `ImagePullBackOff` that has nothing to
+> do with what you typed. Practise on charts that will still be there.
 
 ## Kustomize — the one to over-prepare
 
