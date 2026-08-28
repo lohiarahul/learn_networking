@@ -13,27 +13,32 @@ read it in this order and ignore this page.
 Route B is not a shortcut through the material. It is a *split* of it, and the honest headline is
 this:
 
-> **You can sit CKA having read 58% of the course.** The CKA path is 218,884 words. CKS is the other
-> 124,056. Only 30,801 words — 8.2% — sit outside both curricula, and those are gated as an
+> **You can sit CKA having read 58% of the course.** The CKA path is 225,333 words. CKS is the other
+> 127,232. Only 30,801 words — 8.0% — sit outside both curricula, and those are gated as an
 > [optional track](#the-optional-track) rather than removed.
 
 That is a smaller saving than it sounds like and a bigger one than it looks like. Smaller, because
-sequencing cannot compress a syllabus — Act X is 84k words and *all* of it is CKS. Bigger, because
+sequencing cannot compress a syllabus — Act X is 87k words and *all* of it is CKS. Bigger, because
 the thing that actually defeats self-study candidates is not total length, it is reaching Act VIII
 with a date three weeks out and no idea which of the remaining 150k words are examined. Route B
 answers that question.
 
 > **A correction to the audit that produced this page.** [`AUDIT.md`](../AUDIT.md) §G estimated Route
-> B at "roughly 240k against 358k". Measured, it is **342,940 against 377,334** — the saving is 9%,
+> B at "roughly 240k against 358k". Measured, it is **352,565 against 386,959** — the saving is 9%,
 > not 33%. §G's estimate and §F's own inventory of off-syllabus material (~31k) never reconciled, and
 > §F was the one telling the truth. The consequence matters: **the length of this course is not a
 > sequencing problem and cannot be fixed by routing.** If it needs to be shorter, that has to come
-> out of on-syllabus prose — Act X's 84k, Act VII's 48k — which is a compression job, not an
+> out of on-syllabus prose — Act X's 87k, Act VII's 55k — which is a compression job, not an
 > ordering one.
 
 ---
 
 ## The path
+
+**Counts remeasured 28 August 2026**, after Act VII gained
+[lesson 08c](../networking-fundamentals/act-7-workloads/08c-when-the-chart-is-not-yours.md) and two
+drills, and Act X lesson 10 gained its Falco rule-authoring section and drill 13. The whole-course
+figure carries forward the basis the original measurement used.
 
 Words are the whole act unless a lesson list narrows it — including its `README`, `diagnose.md`,
 `test-yourself.md` and `in-the-wild.md`, because those are where the drills live and the drills are
@@ -41,19 +46,19 @@ the part that transfers to an exam.
 
 | # | Read | Words | Drills | Why here |
 |---|---|---|---|---|
-| **1** | Orientation, **Act I**, **Act IV** | 46,775 | 7 | Process, fd, socket, namespace, cgroup, veth, bridge, iptables/nft. **Non-negotiable.** Everything in Act V is unreadable without it — a Service is a NAT rule and a Pod is a namespace, and if those two words are abstractions to you then Act V is memorisation. |
-| **2** | **Act II** 01, 02, 03, 03b, 04 · **Act III** 01, 02, 02b, 03 | 34,191 | 8 | ARP, routing, ICMP/UDP, MTU, DNS, the handshake, TCP states, conntrack. Skip VLANs, BGP and DHCP (no exam surface) and HTTP/TLS *for now* — TLS is picked up properly at step 8. Keep 03b: MTU is paid off directly by VXLAN in Act IV and by every overlay-CNI question. |
+| **1** | Orientation, **Act I**, **Act IV** | 46,795 | 7 | Process, fd, socket, namespace, cgroup, veth, bridge, iptables/nft. **Non-negotiable.** Everything in Act V is unreadable without it — a Service is a NAT rule and a Pod is a namespace, and if those two words are abstractions to you then Act V is memorisation. |
+| **2** | **Act II** 01, 02, 03, 03b, 04 · **Act III** 01, 02, 02b, 03 | 34,198 | 8 | ARP, routing, ICMP/UDP, MTU, DNS, the handshake, TCP states, conntrack. Skip VLANs, BGP and DHCP (no exam surface) and HTTP/TLS *for now* — TLS is picked up properly at step 8. Keep 03b: MTU is paid off directly by VXLAN in Act IV and by every overlay-CNI question. |
 | **3** | **Act V**, then [`the-whole-stack.md`](../networking-fundamentals/the-whole-stack.md), then Act V's debugging pages and drills | 41,002 | 4 | The capstone *before* the debugging method, as the course already instructs. You cannot follow a debugging discipline over a path you have not once traced end to end. |
 | **4** | **Act VI** — including [09, the two-VM build](../networking-fundamentals/act-6-control-plane/09-two-machines-from-nothing.md) | 42,726 | 11 | `kubeadm init` → `join` → in-place upgrade belongs *here*, where static pods and the cluster PKI have just been read from the inside. Doing it earlier makes it a recipe. **Lesson 09 is the one page in the course its author has not run** — see the banner on it. |
-| **5** | **Act VII** | 48,445 | 10 | Workloads, scheduling, storage, config, Helm/Kustomize, CRDs, autoscaling. The largest single block on the path, and the largest single block of CKA. |
+| **5** | **Act VII** | 54,867 | 12 | Workloads, scheduling, storage, config, Helm/Kustomize, CRDs, autoscaling. The largest single block on the path, and the largest single block of CKA — lessons 08, 08b and 08c are its Helm/Kustomize section, and 08c plus drills 11–12 are the operational half: `crds/`, hooks, and a release Secret that is also a lock. |
 | **6** | **Act IX lesson 06 only** — [RBAC and ABAC](../networking-fundamentals/act-9-identity/06-rbac-and-abac.md) — plus Act IX drills **2, 4 and 6** | 5,745 | 3 | Pulled forward, out of sequence. RBAC is a CKA bullet in the heaviest domain and it does not need lessons 01–05 to land. Those three drills are RBAC-only; the other three need the token material and wait for step 9. |
 | **7** | [`exam-prep/`](README.md) — the domain maps, [`kubectl-speed.md`](kubectl-speed.md), [`exam-day.md`](exam-day.md), [`authoring-sprint.md`](authoring-sprint.md) — then killer.sh | 16,636 *(not counted below)* | 7 items | Speed and recall, which the course deliberately refuses to train. The authoring sprint is the one that finds gaps: every item is something the course made you read and never made you write. |
-| | **→ sit CKA** | **218,884** course words | **43** | |
+| | **→ sit CKA** | **225,333** course words | **45** | |
 | **8** | **Act VIII** 05, 06 — certificates, TLS opened | 19,505 | 6 | Now, not earlier. CKS's Ingress-TLS bullet and the whole `cosign` half of Act X rest on these two, and Act III's TLS cliffhanger has been open since step 2. |
-| **9** | **Act IX** 01–04 · **Act X** · Act IX's remaining drills | 104,551 | 15 | The entire CKS syllabus plus the identity material that CKS assumes. Act X is 84k of this and there is no way round it. |
-| | **→ sit CKS** | **342,940** course words | **64** | |
+| **9** | **Act IX** 01–04 · **Act X** · Act IX's remaining drills | 107,727 | 16 | The entire CKS syllabus plus the identity material that CKS assumes. Act X is 87k of this and there is no way round it. |
+| | **→ sit CKS** | **352,565** course words | **67** | |
 
-**43 of the 64 drills are on the CKA path**, and every one of them ends in a verifier that exits
+**45 of the 67 drills are on the CKA path**, and every one of them ends in a verifier that exits
 non-zero if your fix is wrong — see [`drills/README.md`](../drills/README.md). That is the part of
 this repository that most resembles the exam, because the exam also does not care whether you can
 explain the fix.
@@ -79,7 +84,7 @@ better for having it.
 
 Three things, stated because a path that hides its own gaps is worse than no path.
 
-**It does not make the course short.** 342k words is four technical books. At a realistic
+**It does not make the course short.** 353k words is four technical books. At a realistic
 read-plus-experiment pace that is 200+ hours for two two-hour exams that many candidates clear in
 100–150. Route B tells you *which* hours; it does not give you fewer of them.
 

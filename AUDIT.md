@@ -51,7 +51,7 @@
 > reconciled with each other, and §F was the one telling the truth. So: **the length of this course is
 > not a sequencing problem and cannot be fixed by routing**, because 92% of it is on one syllabus or the
 > other. What Route B genuinely delivers is a *split* — you can sit CKA having read 58% of the course,
-> and 43 of the 64 drills fall on that path — not a reduction. Any real reduction has to come out of
+> and 45 of the 67 drills fall on that path — not a reduction. Any real reduction has to come out of
 > on-syllabus prose (Act X's 84k, Act VII's 48k), which is a compression job nobody has started.
 >
 > **"Seven bloated checks, ~2,600 words" is one bloated check and 395 surplus words.** Measuring all 90
@@ -240,7 +240,7 @@ Verdicts are this audit's, against the two PDFs pulled during it. Where they dif
 | Create/manage clusters using kubeadm | **Partial** | `act-6/02`, `/04`, `/05` read a real kubeadm cluster from inside; `kubeadm certs`, `etcdctl snapshot` | `kubeadm init`, `kubeadm join` — never run |
 | Manage the lifecycle of clusters | **Partial** | `act-6/06` derives version skew rather than quoting it, runs `upgrade plan`, and covers the failure the skew table cannot predict (an API *removed*, found via `apiserver_requested_deprecated_apis`) | `upgrade apply` / `upgrade node` — the lesson declines to run them, correctly, because a `kind` node image cannot be upgraded in place. This is the exam task |
 | Implement and configure an HA control plane | **Partial** | `act-6/05` now carries the quorum reasoning — majority table, why an even size buys nothing, why lost quorum breaks linearizable reads rather than going read-only, `member remove` before `member add`, `IS LEARNER`, multi-member restore | The build: stacked vs external etcd, `controlPlaneEndpoint`, `join --control-plane` |
-| Use Helm and Kustomize | **Partial** | `act-7/08` contrasts both and runs the Helm write path end to end; **Act X installs three public charts for real** (Cilium, Falco, External Secrets) with `--version`, `--set`, `--reuse-values` | `repo update`, `search repo`, `show values`, `history`, `upgrade --install`, `--skip-crds`. Six read-only commands |
+| Use Helm and Kustomize | **Closed** | `act-7/08` contrasts both and runs the Helm write path end to end; **Act X installs three public charts for real** (Cilium, Falco, External Secrets) with `--version`, `--set`, `--reuse-values`; and `act-7/08c` closes the read-only half on charts you did not write — `helm pull --untar`, `--include-crds`, `--dry-run=server`, subchart scoping, hooks, and `--skip-crds` **derived** from the measurement that `crds/` is not templated and is never upgraded. Drills 11–12 grade it | `-` |
 | Understand extension interfaces (CNI, CSI, CRI) | **Strong** | CNI in depth (`act-5/05`); CRI via `crictl` throughout Act VI including with the apiserver down; CSI inferred | CSI mechanism is thin — see §B P3 |
 | Understand CRDs, install and configure operators | **Strong** *(above depth)* | `act-7/09` — write a CRD, discover it adds no behaviour, then write the controller in shell | — |
 
@@ -308,7 +308,7 @@ Verdicts are this audit's, against the two PDFs pulled during it. Where they dif
 | | Understand your supply chain (SBOM, CI/CD, artifact repos) | **Strong** | `act-10/08` — and it uses `bom`, which is the tool on the CKS allowed-docs list, not `trivy`'s SBOM | — |
 | | Secure your supply chain (permitted registries, sign and validate) | **Strong**, with one named artifact absent | `act-10/08` — real `cosign` verification, a hand-built admission webhook, `AlwaysPullImages`, and a Kyverno `ImageValidatingPolicy` registering both a mutating and a validating webhook because you must resolve the tag to a digest *before* judging whether that digest is signed | **`ImagePolicyWebhook` is built nowhere** — and that is the exam's named artifact for permitted registries |
 | | Static analysis of workloads and images (Kubesec, KubeLinter) | **Missing** | — | Both tools: zero hits repo-wide |
-| **Monitoring/Runtime 20%** | Behavioral analytics to detect malicious activity | **Partial** | `act-10/10` installs Falco by Helm and watches rules fire | A rule the learner *writes*. Expect to author one under a clock |
+| **Monitoring/Runtime 20%** | Behavioral analytics to detect malicious activity | **Closed** | `act-10/10` installs Falco by Helm, watches a shipped rule fire, then opens `falco_rules.yaml` (25 rules against 87 macros and 49 lists — a ruleset is mostly exemptions) and authors one: `list`, `macro`, `rule`, `override.condition`, `customRules` → `/etc/falco/rules.d`. Drill 13 makes the learner write it under a clock and hides the mark in `falco.rules`'s post-load `disable` | `-` |
 | | Detect threats across infra, apps, networks, users, workloads | **Partial** | `act-10/10` | Same as above |
 | | Investigate and identify phases of attack | **Partial** | `act-10` drill 5 — "what happened inside the shell" — is exactly this and is good | One drill carrying a whole bullet |
 | | Ensure immutability of containers at runtime | **Strong** | `act-10/01` — `readOnlyRootFilesystem`, and the section on a root filesystem you cannot write | — |
@@ -636,10 +636,11 @@ which the repo names and does not route around.**
 **2. Pass CKS? — Mostly.** Act X is stronger on *why* each control exists than any commercial CKS
 course I am aware of, and its habit of ending each lesson with a control that appears to work and does
 not is exactly the right instinct for this exam. But CKS is scored on configuring six controls in
-about seven minutes each, and the course says so about itself. **Biggest remaining blocker: four
-competencies where the artifact is never built — a Falco rule you wrote, an AppArmor profile that
-loads, gVisor actually running, `ImagePolicyWebhook` — plus static analysis, which has zero
-coverage.**
+about seven minutes each, and the course says so about itself. **Biggest remaining blocker: three
+competencies where the artifact is never built — an AppArmor profile that loads, gVisor actually
+running, `ImagePolicyWebhook`.** Two items have since come off this list: static analysis, closed by
+drill 12 (kubesec and kube-linter over three manifests, then a `ValidatingAdmissionPolicy` that
+refuses on the finding), and the Falco rule, closed by lesson 10's authoring section and drill 13.
 
 **3. Troubleshoot a broken Kubernetes cluster? — Yes.** This is the repo's strongest claim and it is
 earned. Two independent diagnostic methods, one for a broken cluster and one for a broken workload;

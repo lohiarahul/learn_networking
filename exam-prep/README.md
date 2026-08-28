@@ -63,7 +63,7 @@ publishes an invented 12/22/31 split for CKA.
 ## The rest of this directory
 
 - **[the-exam-path.md](the-exam-path.md)** — the whole course in exam order rather than narrative
-  order: nine steps, measured word counts, which of the 64 drills fall on the CKA path (43 of them),
+  order: nine steps, measured word counts, which of the 67 drills fall on the CKA path (45 of them),
   and an explicit optional track for the material neither curriculum examines. Read it before you plan
   a single week.
 - **[kubectl-speed.md](kubectl-speed.md)** — what actually saves time in the current environment.

@@ -63,7 +63,7 @@ reconcile** in the cloud.
 >
 > - **Route A — this map.** Narrative order, all 376,651 words, nothing skipped.
 > - **Route B — [the exam path](exam-prep/the-exam-path.md).** The same material in exam order: nine
->   steps, the 58% you need before CKA, the 43 of 64 drills that fall on that path, and an explicit
+>   steps, the 58% you need before CKA, the 45 of 67 drills that fall on that path, and an explicit
 >   optional track for the 8% neither curriculum examines.
 >
 > Route B saves less than you would hope — 9% of the words, not a third — because almost all of this
