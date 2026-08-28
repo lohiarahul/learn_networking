@@ -1412,6 +1412,236 @@ namespace of its own, so it checks that the gate you wrote actually refuses the 
 tools/verify-drill.sh act-10 12 "what a score is not"
 ```
 
+## Drill 13 — the rule is loaded and nothing fires
+
+**Target: 9 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"We wrote a Falco rule for our application's credential file after the last incident.
+> It fired in the test cluster. It has never fired in production. The file is on the node, the rule
+> is in it, Falco is running on every node, and nobody has touched it since."*
+
+> **This drill has not been run by its author.** It is the one item in this act in the position of
+> [Act VI lesson 09](../act-6-control-plane/09-two-machines-from-nothing.md): the environment it was
+> written in could not reach `falcosecurity.github.io`, so no Falco could be installed to fire the
+> rule. Every rule field, macro, tag and config key below was taken from
+> [`falcosecurity/rules`](https://github.com/falcosecurity/rules/blob/main/rules/falco_rules.yaml) and
+> the chart's `values.yaml` rather than from memory, and the verifier is written to fail loudly rather
+> than silently if the shape is wrong. **You are the first person to run it.** If it does not
+> reproduce, the reveal names what to check.
+
+Falco takes several minutes to install and roll out, so start this and read the ticket again while it
+does.
+
+**Reproduce it** (run; don't read):
+
+```bash
+mkdir -p "${TMPDIR:-/tmp}/rulelab" && cd "${TMPDIR:-/tmp}/rulelab"
+
+cat > values.yaml <<'EOF'
+driver:
+  kind: modern_ebpf
+tty: true
+falcosidekick:
+  enabled: false
+falco:
+  # Noise reduction, ticketed last quarter. The sensitive-file rules were paging
+  # the on-call twice a night on the batch nodes.
+  rules:
+    - disable:
+        tag: filesystem
+customRules:
+  app-credentials.yaml: |-
+    - list: app_credential_files
+      items: [/etc/app/db-password]
+
+    - list: app_binaries
+      items: [myapp, myapp-worker]
+
+    - macro: app_credential_read
+      condition: (open_read and fd.name in (app_credential_files))
+
+    - rule: Application credential read by unexpected process
+      desc: >
+        A process other than the application itself opened one of the credential
+        files this cluster mounts into Pods.
+      condition: app_credential_read and not proc.name in (app_binaries)
+      output: >
+        Application credential read (file=%fd.name process=%proc.name
+        cmdline=%proc.cmdline parent=%proc.pname user=%user.name
+        container=%container.id pod=%k8s.pod.name ns=%k8s.ns.name)
+      priority: CRITICAL
+      tags: [container, filesystem, mitre_credential_access, T1552.001]
+EOF
+
+helm repo add falcosecurity https://falcosecurity.github.io/charts 2>/dev/null
+helm install falco falcosecurity/falco --version 9.1.0 \
+  -n falco --create-namespace -f values.yaml
+kubectl -n falco rollout status ds/falco --timeout=400s
+
+kubectl create ns rulelab
+kubectl -n rulelab run creds --image=busybox:1.36 --restart=Never --command -- \
+  sh -c 'mkdir -p /etc/app && echo hunter2 > /etc/app/db-password && sleep 3600'
+kubectl -n rulelab wait --for=condition=Ready pod/creds --timeout=120s
+```
+
+Now the two probes. The first is the thing the rule was written for. The second is a shipped rule,
+run as a control:
+
+```bash
+kubectl -n rulelab exec creds -- cat /etc/app/db-password
+kubectl -n rulelab exec creds -- sh -c 'cp /bin/busybox /dev/shm/x && /dev/shm/x ls / >/dev/null'
+sleep 10
+kubectl logs -n falco ds/falco -c falco --since=90s | grep -iE 'credential|/dev/shm'
+```
+
+**The symptom:**
+
+```
+02:11:44.881203514: Warning File execution detected from /dev/shm | evt_res=SUCCESS
+  file=<NA> proc_cwd=/ ... process=x proc_exepath=/dev/shm/x parent=sh
+  command=x ls /
+```
+
+One alert, and it is the wrong one. The shipped `/dev/shm` rule fired. **The rule you wrote did
+not** — and the file it is in is right there:
+
+```bash
+kubectl exec -n falco ds/falco -c falco -- ls /etc/falco/rules.d
+kubectl exec -n falco ds/falco -c falco -- \
+  grep -c 'Application credential read' /etc/falco/rules.d/app-credentials.yaml
+```
+
+```
+app-credentials.yaml
+1
+```
+
+**Your move.** Falco is running, the sensor is attached — a shipped rule proved that on the same
+node, in the same container, one second apart. The custom rule is present on a path Falco reads and
+its condition is not wrong: `cat` is not in `app_binaries` and it opened exactly the listed file.
+Question 4 of this act's method will get you there faster than reading the rule again. Something is
+answering "no" *after* everything you have checked has answered "yes".
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+Stop reading the rule and read what Falco said when it loaded it. This is the whole discipline of the
+act — read the thing that consumes the config, not the config:
+
+```bash
+kubectl logs -n falco ds/falco -c falco | head -30 | grep -iE 'rule|load|disab'
+```
+
+The rule is loaded. It is loaded *and disabled*, and the thing that disabled it is nine lines above
+it in your own values file:
+
+```yaml
+falco:
+  rules:
+    - disable:
+        tag: filesystem
+```
+
+And the rule you wrote ends:
+
+```yaml
+  tags: [container, filesystem, mitre_credential_access, T1552.001]
+```
+
+You tagged it `filesystem` — correctly, because it is a filesystem rule — and a noise-reduction
+ticket from last quarter disabled every rule carrying that tag. Read the chart's own comment on that
+config key:
+
+> *"This configuration is applied **after all rules files have been loaded, including their
+> overrides**, and will take precedence over the enabled/disabled configuration specified or
+> overridden in the rules files."*
+
+Which is why every check you ran came back clean. The file is present. The syntax is valid. The
+condition matches. The rule is *in* Falco. The `rules` key is not a rules file at all — it is a
+selection applied over the top of every file once loading is finished, and it wins. There is no
+edit you could make to `app-credentials.yaml` that would fix this, including any of the four things
+you probably tried.
+
+And note what the control probe was actually proving. `Execution from /dev/shm` carries
+`tags: [maturity_stable, host, container, mitre_execution, T1059.004]` — **no `filesystem`** — so it
+survived the disable. That asymmetry was the diagnostic: two rules, same node, same second, same
+container, one fires. When one rule fires and another does not, the sensor is not the variable.
+
+**The fix, and there are three, which are not equally good.**
+
+The bad one — drop the tag:
+
+```yaml
+  tags: [container, mitre_credential_access, T1552.001]
+```
+
+It works and it is wrong. You have made your rule invisible to every future policy that selects on
+`filesystem`, to buy back one alert, by lying about what the rule is.
+
+The tempting one — re-enable by name after the disable, since the list is evaluated in order:
+
+```yaml
+falco:
+  rules:
+    - disable: {tag: filesystem}
+    - enable: {rule: Application credential read by unexpected process}
+```
+
+Correct, ordered exactly as the chart documents, and it does what you want. It is also now a
+two-line invariant nobody will remember: the day someone adds a third custom filesystem rule, it is
+silently off, and this drill happens again with a different name in the ticket.
+
+The right one — **fix the thing that was actually wrong, which is the disable.** `disable: {tag:
+filesystem}` was never a description of the problem. The problem was that the *sensitive-file* rules
+were noisy on the *batch nodes*, and the ruleset ships the hook for exactly that, which the lesson
+made you go looking for:
+
+```yaml
+customRules:
+  app-credentials.yaml: |-
+    # ... the rule as before ...
+
+    - list: read_sensitive_file_images
+      items: [ghcr.io/ourco/batch-runner]
+      override:
+        items: append
+```
+
+`read_sensitive_file_images` is the empty list that `user_read_sensitive_file_containers` reads, and
+that macro is already in the shipped rule's condition under a `not`. Appending one image name
+silences the noise the ticket was about, on the workload it was about, and leaves every other
+filesystem rule — including yours — doing its job. Then delete the tag disable.
+
+**The reflex.** A blanket `disable` by tag is a decision made with no information about what will
+carry that tag in future, and the future includes your own rules. It is the runtime-security version
+of a wildcard RBAC grant: cheap today, and the thing that is quietly wrong in a year.
+
+**One trap this drill deliberately walked around**, because it is a second cause and would have
+muddied the first. The Pod above writes `/etc/app/db-password` with a shell, so `fd.name` is
+literally `/etc/app/db-password`. Mount a real Secret at `/etc/app` instead and the kubelet gives you
+[Act VII lesson 05](../act-7-workloads/05-configuration.md)'s projected layout — the file is a
+symlink into `..2026_08_28_.../db-password`, `fd.name` is the *resolved* path, and
+`fd.name in (app_credential_files)` never matches anything. Rules over Secret volumes want
+`fd.name endswith "/db-password"` or a `fd.directory` clause. Worth testing before you trust one.
+
+**Tear down:**
+
+```bash
+helm uninstall falco -n falco
+kubectl delete ns falco rulelab --ignore-not-found
+rm -rf "${TMPDIR:-/tmp}/rulelab"
+```
+
+</details>
+
+**Verify it:** Run this **while Falco is still installed**, before the tear-down. It does not read
+your values file — it writes the credential file, reads it with an unexpected process, and requires
+the alert to appear, which is the only statement that means the rule is on.
+
+```bash
+tools/verify-drill.sh act-10 13 "disabled by tag"
+```
+
 ---
 
 > **The reflex to carry out of these drills.** Every one of them had a healthy cluster, a successful command and a control reporting itself fine. So the question that found the bug was never "what is broken" — it was **what would be different if this control were doing nothing?** If you cannot answer that for a control you own, you do not yet know whether it is working, and neither does anyone else.

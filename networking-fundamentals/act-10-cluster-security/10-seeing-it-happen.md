@@ -504,6 +504,253 @@ Which gives the lesson its point, and it is a symmetry rather than a list of fea
 
 It also explains the shape of the products. Everything sold in this space is a correlation engine with two sensors bolted to it, and its actual value is the join — which is worth knowing when you are deciding whether to buy one or write the `grep`.
 
+### Prediction (e): what is actually in a ruleset
+
+You have now had one alert out of Falco and written nothing. The exam will ask you to write
+something — a reported CKS candidate: *"I expected to only modify existing Falco rules, but had to
+improvise and write a new one from scratch."* So open the file the alert came out of.
+
+It is `/etc/falco/falco_rules.yaml`, it ships with the package, and it is about 1,270 lines.
+
+> **Predict before you count.** Of those ~1,270 lines, how many are `- rule:` definitions?
+
+```bash
+kubectl exec -n falco ds/falco -c falco -- sh -c \
+  'wc -l /etc/falco/falco_rules.yaml; grep -c "^- rule:" /etc/falco/falco_rules.yaml
+   grep -c "^- macro:" /etc/falco/falco_rules.yaml; grep -c "^- list:" /etc/falco/falco_rules.yaml'
+```
+
+```
+1265 /etc/falco/falco_rules.yaml
+25
+87
+49
+```
+
+**Twenty-five rules. Eighty-seven macros and forty-nine lists.** The detections are 25 of 161
+objects, and that ratio is the whole subject. A ruleset is not mostly detection. It is mostly the
+apparatus for *not* firing.
+
+Read the rule that fired on you, condition only:
+
+```yaml
+- rule: Read sensitive file untrusted
+  condition: >
+    open_read
+    and sensitive_files
+    and proc_name_exists
+    and not proc.name in (user_mgmt_binaries, userexec_binaries, package_mgmt_binaries,
+     cron_binaries, read_sensitive_file_binaries, shell_binaries, hids_binaries,
+     vpn_binaries, mail_config_binaries, nomachine_binaries, sshkit_script_binaries,
+     in.proftpd, mandb, salt-call, salt-minion, postgres_mgmt_binaries,
+     google_oslogin_
+     )
+    and not cmp_cp_by_passwd
+    and not ansible_running_python
+    and not run_by_qualys
+    and not run_by_chef
+    and not run_by_google_accounts_daemon
+    and not user_read_sensitive_file_conditions
+    and not mandb_postinst
+    and not perl_running_plesk
+    and not perl_running_updmap
+    and not veritas_driver_script
+    and not perl_running_centrifydc
+    and not runuser_reading_pam
+    and not linux_bench_reading_etc_shadow
+    and not user_known_read_sensitive_files_activities
+    and not user_read_sensitive_file_containers
+```
+
+Three lines of detection, then twenty-six lines of exemption — sixteen binary lists and fourteen
+named exceptions, one of which exists solely because Debian's `man-db` postinstall script reads
+`/etc/passwd` through a Perl one-liner. Somebody was paged by `mandb` and never wanted to be again.
+
+The detection itself is two macros, and both are worth reading because they are the same shape as
+something you already built:
+
+```yaml
+- macro: open_read
+  condition: (evt.type in (open,openat,openat2) and evt.is_open_read=true
+              and fd.typechar='f' and fd.num>=0)
+
+- macro: sensitive_files
+  condition: (fd.name in (sensitive_file_names) or
+              fd.directory in (/etc/sudoers.d, /etc/pam.d))
+```
+
+`evt.type in (open,openat,openat2)`. That is lesson 02's seccomp filter — a predicate over a syscall
+number and its arguments — with `fd.name` available because Falco runs after the call and seccomp
+runs before it. The syntax is different and the object is identical.
+
+### Writing one
+
+Notice what the shipped rule's own `desc` tells you to do:
+
+> *"While we provide additional rules for SSH or cloud vendor-specific credentials, you can
+> significantly enhance your security program by crafting custom rules for critical application
+> credentials unique to your environment."*
+
+The ruleset is telling you that `/etc/shadow` is a baseline and your actual secrets are not in it.
+Act VII found this cluster's password in three places and lesson 06 closed one of them; none of those
+paths is in `sensitive_file_names`. So write the rule the file is asking for.
+
+A Falco rule has five required keys and two you will want:
+
+```yaml
+- list: app_credential_files
+  items: [/etc/app/db-password, /var/run/secrets/app/token]
+
+- list: app_binaries
+  items: [myapp, myapp-worker]
+
+- macro: app_credential_read
+  condition: (open_read and fd.name in (app_credential_files))
+
+- rule: Application credential read by unexpected process
+  desc: >
+    A process other than the application itself opened one of the credential files
+    this cluster mounts into Pods. Distinct from the sensitive-file rules, which only
+    know about the traditional Linux files.
+  condition: app_credential_read and not proc.name in (app_binaries)
+  output: >
+    Application credential read (file=%fd.name process=%proc.name cmdline=%proc.cmdline
+    parent=%proc.pname user=%user.name container=%container.id
+    image=%container.image.repository pod=%k8s.pod.name ns=%k8s.ns.name)
+  priority: CRITICAL
+  tags: [container, filesystem, mitre_credential_access, T1552.001]
+```
+
+`condition` is the predicate, `output` is the line you will read at 3am, `priority` is one of
+`EMERGENCY` through `DEBUG` and is what your alert routing filters on. The two-key habit worth
+building is the `list` and the `macro`: neither is required, and both are how you make the rule
+maintainable, because the next person needs to add a filename without understanding your predicate.
+
+**And look at what `output` is.** Those `%`-prefixed tokens are field names *you chose* — which is
+the direct answer to the `k8s_pod_name=<NA>` you read a moment ago. You can ask for `%k8s.pod.name`,
+and if enrichment is broken it will still print `<NA>`, because the field name is a request, not a
+guarantee. An `output` line is a list of things you would like to know, and the alert is whatever
+subset the sensor could actually resolve.
+
+### Getting it loaded, and the trap
+
+Falco reads `rules_files`, which the chart sets to three entries, in order:
+
+```
+/etc/falco/falco_rules.yaml        # ships with the package, OVERWRITTEN on upgrade
+/etc/falco/falco_rules.local.yaml  # yours, created only if absent
+/etc/falco/rules.d                 # a directory: every yaml in it, alphabetically
+```
+
+Under Helm the route is `customRules`, a map of filename to file body which the chart renders into a
+ConfigMap named `<release>-rules` and mounts at `/etc/falco/rules.d`:
+
+```bash
+helm upgrade falco falcosecurity/falco -n falco --reuse-values \
+  --set-file customRules.app-credentials\\.yaml=./app-credentials.yaml
+kubectl -n falco rollout status ds/falco --timeout=300s
+kubectl exec -n falco ds/falco -c falco -- ls /etc/falco/rules.d
+```
+
+Two traps live in those three lines, and both are the sort of thing that costs a mark.
+
+**The mount is a whole directory.** `customRules` mounts a ConfigMap *over* `/etc/falco/rules.d`,
+and recent Falco installs that directory with rules fetched by `falcoctl` — the
+`falcoctl-artifact-install` container you saw in the DaemonSet. Anything `falcoctl` put there is
+shadowed the moment you add a custom rule. This is why the reflex is `ls /etc/falco/rules.d` and
+`grep rules_files /etc/falco/falco.yaml` on the box rather than trusting a documented path: the
+layout you read about was true before the chart mounted something on top of it.
+
+**Order decides who wins, and it is the opposite of the audit policy.** Three hundred lines ago this
+lesson made you learn that an audit `Policy` is ordered and **first match wins**. A Falco ruleset is
+also ordered, and the **last definition wins** — redefine `- rule: Read sensitive file untrusted` in
+a later file and you have replaced the whole object, silently, including the twenty-six exemptions
+you did not copy across. Two ordered configurations, in one lesson, resolving in opposite
+directions.
+
+Which is why you should almost never redefine a shipped rule. Use `override`:
+
+```yaml
+- rule: Read sensitive file untrusted
+  condition: and not proc.name = my-backup-agent
+  override:
+    condition: append
+```
+
+`override.condition` takes `append` or `replace`; the same key works on a `macro`'s `condition` and a
+`list`'s `items`. The older `append: true` spelling is deprecated and slated for removal in Falco
+1.0.0. To turn a rule off, `override: {enabled: replace}` with `enabled: false`, or use the chart's
+`falco.rules` config which is applied after every file has loaded:
+
+```yaml
+rules:
+  - disable: {rule: "*"}
+  - enable: {rule: Read sensitive file untrusted}
+```
+
+**But the thing actually worth carrying out of this section** is that the ruleset was built so you
+would not have to do any of that. Read these two objects:
+
+```yaml
+- list: user_known_shell_spawn_binaries
+  items: []
+
+- macro: user_shell_container_exclusions
+  condition: (never_true)
+```
+
+An empty list and a macro whose condition is permanently false, both referenced by a shipped rule
+under a `not`. They do nothing. They exist so that you can append one filename or one clause and
+tune a rule without ever touching it — the shipped comment says so: *"allows for easy additions ...
+without having to override the entire rule."* Forty-nine lists and eighty-seven macros, and a
+noticeable fraction of them are empty hooks left in the wall for you. **A well-built ruleset ships
+its own extension points, and finding them is faster than writing a rule** — so before you author
+anything, `grep -n 'items: \[\]' falco_rules.yaml` and `grep -n 'never_true' falco_rules.yaml` and
+see whether the author already left you a hole.
+
+> **Check yourself —** you add a custom rule that fires correctly in testing. A week later the same
+> activity produces no alert, the rule is still in `/etc/falco/rules.d`, and `falco` is running on
+> every node. Name three causes, in the order you would check them.
+
+<details>
+<summary>Answer</summary>
+
+**1. Something loaded after you.** `rules.d` is read alphabetically and the last definition of a
+name wins. A file that sorts after yours — added by a colleague, or restored by `falcoctl` — that
+defines a rule or *macro* of the same name has replaced yours whole. Note the macro case: you never
+touched the rule, but a redefined `app_credential_read` changes what it matches. Check with
+`falco --list` / the startup log, not by reading your own file, which is unchanged and still wrong.
+
+**2. The chart re-templated over you.** A `helm upgrade` without `--reuse-values`, or one that
+dropped the `customRules` key, re-renders the ConfigMap. The file can also still be *present* and
+not loaded: if a later chart version stops mounting at `/etc/falco/rules.d`, or `rules_files` was
+edited, the file exists on a path nobody reads. `grep rules_files /etc/falco/falco.yaml` answers
+this and `ls` does not.
+
+**3. It is loaded, valid, and disabled.** The chart's `falco.rules` config is applied *after* all
+files, including overrides, and takes precedence over them — so a `disable: {tag: filesystem}` added
+for noise reduction turns your rule off without editing it. Same class of cause: a
+`required_engine_version` bump on upgrade can make Falco refuse a file that uses a field the new
+engine renamed, and it says so once, at startup, in a log nobody reads after the rollout succeeds.
+
+**The reflex:** the question "is my rule loaded?" is never answered by the rule file. It is answered
+by Falco's startup log and by `rules_files` — the same discipline as every other lesson in this act,
+which is to read the thing that consumes the config rather than the config.
+
+</details>
+
+> **A note on what was run.** Every command in the sections above this one was executed against the
+> live cluster and its output pasted back. **This section was not, and the reason is worth stating:**
+> the environment this section was written in could not reach `falcosecurity.github.io` or GitHub's
+> release assets, so no Falco could be installed to load the rule into. What *was* verified, against
+> the authoritative sources rather than from memory: the counts (1,265 lines / 25 rules / 87 macros
+> / 49 lists) and every quoted condition, macro and comment come from
+> [`falcosecurity/rules`](https://github.com/falcosecurity/rules/blob/main/rules/falco_rules.yaml) at
+> `main`; `rules_files`, `customRules`, the ConfigMap name and the `/etc/falco/rules.d` mount come
+> from the `falco` chart's `values.yaml` and `pod-template.tpl`; the `override` semantics and the
+> `append: true` deprecation come from `falco.org/docs`. The rule itself is untested. **Run
+> [drill 13](diagnose.md) once and it will be tested** — that is what the drill is for.
+
 ### What the detector costs
 
 One more thing to look at, because lesson 07 taught you to ask it about kube-bench:

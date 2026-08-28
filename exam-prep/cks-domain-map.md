@@ -41,15 +41,18 @@ CIS benchmark run, supply-chain verification with digests and signatures, Pod-to
 second cluster with Cilium and WireGuard, audit logging and runtime detection with Falco, and
 external secret stores.
 
-**Two competencies are outright gaps**, both marked ❌ below: static analysis with **Kubesec /
-KubeLinter**, and **host OS footprint** reduction. Both are cheap to rehearse and neither is worth
-much of the syllabus.
+**One competency is an outright gap**, marked ❌ below: **host OS footprint** reduction. It is cheap
+to rehearse and it is not worth much of the syllabus. (Static analysis with **Kubesec / KubeLinter**
+used to sit here and no longer does — [drill 12](../networking-fundamentals/act-10-cluster-security/diagnose.md)
+closed it.)
 
-**Four more read 🟡 for a reason worth stating once, because it is the same reason each time: the
-course teaches the control and never makes you author the artifact.** A Falco rule you wrote rather
-than one you watched fire; an AppArmor profile that can actually load; gVisor actually running;
-Istio's `PeerAuthentication`. Every one of those is a thing you would type on exam day, and reading
-about it does not transfer. Counting a 🟡 as a half: **19½ of 26 bullets, about 75% of the syllabus** —
+**Three more read 🟡 for a reason worth stating once, because it is the same reason each time: the
+course teaches the control and never makes you author the artifact.** An AppArmor profile that can
+actually load; gVisor actually running; Istio's `PeerAuthentication`. (A Falco rule you wrote rather
+than one you watched fire was the fourth, and
+[lesson 10](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) plus
+[drill 13](../networking-fundamentals/act-10-cluster-security/diagnose.md) closed it.) Every one of those is a thing you would type on exam day, and reading
+about it does not transfer. Counting a 🟡 as a half: **20 of 26 bullets, about 77% of the syllabus** —
 strong, and not the ~90% an all-✅ table would have implied. (This total previously read *20 of 26,
 about 77%*, which counted the AppArmor/seccomp row as a whole bullet on the strength of its own note
 that the seccomp half *"would earn ✅ on its own."* Half a bullet is half a bullet. The arithmetic of
@@ -59,8 +62,7 @@ missing in each case rather than making you guess.
 **Read the 🟡 rows carefully, because they are where a pass is lost.** In each of them the course
 teaches the mechanism and does not build the exam's specific artifact — `bom` rather than `trivy`'s
 SBOM, Istio's `PeerAuthentication` rather than Cilium's flag, gVisor actually running rather than
-`RuntimeClass` named, a Falco rule you wrote rather than one you watched fire, an AppArmor profile
-that can actually load. Understanding transfers; muscle memory under a clock does not, which is the
+`RuntimeClass` named, an AppArmor profile that can actually load. Understanding transfers; muscle memory under a clock does not, which is the
 entire reason this `exam-prep/` track exists separately from the lessons.
 
 **And one shortfall inside a ✅ row, because it does not fit the pattern above.** The *Secure your
@@ -152,7 +154,7 @@ stop there.
 
 | Sub-competency | Coverage | Notes | Me |
 |---|---|---|---|
-| Perform behavioral analytics to detect malicious activities | 🟡 **partial — the course consumes Falco, the exam asks you to author for it** | [Lesson 10](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) installs Falco with `driver.kind=modern_ebpf`, gets a real detection, and measures the limit of the alert. What it never does is **write a rule**: `- rule:`, `condition:`, `output:`, `priority:`, `/etc/falco/falco.yaml`, `rules_files` and overriding a shipped rule are all absent from the course. One reported candidate *"had to improvise and write a new one from scratch."* Practise authoring one custom rule and reloading it | `-` |
+| Perform behavioral analytics to detect malicious activities | ✅ covered | [Lesson 10](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) installs Falco with `driver.kind=modern_ebpf`, gets a real detection, measures the limit of the alert — and then **opens the ruleset and writes a rule.** Prediction (e) counts what is actually in `falco_rules.yaml`: 1,265 lines, **25 rules against 87 macros and 49 lists**, and the rule that fired on you is three lines of detection followed by twenty-six of exemption. A ruleset is mostly the apparatus for *not* firing. Then `- rule:`/`desc:`/`condition:`/`output:`/`priority:`/`tags:` with a `list` and a `macro`, `rules_files`, the chart's `customRules` → ConfigMap → `/etc/falco/rules.d` mount, `override.condition: append|replace`, and the finding worth carrying: **the shipped ruleset leaves empty hooks for you** (`items: []`, `condition: (never_true)`) so that tuning a rule almost never means redefining one. [Drill 13](../networking-fundamentals/act-10-cluster-security/diagnose.md) is the authoring exercise with the mark attached: a rule that is present, valid, matching and silent, because `falco.rules`'s `disable: {tag: filesystem}` is applied *after* every file has loaded and beats all of them. One reported candidate *"had to improvise and write a new one from scratch"* | `-` |
 | Detect threats within physical infrastructure, apps, networks, data, users and workloads | ✅ covered | [Lesson 10](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md), and it also measures the limit: the alert arrives with `k8s_pod_name=<NA>`. Falco | `-` |
 | Investigate and identify phases of attack and bad actors within the environment | ✅ covered | [Lesson 10](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) plus [diagnose](../networking-fundamentals/act-10-cluster-security/diagnose.md) drill 5 — the audit log knows *who* and not *what*, the runtime sensor the reverse, so an investigation is a join on container ID and timestamp. audit-log forensics with `jq` | `-` |
 | Ensure immutability of containers at runtime | ✅ covered | [Lesson 01](../networking-fundamentals/act-10-cluster-security/01-what-a-container-may-do.md) measures all three, including that `readOnlyRootFilesystem` breaks `/tmp` and what `allowPrivilegeEscalation: false` actually stops. [Drill 10](../networking-fundamentals/act-10-cluster-security/diagnose.md) hides the trap in the stanza: **nothing validates a capability name**, so `add: ["CAP_CHOWN"]` — the kernel's spelling rather than the manifest's — is accepted, adds nothing, and leaves a Pod that reviews as hardened and is missing the permission it was built around. `CapEff` in `/proc/self/status` is the only check. `readOnlyRootFilesystem`, no shell in image, `allowPrivilegeEscalation: false` | `-` |
@@ -165,19 +167,63 @@ reported, which makes it effectively certain. The important calibration, from a 
 candidate: *"I expected to only modify existing Falco rules, but had to improvise and write a new
 one from scratch as default rules didn't capture the events."*
 
+[Lesson 10](../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) now teaches
+this end to end and [drill 13](../networking-fundamentals/act-10-cluster-security/diagnose.md) grades
+it. What follows is the recall sheet.
+
 Rule shape: `- rule:` / `desc:` / `condition:` / `output:` / `priority:` / `tags:`, plus `- macro:`
 and `- list:`. Output fields worth memorising: `%evt.time`, `%container.id`, `%container.name`,
 `%container.image.repository`, `%k8s.ns.name`, `%k8s.pod.name`, `%proc.name`, `%proc.cmdline`,
-`%user.name`, `%fd.name`.
+`%user.name`, `%fd.name`. `priority:` is `EMERGENCY|ALERT|CRITICAL|ERROR|WARNING|NOTICE|INFORMATIONAL|DEBUG`.
+
+Two condition primitives are worth having by heart, because most file rules are a variation on them:
+
+```yaml
+- macro: open_read
+  condition: (evt.type in (open,openat,openat2) and evt.is_open_read=true
+              and fd.typechar='f' and fd.num>=0)
+- macro: spawned_process
+  condition: (evt.type in (execve, execveat))
+```
 
 File layout: `/etc/falco/falco.yaml` holds the `rules_files:` list ·
 `/etc/falco/falco_rules.yaml` is **shipped — don't edit, it's overwritten on upgrade** ·
-`/etc/falco/falco_rules.local.yaml` is where custom rules go · `/etc/falco/rules.d/`.
-**Later files win on duplicate rule names** — that is how you override a shipped rule. Reload using
-the method the task specifies rather than restarting blindly.
+`/etc/falco/falco_rules.local.yaml` is where custom rules go, **created only if absent** ·
+`/etc/falco/rules.d/` is a directory, read alphabetically. Reload using the method the task specifies
+rather than restarting blindly.
 
-> ⚠️ Recent Falco releases moved rules to `falcoctl`-managed artifacts. **Read `rules_files:` on the
-> actual exam box** rather than assuming these paths.
+**Later files win on duplicate names, and that is a trap, not a technique.** Redefining
+`- rule: <name>` replaces the *whole object*, including exemptions you did not copy — the shipped
+sensitive-file rule carries twenty-six of them. Use `override` instead:
+
+```yaml
+- rule: Read sensitive file untrusted
+  condition: and not proc.name = my-backup-agent
+  override:
+    condition: append          # or: replace
+```
+
+`override` works on a rule's `condition`/`output`/`desc`/`tags`/`exceptions` (append or replace), on
+a `macro`'s `condition`, and on a `list`'s `items`. The older `append: true` is deprecated and goes
+in Falco 1.0.0. And note that Falco rule order resolves **opposite** to an audit `Policy`: audit is
+first-match-wins, Falco is last-definition-wins.
+
+**Look for the hook before you write anything.** The shipped ruleset plants empty extension points
+specifically so you never have to override a rule — `- list: user_known_shell_spawn_binaries` with
+`items: []`, `- macro: user_shell_container_exclusions` with `condition: (never_true)`, and dozens
+more, all already referenced under a `not` in a live rule. `grep -n 'items: \[\]' falco_rules.yaml`
+and `grep -n never_true falco_rules.yaml` is faster than authoring, and it is what the file's own
+comments tell you to do.
+
+> ⚠️ Recent Falco releases moved rules to `falcoctl`-managed artifacts, and the chart's
+> `customRules` mounts a ConfigMap **over the whole of `/etc/falco/rules.d`** — shadowing anything
+> `falcoctl` put there. **Read `rules_files:` on the actual exam box** rather than assuming these
+> paths.
+
+> ⚠️ **The silent one.** `falco.rules` in the chart (`rules:` in `falco.yaml`) is a
+> selection applied *after every file has loaded, including overrides*, and it wins over them. A
+> `disable: {rule: "*"}` or `disable: {tag: network}` leaves your rule present, valid, matching and
+> off. If a rule will not fire, that is the second thing to check, after the startup log.
 
 ### Audit logging — and the mark people lose
 
