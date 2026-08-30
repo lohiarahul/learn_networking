@@ -17,56 +17,59 @@ the lessons.
 
 **Acts I–IV.** These pages assume `/proc/net/tcp`, namespaces, veth pairs, `iptables` and `conntrack` are
 already yours — they are a reference for material you have met, not an alternative to meeting it. Some
-pages reach further: [by question](04-by-question.md) and [derive it](06-derive-it.md) have sections on
+pages reach further: [the map](03-the-map.md) and [by question](04-by-question.md) have sections on
 Kubernetes and on eBPF datapaths that assume Acts V–VI, and those sections say so where they start.
 
 ## The one thing to read even if you never look anything up
 
-**Start with the interface a tool speaks.** Everything else here is finite, and none of it will contain
-the flag you need at 3am; the interface is the part that scales.
+**[The map](03-the-map.md).** A packet's whole trip through this host is ten places kernel state lives —
+the socket, the route decision, the netfilter hooks, conntrack, the neighbour table, the device, and so
+on. Every one of the seventy-two tools below is a way of reading, changing, or watching exactly one of
+those ten. Learn the stations once and a new tool stops being a new fact to memorise; it's just another
+way of looking at a spot you already know.
 
-Every tool in this reference is a client of one of **eight kernel interfaces**, each defined by a
-syscall you can see in `strace` — so the classification is measurable rather than a matter of opinion:
+The map gives you the *where*. For the *how*, the same ten stations sort by two different facets, and
+both are worth knowing:
 
-[`netlink`](tools/netlink/README.md) · [`procfs`](tools/procfs/README.md) ·
-[`socket`](tools/socket/README.md) · [`packet`](tools/packet/README.md) ·
-[`probe`](tools/probe/README.md) · [`nsapi`](tools/nsapi/README.md) ·
-[`httpapi`](tools/httpapi/README.md) · [`local`](tools/local/README.md)
+- **By interface** — which syscall a tool uses is what decides what it can possibly know, and tools
+  sharing one interface share a grammar and a blind spot. `netlink` explains why `ip addr add` fails on
+  an existing address and `ip addr replace` does not; `procfs` explains how to construct a `/proc` path
+  nobody showed you.
 
-That one fact reorganises everything. Tools sharing an interface **share a grammar, share a blind spot,
-and are often substitutable**; tools on different interfaces never substitute, however alike their
-output looks. It is also where the derivation lives: `netlink` explains why `ip addr add` fails on an
-existing address and `ip addr replace` does not — three verbs that look like synonyms are three
-netlink flag combinations with three different failure modes — and `procfs` explains how to construct
-a `/proc` or `/sys` path nobody showed you.
+  [`netlink`](tools/netlink/README.md) · [`procfs`](tools/procfs/README.md) ·
+  [`socket`](tools/socket/README.md) · [`packet`](tools/packet/README.md) ·
+  [`probe`](tools/probe/README.md) · [`nsapi`](tools/nsapi/README.md) ·
+  [`httpapi`](tools/httpapi/README.md) · [`local`](tools/local/README.md)
 
-Then go to **the tool itself**. Each of the seventy-two has a page carrying its whole capability
-surface, the commands this course runs through it, and what its interface can never tell you:
-[`ip`](tools/netlink/ip.md) · [`ss`](tools/netlink/ss.md) · [`tcpdump`](tools/packet/tcpdump.md) ·
-[`kubectl`](tools/httpapi/kubectl.md) · [`openssl`](tools/socket/openssl.md), and
-[sixty-seven more](tools/README.md).
+- **By tool** — each of the seventy-two has a page carrying its whole capability surface and the commands
+  this course runs through it: [`ip`](tools/netlink/ip.md) · [`ss`](tools/netlink/ss.md) ·
+  [`tcpdump`](tools/packet/tcpdump.md) · [`kubectl`](tools/httpapi/kubectl.md) ·
+  [`openssl`](tools/socket/openssl.md), and [sixty-seven more](tools/README.md).
 
 If you arrived with a broken machine rather than a question about a tool, skip all of that and go to
-**[by question](04-by-question.md)** — a real failure arrives as a symptom, not as a tool name.
+**[by question](04-by-question.md)** — a real failure arrives as a symptom, not as a tool name, and that
+page is the map's ten stations sorted by what you're seeing rather than what you're checking.
 
 | Page | Answers |
 |---|---|
-| **[The eight interfaces](tools/README.md#the-eight-interfaces--the-whole-roster-on-one-screen)** | Which kernel API a tool speaks — and therefore what it can possibly know, how its syntax is shaped, and what no flag will ever make it tell you. **Read this first**, then the page for the interface you landed on |
-| **[The roster](tools/README.md)** | One row per tool, for when you want the whole thing on a screen rather than one tool in depth. It is also the front door of the directory below it: each interface is a subdirectory led by its own page, and most tools are a page inside one, carrying the whole capability surface and the commands this course runs through it. **A linked name has a page; a bare name is a row and nothing more** — four tools with no route through the course at all (`tc`, `ipvsadm`, `ipset`, `devlink`) are rows, with what survived derivation moved to [by question](04-by-question.md) |
+| **[The map](03-the-map.md)** | Ten places kernel state lives, in the order a packet visits them, and which tool reads each one. **Read this first** |
+| **[Conventions and names](01-the-grammar.md)** | The claims that hold across the *whole* toolchain: which flag letters mean the same thing everywhere, and why the filter languages do not match |
+| **[The eight interfaces](tools/README.md#the-eight-interfaces--the-whole-roster-on-one-screen)** | Which kernel API a tool speaks — and therefore what it can possibly know and how its syntax is shaped |
+| **[The roster](tools/README.md)** | One row per tool, for when you want the whole thing on a screen rather than one tool in depth. Each interface is a subdirectory led by its own page, and most tools are a page inside one. **A linked name has a page; a bare name is a row and nothing more** — four tools with no route through the course at all (`tc`, `ipvsadm`, `ipset`, `devlink`) are rows |
 | **[What to reach for instead](tools/README.md#six-to-stop-reaching-for-and-two-to-start)** | Which six tools are here only because other people's runbooks are full of them, which two are new enough to install deliberately, and — for each — what the swap actually costs |
 | **[By question](04-by-question.md)** | You have a symptom, not a tool name. **The one to read when something is broken** |
-| **[Conventions and names](01-the-grammar.md)** | The claims that hold across the *whole* toolchain: which flag letters mean the same thing everywhere, which name expansions are folklore, and why the filter languages do not match |
-| **[Lab and shell commands](05-per-act-commands.md)** | The non-networking commands the lessons run — `ls`, `grep`, `exec`, `cc` — taken apart |
-| **[Derive it](06-derive-it.md)** | Drills that make you *write* commands you were never shown |
 
 ## What this is not
 
 **Not the exam cheat sheet.** [`exam-prep/kubectl-speed.md`](../exam-prep/kubectl-speed.md) is that, and
 is honest about being drills against a clock; this directory is about Linux and the kernel's own
-interfaces, and does not repeat what lives there. **Not a progress tracker.**
-[`Toolbelt.md`](../Toolbelt.md) answers *"what should I be fluent in by now?"* — a question about the
-journey, in the journey's order. These pages are sorted for lookup and say nothing about what you should
-have earned yet.
+interfaces, and does not repeat what lives there. **Not a progress tracker, and not a drill.**
+[`Toolbelt.md`](../Toolbelt.md), [`JOURNEY-MAP.md`](../JOURNEY-MAP.md), [`06-derive-it.md`](06-derive-it.md)
+and [`05-per-act-commands.md`](05-per-act-commands.md) answer *"what should I be fluent in by now"* and
+*"make me write a command I wasn't shown"* — real questions, but about the journey and its order, not
+about looking something up. They stay in the repository for anyone who wants them; this directory no
+longer carries them onto the site, because a lookup page and a drill page want opposite things from a
+reader — one wants to be skimmed in ten seconds, the other wants to be sat with.
 
 ## How this directory is held honest
 

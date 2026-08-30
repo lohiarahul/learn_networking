@@ -80,7 +80,7 @@ Beyond that: `python3` for unpacking tokens, and the `cryptography` package from
 
 Then: **[test yourself](test-yourself.md)** · **[diagnose it](diagnose.md)** · **[in the wild](in-the-wild.md)**.
 
-When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
+When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — [the map](../../reference/03-the-map.md) ties every tool to the piece of kernel state it reads, and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
 
 ## What breaks here
 

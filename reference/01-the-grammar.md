@@ -14,12 +14,12 @@ when scattered across seventy-two pages:
 | | Answers |
 |---|---|
 | **[Conventions](#conventions-you-can-bet-on-and-the-ones-that-will-burn-you)** | which flag letters mean the same thing everywhere — and which look like they do and do not |
-| **[Names](#what-the-names-expand-to-and-which-expansions-are-folklore)** | what the abbreviations expand to, and which popular expansions no primary source confirms |
 | **[Filter languages](#filter-languages-are-separate-grammars-and-they-do-not-match)** | why `tcpdump`, `ss` and `tshark` expressions are three languages, not one |
 
-**Where to go instead.** To derive a command you were never shown, start at the interface it speaks —
+**Where to go instead.** To derive a command you were never shown, start at
+[the map](03-the-map.md) for which station it acts on, then the interface it speaks —
 [the eight of them](tools/README.md#the-eight-interfaces--the-whole-roster-on-one-screen) — then the
-tool's own page. To *practise* deriving, [derive it](06-derive-it.md) is the drills.
+tool's own page.
 
 ---
 ## Conventions you can bet on, and the ones that will burn you
@@ -101,94 +101,6 @@ snaplen is already 262144 bytes.
 >
 > **Only `0 = success` is portable.** Never branch on a guessed non-zero code.
 
-## What the names expand to (and which expansions are folklore)
-
-Knowing the expansion fixes the spelling and, more often, tells you what the tool is *for*. But this is
-also where the internet is least reliable, so the tables below are split by whether a primary source
-actually says it. Assume nothing in the third table.
-
-The citations use the `tool(section)` form because **the lab image ships no man pages** — `man` is not
-installed and `/usr/share/man` is empty. Read them at [man7.org](https://man7.org/linux/man-pages/) or
-`manpages.debian.org`, or get the same facts in-image from `<tool> help` and `<tool> --help`.
-
-### Confirmed by the project, the man page, or the commit that introduced it
-
-| Name | Expands to | Where it is written down |
-|---|---|---|
-| `lsof` | list open files | `lsof(8)` NAME line |
-| `tc` | traffic control | `tc(8)` NAME line |
-| `nc` | netcat | `nc(1)` |
-| `socat` | SOcket CAT | `socat(1)` NAME line |
-| `curl` | "a play on *Client for URLs*" | curl's own FAQ, which also allows *Client URL Request Library* |
-| `conntrack` | connection tracking | `conntrack(8)`: "command line interface for netfilter connection tracking" |
-| `nft` | the nftables CLI — netfilter tables | the nftables project |
-| `veth` | **Virtual ETHernet** | the kernel commit that added it says so in words: *"Veth stands for Virtual ETHernet. It is a simple tunnel driver that works at the link layer and looks like a pair of ethernet devices interconnected with each other."* |
-| `macvlan` | MAC-VLAN | the driver's own Kconfig prompt is literally `MAC-VLAN support` |
-| `unshare` | "disassociate parts of the process execution context" | `unshare(2)` NAME line — the clearest self-describing name in the toolchain, and see below |
-| `UTS` (namespace) | UNIX Time-sharing System, via `struct utsname` | the kernel header comment `/* New utsname namespace */`, and Michael Kerrisk in LWN 531114 |
-| `BPF` | **BSD** Packet Filter, in the 1992 paper that introduced it | McCanne and Jacobson, *"The BSD Packet Filter"*, LBL, Dec 1992 |
-
-Two of those are worth more than a table row.
-
-**`unshare` is the inverse of `clone`.** Both syscalls take the *same* `CLONE_NEW*` flags, and the name
-tells you which way round the subject is: `clone(CLONE_NEWNET)` means "the new child gets a new network
-namespace"; `unshare(CLONE_NEWNET)` means "*I* stop sharing the one I already have." Once you see that,
-`unshare` and `nsenter` and `ip netns` stop being three unrelated tools and become three positions on one
-mechanism — make a new one, enter an existing one, name one so it persists.
-
-**`BPF` is the cautionary tale about expansions.** The original paper says *BSD* Packet Filter; today
-kernel.org glosses it *Berkeley* Packet Filter (the authors were at Lawrence **Berkeley** Laboratory,
-which is presumably how it drifted); and the eBPF Foundation's position is that *"eBPF is now considered
-a standalone term that doesn't stand for anything."* Three defensible answers, depending on which decade
-you are standing in.
-
-### Named after a person or a joke, not a function
-
-| Name | Story |
-|---|---|
-| `ping` | Mike Muuss named it after sonar. *"Packet InterNet Groper"* is a later backronym |
-| `mtr` | widely reported as "Matt's traceroute", after Matt Kimball — plausible, and not stated by the project's own docs |
-
-### Popular expansions that no primary source confirms
-
-Use these as memory aids. Do not repeat them as facts.
-
-| Name | The popular expansion | What the documentation actually says |
-|---|---|---|
-| `ss` | "socket statistics" | `ss(8)` NAME reads **"ss - another utility to investigate sockets"**. No expansion anywhere |
-| `dig` | "domain information groper" | BIND's own manual calls it "a flexible tool for interrogating DNS name servers" and never expands the name |
-| `ethtool` | "ethernet tool" | `ethtool(8)` NAME is a description: "query or control network driver and hardware settings". Near-certainly the intended reading; nobody wrote it down |
-| `nsenter` | "namespace enter" | NAME is "run program in different namespaces"; the source file self-describes as *"command-line interface for `setns(2)`"*. A transparent compound, still undocumented |
-| `bpftool` | "BPF tool" | NAME is "tool for inspection and simple manipulation of eBPF programs and maps" |
-| `ipvlan` | "IP VLAN" | the nearest primary gloss is `ip-link(8)`: "Interface for L3 (IPv6/IPv4) based VLANs" |
-| `devlink` | "device link" | the networking `devlink` has no documented expansion — and there is an **unrelated** `struct device_link` in the Linux driver core that genuinely does mean *device link*, which is the likely source of the gloss |
-| `pgrep` | "process grep" | NAME is "look up, signal, or wait for processes based on name and other attributes" |
-
-### The kernel corrects its own names, but only where it can
-
-Two examples worth knowing, because they explain naming inconsistencies you will otherwise trip over.
-
-**`CLONE_NEWNS` versus `/proc/<pid>/ns/mnt`.** Mount namespaces came first, in 2002, and got the generic
-flag name `CLONE_NEWNS` — "new namespace" — because nobody expected there to be other kinds. Every
-namespace added afterwards got a specific suffix: `NEWNET`, `NEWPID`, `NEWUTS`, `NEWIPC`, `NEWUSER`,
-`NEWCGROUP`, `NEWTIME`. The ABI flag name is frozen forever, but when `/proc/<pid>/ns/` was added in
-Linux 3.8 it was a fresh surface, so it got the accurate name: the file is **`mnt`**, not `ns`. So the
-odd one out in the flag list is a 2002 artefact, and the filesystem quietly fixed it.
-
-**`ip_conntrack` became `nf_conntrack`.** The original module was IPv4-only, so it was `ip_`-prefixed. When
-it was generalised to handle IPv6 too, the prefix changed to **`nf_`** for *netfilter* — which is why the
-sysctls you actually use today are `net.netfilter.nf_conntrack_max` and not `net.ipv4.*`. The prefix is
-telling you the layer it belongs to, and the rename is telling you it stopped being IPv4's business.
-
-### Even primary sources disagree — one worked example
-
-`ip-link(8)` glosses the VXLAN device type as *"vxlan - Virtual eXtended LAN"*. RFC 7348, which defines
-the protocol, calls it *Virtual eXtensible Local Area Network*. iproute2's own man page teaches an
-expansion the standard does not use.
-
-So the rule for this whole page: **an expansion is a memory aid, and the tool's behaviour is the fact.**
-When the two seem to conflict, trust `<tool> help`.
-
 ## Filter languages are separate grammars, and they do not match
 
 It is tempting to assume the capture filter you learned for `tcpdump` works in `ss`. It does not.
@@ -231,18 +143,6 @@ once you have located those slots you can generate expressions instead of recall
 
 ---
 
-## How to practise this, and the honest limit
-
-Reading a grammar is not learning it. [Derive it](06-derive-it.md) is the other half: every drill there
-withholds the command and makes you build it from the rules above, and it carries what the evidence does
-and does not support about working that way.
-
-The limit is worth stating here rather than there. There is good evidence that a consistent grammar is
-*learnable*, and no direct evidence that learners reliably *generate* untaught commands from one. That is
-this page's bet, not a proven result.
-
----
-
 ## Where these conventions stop
 
 They generate *plausible* commands, which is the point — but plausible is not correct, and the difference
@@ -258,6 +158,6 @@ matters when the command writes state rather than reading it.
 
 ---
 
-Next: **[`procfs`](tools/procfs/README.md)** — the same trick applied to the kernel's own files. Or go
-straight to **[by question](04-by-question.md)** if you arrived with a symptom.
+Next: **[the map](03-the-map.md)** — the ten kernel checkpoints a packet crosses, and which tool reads
+each one. Or go straight to **[by question](04-by-question.md)** if you arrived with a symptom.
 

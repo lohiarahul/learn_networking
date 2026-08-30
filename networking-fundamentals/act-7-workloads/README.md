@@ -61,7 +61,7 @@ Then three pages to consolidate, in this order:
 
 - **[Test yourself](test-yourself.md)** — twenty questions on the derivations rather than the flags.
 - **[Diagnose it](diagnose.md)** — seven workload failures, symptom first. In six of the seven there is nothing wrong with the cluster and nothing wrong with the image.
-- **[The instrument panel](../../reference/README.md)** — where to look a tool or a `/proc` path up once you have stopped meeting it for the first time, and the naming grammar that makes an unfamiliar command guessable.
+- **[The instrument panel](../../reference/README.md)** — where to look a tool or a `/proc` path up once you have stopped meeting it for the first time. [The map](../../reference/03-the-map.md) ties every tool to the piece of kernel state it reads; [the grammar](../../reference/01-the-grammar.md) is the naming convention that makes an unfamiliar command guessable.
 - **[In the wild](in-the-wild.md)** — what changes on a managed cluster, and the three findings here that are line items on an invoice.
 
 ## What breaks here

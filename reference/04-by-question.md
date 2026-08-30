@@ -9,12 +9,17 @@ once and this page becomes a lookup for the tools it tells you to reach for. Eac
 *symptom → the instrument that either confirms or eliminates a cause*, with the kernel file that settles
 it when a tool and your expectation disagree.
 
-The ordering inside each block matters: it runs cheapest-and-most-eliminating first.
+The blocks below run in the same order as **[the ten stations on the map](03-the-map.md)** — name
+resolution, the socket, the route, the firewall, conntrack, the neighbour cache, the device, the tap, then
+the two blocks (namespaces, and the control plane itself) that sit outside a single packet's path
+entirely. If a symptom doesn't obviously map to a station yet, the map is the page that makes it obvious;
+this one assumes you already know which station you're checking and just want the command.
 
 ---
 
 ## "Nothing resolves"
 
+*[Station 0 — names](03-the-map.md#station-0--names-the-one-station-thats-not-in-the-kernel)*
 | Ask | Reach for | The file that settles it |
 |---|---|---|
 | Is the resolver config what I think? | `cat /etc/resolv.conf` | it *is* the file — check `search` and `ndots` (how many dots a name needs before it is tried as-is, rather than having each `search` domain appended first), not just `nameserver` |
@@ -35,14 +40,47 @@ Lessons: [DNS](../networking-fundamentals/act-2-two-machines/04-dns.md) ·
 
 ## "It works by IP but not by name"
 
+*[Station 0 — names](03-the-map.md#station-0--names-the-one-station-thats-not-in-the-kernel)*
 You have already proved routing and filtering are fine, so this is resolution only — go to the block
 above. The one addition: check whether something *else* is answering. `/etc/hosts` beats DNS, and a
 stale entry there survives every DNS fix you make.
 
 ---
 
+## "Which process owns this socket / this port?"
+
+*[Stations 1–2 — the fd table, the socket](03-the-map.md#station-1--the-fd-table-is-this-even-a-socket)*
+| Ask | Reach for |
+|---|---|
+| What is listening, and whose is it? | `ss -tlnp` |
+| Full join across every process | `lsof -i :<port>` |
+| No tools available at all | the inode in `/proc/net/tcp`, then `ls -l /proc/*/fd 2>/dev/null \| grep <inode>` |
+
+That last row is the one worth having done once by hand: it is what every tool in the first two rows is
+doing for you.
+
+Lessons: [ports and /proc/net/tcp](../networking-fundamentals/act-1-one-machine/05-ports-and-proc-net-tcp.md)
+
+---
+
+## "Packets leave and never come back"
+
+*[Stations 3, 6 — the route decision, the neighbour table](03-the-map.md#station-3--the-route-decision-which-door-and-which-key)*
+| Ask | Reach for | The file |
+|---|---|---|
+| Where does the kernel think this destination lives? | `ip route get <dst>` | `/proc/net/route` — and note `ip route get` gives you the *decision*, not the table |
+| Does the next hop resolve at layer 2? | `ip neigh show` | `/proc/net/arp` — `FAILED` or `INCOMPLETE` is your answer |
+| Is the wire itself working? | `arping <next-hop>` | proves L2 with IP entirely out of the picture |
+| Is the return path different from the outbound one? | `tcpdump` on both ends at once | asymmetric routing is the classic cause of "half works" |
+
+Lessons: [IP and routing](../networking-fundamentals/act-2-two-machines/02-ip-and-routing.md) ·
+[ethernet and ARP](../networking-fundamentals/act-2-two-machines/01-ethernet-and-arp.md)
+
+---
+
 ## "The connection just hangs"
 
+*[Stations 2–5 — the socket through conntrack](03-the-map.md#station-2--the-socket-bound-connected-or-lying-there-half-open)*
 Hanging and refusing are different failures, and separating them is the highest-value first move.
 
 | Ask | Reach for | Reading |
@@ -61,22 +99,9 @@ Lessons: [the TCP handshake](../networking-fundamentals/act-3-the-internet/01-tc
 
 ---
 
-## "Packets leave and never come back"
-
-| Ask | Reach for | The file |
-|---|---|---|
-| Where does the kernel think this destination lives? | `ip route get <dst>` | `/proc/net/route` — and note `ip route get` gives you the *decision*, not the table |
-| Does the next hop resolve at layer 2? | `ip neigh show` | `/proc/net/arp` — `FAILED` or `INCOMPLETE` is your answer |
-| Is the wire itself working? | `arping <next-hop>` | proves L2 with IP entirely out of the picture |
-| Is the return path different from the outbound one? | `tcpdump` on both ends at once | asymmetric routing is the classic cause of "half works" |
-
-Lessons: [IP and routing](../networking-fundamentals/act-2-two-machines/02-ip-and-routing.md) ·
-[ethernet and ARP](../networking-fundamentals/act-2-two-machines/01-ethernet-and-arp.md)
-
----
-
 ## "Small requests work, large ones hang"
 
+*[Station 7 — the device](03-the-map.md#station-7--the-device-the-queue-and-the-mtu)*
 This is MTU, nearly every time, and it is worth its own entry because nothing about the symptom says so.
 
 | Ask | Reach for |
@@ -93,31 +118,9 @@ Lessons: [MTU and fragmentation](../networking-fundamentals/act-2-two-machines/0
 
 ---
 
-## "It works from the node but not from the Pod"
-
-The single most useful framing: **a Pod is a network namespace.** Almost every instance of this is a
-question about which namespace you are standing in.
-
-| Ask | Reach for |
-|---|---|
-| Am I even in a different namespace? | compare `readlink /proc/self/ns/net` on both sides — same inode means same network |
-| What does the Pod's own stack look like? | `kubectl exec` then `ip addr`, `ip route`, `cat /etc/resolv.conf` |
-| Is it policy rather than plumbing? | `kubectl get networkpolicy -A` — and remember a namespace with any ingress policy denies everything not matched |
-| Is the Service's backend list actually populated? | `kubectl get endpointslices -l kubernetes.io/service-name=<svc>` — empty means the selector matches nothing |
-| Is `kube-proxy` programming what I expect? | `iptables-save \| grep <clusterIP>` on the node |
-| …and if this cluster inherited IPVS mode? | `ipvsadm -L -n` for the services and their real servers, `ipvsadm -l -n -c` for which client is pinned to which backend — or `cat /proc/net/ip_vs_conn`, the same table as a file (roster only) |
-
-**The trap:** a ClusterIP answers from nowhere. It is not a host, nothing listens on it, and pinging it
-proves nothing at all — it exists only as a rewrite rule.
-
-Lessons: [pod networking](../networking-fundamentals/act-5-kubernetes/02-pod-networking.md) ·
-[services](../networking-fundamentals/act-5-kubernetes/03-services.md) ·
-[network policy](../networking-fundamentals/act-5-kubernetes/07-network-policy.md)
-
----
-
 ## "`tcpdump` shows the wrong address, and I think my cluster is broken"
 
+*[Station 8 — the tap point](03-the-map.md#station-8--the-tap-point-what-you-see-depends-on-where-you-stand)*
 Worth its own entry, because everything you learned in Acts II–IV predicts the opposite and the
 confusion is total.
 
@@ -145,23 +148,33 @@ Lessons: [encryption between Pods](../networking-fundamentals/act-10-cluster-sec
 
 ---
 
-## "Which process owns this socket / this port?"
+## "It works from the node but not from the Pod"
+
+*[The namespace overlay](03-the-map.md#the-overlay-every-container-adds-stations-27-exist-once-per-namespace)*
+The single most useful framing: **a Pod is a network namespace.** Almost every instance of this is a
+question about which namespace you are standing in.
 
 | Ask | Reach for |
 |---|---|
-| What is listening, and whose is it? | `ss -tlnp` |
-| Full join across every process | `lsof -i :<port>` |
-| No tools available at all | the inode in `/proc/net/tcp`, then `ls -l /proc/*/fd 2>/dev/null \| grep <inode>` |
+| Am I even in a different namespace? | compare `readlink /proc/self/ns/net` on both sides — same inode means same network |
+| What does the Pod's own stack look like? | `kubectl exec` then `ip addr`, `ip route`, `cat /etc/resolv.conf` |
+| Is it policy rather than plumbing? | `kubectl get networkpolicy -A` — and remember a namespace with any ingress policy denies everything not matched |
+| Is the Service's backend list actually populated? | `kubectl get endpointslices -l kubernetes.io/service-name=<svc>` — empty means the selector matches nothing |
+| Is `kube-proxy` programming what I expect? | `iptables-save \| grep <clusterIP>` on the node |
+| …and if this cluster inherited IPVS mode? | `ipvsadm -L -n` for the services and their real servers, `ipvsadm -l -n -c` for which client is pinned to which backend — or `cat /proc/net/ip_vs_conn`, the same table as a file (roster only) |
 
-That last row is the one worth having done once by hand: it is what every tool in the first two rows is
-doing for you.
+**The trap:** a ClusterIP answers from nowhere. It is not a host, nothing listens on it, and pinging it
+proves nothing at all — it exists only as a rewrite rule.
 
-Lessons: [ports and /proc/net/tcp](../networking-fundamentals/act-1-one-machine/05-ports-and-proc-net-tcp.md)
+Lessons: [pod networking](../networking-fundamentals/act-5-kubernetes/02-pod-networking.md) ·
+[services](../networking-fundamentals/act-5-kubernetes/03-services.md) ·
+[network policy](../networking-fundamentals/act-5-kubernetes/07-network-policy.md)
 
 ---
 
 ## "It's slow, but nothing is broken"
 
+*[Stations 5, 7 — mostly off the model](03-the-map.md#station-5--conntrack-the-kernels-memory-of-what-it-already-decided)*
 The hardest class, because every binary check passes. This is where the course's toolset thins out, and
 the honest answer is that most of the instruments below are
 **[roster only](tools/README.md#the-honest-tally)**.
@@ -192,6 +205,7 @@ Lessons: [TCP and reliability](../networking-fundamentals/act-3-the-internet/03-
 
 ## "The cluster itself is broken"
 
+*off the model — this is a different machine’s station 4 (the API server’s own fd/socket/process), not a packet-path question at all*
 When `kubectl` is the thing that stopped working, everything above is unreachable and the order inverts —
 you drop to the node.
 
@@ -221,5 +235,5 @@ for that — each one puts a machine into a genuinely broken state and gives you
 [Act VII](../networking-fundamentals/act-7-workloads/diagnose.md) ·
 [Act X](../networking-fundamentals/act-10-cluster-security/diagnose.md)
 
-Next: **[command reference, by act](05-per-act-commands.md)** — every command the course runs, broken
-down element by element.
+Next: **[the map](03-the-map.md)** — if a symptom above didn't obviously name a station, this is the page
+that makes the connection explicit.

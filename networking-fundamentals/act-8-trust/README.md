@@ -87,7 +87,7 @@ This is a gentler act than the last two in one way and harsher in another. Nothi
 
 Then: **[test yourself](test-yourself.md)** (23 questions) · **[diagnose it](diagnose.md)** (6 drills) · **[in the wild](in-the-wild.md)**.
 
-When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
+When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — [the map](../../reference/03-the-map.md) ties every tool to the piece of kernel state it reads, and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
 
 ## What breaks here
 
