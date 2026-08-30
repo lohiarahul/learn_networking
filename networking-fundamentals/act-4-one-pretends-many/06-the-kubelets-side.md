@@ -131,4 +131,4 @@ you'd notice if it died, is the next thing you check, not this one.
 
 ---
 
-← Prev: **[Who does this for you](05-who-does-this-for-you.md)** · ↑ **[Act IV overview](README.md)** · Next: **[Test yourself](test-yourself.md)** →
+← Prev: **[Who does this for you](05-who-does-this-for-you.md)** · ↑ **[Act IV overview](README.md)** · Next: **[How a layer is made](07-how-a-layer-is-made.md)** →

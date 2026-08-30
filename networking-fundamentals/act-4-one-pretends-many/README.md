@@ -21,6 +21,7 @@ Work through these in order. Each one runs experiments in the lab container and 
 5. **[Overlay and VXLAN](04-overlay-vxlan.md)** — wrapping a packet in a packet so two private networks share one wire.
 6. **[Who does this for you](05-who-does-this-for-you.md)** — the OCI runtime spec, `runc`, and `containerd`: the same five namespaces and cgroup, built by a program instead of your fingers.
 7. **[The kubelet's side](06-the-kubelets-side.md)** — the Container Runtime Interface: why a Pod's sandbox is created before any container in it, proven by a network setup failing first.
+8. **[How a layer is made](07-how-a-layer-is-made.md)** — the build side of Act I 06b's overlayfs read: BuildKit, and a secret you can recover from a raw layer after the `RUN` that deleted it.
 
 Every lesson ends by tearing down what it built, so you can work straight through in one container without tripping over the last experiment's leftovers.
 

@@ -111,6 +111,16 @@
    "present": true,
    "version": ""
   },
+  "buildctl": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
+  "buildkitd": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
   "capsh": {
    "path": "",
    "present": false,
@@ -387,6 +397,11 @@
    "present": true,
    "version": ""
   },
+  "skopeo": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
   "socat": {
    "path": "/usr/bin/socat",
    "present": true,
@@ -446,6 +461,11 @@
    "present": true,
    "version": ""
   },
+  "umoci": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
   "unshare": {
    "path": "/usr/bin/unshare",
    "present": true,
@@ -462,5 +482,5 @@
    "version": ""
   }
  },
- "total": 74
+ "total": 78
 }

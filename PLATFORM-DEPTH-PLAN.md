@@ -126,7 +126,7 @@ each time. Phase 1 is therefore three lessons, not "a bit of Act IV".
 |---|---|---|
 | **0** | This document + the declined-split record in the map; `tools/remeasure.py` and the published-count guard; four stale published figures corrected | ✅ **shipped** |
 | **0b** | Harness rebuilt as `tools/harness/` — invariant registry, course graph, River made machine-checkable, self-applying size budgets, SARIF output, parity + mutation selftests | ✅ **shipped** |
-| **1** | Act IV: the runtime peel and the build side — three lessons | 🟡 **2 of 3 shipped** |
+| **1** | Act IV: the runtime peel and the build side — three lessons | ✅ **3 of 3 shipped** |
 | **2** | Act XI: observability (Stage 7.8) | 🔜 |
 | **3** | Thin spots: user namespaces / rootless, `nsenter`, `systemd` | 🔜 |
 | **4** | Route C — the platform ordering, published as a view | 🔜 |
@@ -272,20 +272,46 @@ strongest move and is currently unused in this act.
   not ever, per `git log`. It predates every change in this plan. Lesson 06 now closes with exactly that
   assertion, unexplained on purpose (Act V's own text calls it an assertion to be checked, not derived),
   which is what makes Act V's opening line true rather than a citation to nothing.
-- **`07-how-a-layer-is-made.md`** 🔜 **not started.** The missing middle between Act I 06b and Act X 08.
-  `Dockerfile` → BuildKit → layers, then read back with the `lowerdir` skill they already own. Ends by
-  *demonstrating* the deleted-secret-in-a-layer claim Act I 06b currently only asserts.
+- **`07-how-a-layer-is-made.md`** ✅ **shipped.** The missing middle between Act I 06b and Act X 08,
+  built for real: `buildctl build --frontend dockerfile.v0` (no `docker` in the loop) builds Act I 06b's
+  own hypothetical Dockerfile — a secret written in one `RUN`, `rm`'d in the next. The raw layer
+  tarball for the write step still contains the literal bytes; the tarball for the delete step contains
+  only `.wh.secret.txt`, the named whiteout Act I 06b's `/bin/df` example predicted but never showed.
+  Loaded and run for real (the outer Docker, not nested — see below), the container genuinely shows
+  nothing, and `docker history --no-trunc` reads the same fact off its byte sizes (8.19kB written,
+  4.1kB to hide it) with no unpacking at all — the rival tool, earned only after the mechanism.
+  **Act I 06b now links forward to this lesson**, closing the loop from both directions rather than
+  only from lesson 07 looking back.
 
-**Outstanding from shipping 05, tracked rather than dropped:**
-1. A `diagnose.md` drill and `drills/act-4/05.sh` — candidate symptom: *"a container is running but
-   `docker ps` shows nothing"* (started with bare `runc`), which is the exact thing lesson 05 measured.
-2. Route B's step-1 word count (`exam-prep/the-exam-path.md`) was **not** hand-adjusted. Attempting it
-   exposed the gap `tools/remeasure.py` already documented: summing "Orientation, Act I, Act IV" gives
-   a number that has never matched the published figure by a margin nothing in the repo explains, so
-   patching it now would trade one unexplained number for another. `tools/remeasure.py --check` reports
-   this honestly as "6,063 words are on neither Route B's path nor its optional track" — a real gap,
-   correctly surfaced as a warning rather than silently absorbed. Encoding the step→file map as data
-   (§ Phase 0b) is the actual fix and remains unclaimed.
+  **A third real wall, same family as 05 and 06.** Importing the built image back into this lab's own
+  `containerd` (`ctr images import`) fails converting the whiteout — `operation not permitted`, the
+  same nested-filesystem limitation as lessons 05–06, one layer further into the OCI toolchain. Routed
+  around by exporting through `skopeo` to `docker-archive` and loading with the *outer*, non-nested
+  Docker for the final verification — which is itself a small, real lesson about which claims need a
+  privileged nested runtime and which don't: reading raw layer bytes never did.
+
+  **Closed the specific gap the plan didn't catch until now.** `skopeo` and `umoci` were used in
+  lesson 05 but never actually registered — no `capabilities.json` entry, no roster row, invisible to
+  every check that depends on either. Found and fixed together with `buildctl`/`buildkitd`'s own
+  registration, four tools deep across two roster tables and two interface pages, with the row-split
+  mistake from `ctr`/`containerd` (one row, two backtick names, only the first checked) caught and
+  fixed the same way before it shipped a second time.
+
+**Outstanding, tracked rather than dropped:**
+1. `diagnose.md` drills for all three new lessons — candidate symptoms: *"a container is running but
+   `docker ps` shows nothing"* (05, bare `runc`), *"a Pod is stuck in `ContainerCreating` with no CNI
+   error visible to `kubectl`"* (06, the `crictl runp` network failure one layer down), and *"a security
+   scan passes but the image still leaks a secret"* (07, the whiteout). None built yet — this repo's
+   drill bar (`verify-drill.sh`, a SHA-256 cause hash, a genuinely reproduced broken state) is real
+   additional work, not a checkbox.
+2. Route B's step-1 word count (`exam-prep/the-exam-path.md`) was **not** hand-adjusted, across all
+   three lessons. Attempting it exposed the gap `tools/remeasure.py` already documented: summing
+   "Orientation, Act I, Act IV" gives a number that has never matched the published figure by a margin
+   nothing in the repo explains, so patching it now would trade one unexplained number for another.
+   `tools/remeasure.py --check` reports this honestly — the unaccounted figure has grown from 6,063 to
+   **8,698** words across Phase 1, tracking the three lessons added, which is itself a useful signal
+   that the drift is coming from exactly where expected. Encoding the step→file map as data (§ Phase 0b)
+   is the actual fix and remains unclaimed.
 
 ### Phase 2 — Act XI: observability (Stage 7.8)
 

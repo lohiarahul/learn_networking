@@ -11,11 +11,15 @@ because those two things diverge.
 [`kubeadm`](kubeadm.md) · [`etcdctl`](etcdctl.md) ·
 [`helm`](helm.md) · [`cilium`](cilium.md) ·
 [`trivy`](trivy.md) · [`cosign`](cosign.md) ·
-[`crane`](crane.md) · `ctr` · `containerd`
+[`crane`](crane.md) · `ctr` · `containerd` · `skopeo` · `buildctl` · `buildkitd`
 
-Two of those eleven-turned-thirteen have no page of their own: `ctr` and `containerd` are named here
-and taught where they are actually run — [Act IV](../../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md)
-— rather than given a roster page each, since between them they have three commands worth showing.
+Five of those eleven-turned-sixteen have no page of their own: `ctr`, `containerd`, `skopeo`,
+`buildctl` and `buildkitd` are named here and taught where they are actually run —
+[Act IV](../../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md), which
+builds and runs a container by hand before ever installing Docker, then
+[builds an image the same way](../../../networking-fundamentals/act-4-one-pretends-many/07-how-a-layer-is-made.md)
+— rather than given a roster page each, since none of the five carries enough distinct commands to
+earn one on its own.
 
 ---
 

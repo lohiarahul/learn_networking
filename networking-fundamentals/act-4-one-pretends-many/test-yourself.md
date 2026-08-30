@@ -74,6 +74,15 @@ No. `docker ps` reads Docker's own bookkeeping, not the kernel. A container `run
 
 </details>
 
+> **Question 9 —** A Dockerfile writes a secret in one `RUN` and deletes it with `rm` in the next. What does the deleting layer actually contain, what does the layer before it still contain, and why can the running container's own filesystem never be evidence that the secret is gone from the image?
+
+<details>
+<summary>Answer</summary>
+
+The deleting layer contains a **whiteout marker** (`.wh.secret.txt`) — a note that says "hide this name," not a removal. The layer before it still contains the secret's real bytes, unpacked straight out of the raw layer tarball. The running container's filesystem can never be evidence either way because overlay always shows the *merged* view — the whiteout hides the file at runtime by design, on every container started from the image, which is exactly why the secret is still there for anyone who pulls the image and reads the layers instead of running them.
+
+</details>
+
 ---
 
 ← Back to **[Act IV overview](README.md)** · Next: **[Diagnose it →](diagnose.md)** (apply it under fire), then **[Act V →](../act-5-kubernetes/README.md)**

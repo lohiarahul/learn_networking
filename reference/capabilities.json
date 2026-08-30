@@ -4429,5 +4429,141 @@
         "lesson": "Lesson 5 — Who does this for you"
       }
     ]
+  },
+  "skopeo": {
+    "name": "copy images between registries, with no daemon",
+    "mode": [
+      "mutate",
+      "read-only"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "Moving an image without running one",
+        [
+          [
+            "skopeo copy docker://<ref> oci:<dir>:<tag>",
+            "pull straight into an OCI layout on disk — no dockerd, no containerd"
+          ],
+          [
+            "skopeo copy oci:<dir> docker-archive:<file>:<tag>",
+            "convert an OCI layout into the tarball `docker load` accepts"
+          ],
+          [
+            "skopeo inspect oci:<dir>",
+            "the manifest and layer digests, read without unpacking anything"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "skopeo copy docker://alpine:latest oci:alpine-oci:latest",
+        "why": "pulls an image into the OCI Image Layout with no Docker involved — the layers Act I 06b read through `overlay` are these same blobs, arrived at from a registry instead of a running container",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 5 — Who does this for you"
+      },
+      {
+        "cmd": "skopeo copy oci:extracted docker-archive:docker-out.tar:localbuild:latest",
+        "why": "the bridge back to a familiar face: convert a raw OCI layout into the one format `docker load` reads",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 7 — How a layer is made"
+      }
+    ]
+  },
+  "umoci": {
+    "name": "unpack and repack an OCI image layout",
+    "mode": [
+      "mutate"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "The bundle a runtime actually reads",
+        [
+          [
+            "umoci unpack --image <layout>:<tag> <dir>",
+            "flatten every layer into one rootfs plus the config.json runc reads"
+          ],
+          [
+            "umoci repack --image <layout>:<tag> <dir>",
+            "the reverse — turn an edited bundle back into layers"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "umoci unpack --image alpine-oci:latest bundle",
+        "why": "produces the exact bundle shape `runc run -b` expects: `rootfs/` plus `config.json`, with no Docker in the loop",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 5 — Who does this for you"
+      }
+    ]
+  },
+  "buildctl": {
+    "name": "BuildKit's own client",
+    "mode": [
+      "mutate"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "Building without docker build",
+        [
+          [
+            "buildctl build --frontend dockerfile.v0 --local context=. --local dockerfile=. --output type=oci,dest=<file>",
+            "run a Dockerfile through BuildKit directly, exporting a real OCI layout"
+          ],
+          [
+            "buildctl debug workers",
+            "confirm a `buildkitd` is reachable and which platforms it can build for"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "buildctl build --frontend dockerfile.v0 --local context=. --local dockerfile=. --output type=oci,dest=out.tar",
+        "why": "the same displacement `ctr` proved for `docker run` in lesson 05 — `docker build` talks to this daemon, not to layers directly",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 7 — How a layer is made"
+      }
+    ]
+  },
+  "buildkitd": {
+    "name": "the daemon docker build actually talks to",
+    "mode": [
+      "mutate",
+      "live"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "The daemon itself",
+        [
+          [
+            "buildkitd &",
+            "run it standalone — no dockerd required to build an image, the same proof `containerd &` gave for running one"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "buildkitd &",
+        "why": "docker build has called this daemon since Docker 18.09; running it bare is the proof docker build never built anything itself",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 7 — How a layer is made"
+      }
+    ]
   }
 }

@@ -45,10 +45,10 @@ signature below was measured in the course's own lab image.
 | **`packet`** | `socket(AF_PACKET, …)` or `SOCK_RAW` | `tcpdump` · `tshark` · `scapy` · `arping` · `traceroute` · `mtr` · `nmap`&nbsp;‡ | Exactly what crossed one specific point on a link, byte for byte — a packet itself, not a kernel's opinion of one. *Not which process or rule put it there.* |
 | **`probe`** | `ptrace` · `bpf(2)` · `perf_event_open` | `strace` · `ltrace` · `bpftrace` · `bpftool` · `pwru` · `retis` · `falco` | Which kernel function actually ran, or dropped the packet — the only interface with no blind spot, because it instruments the kernel directly instead of asking it to self-report. *Needs a running target; nothing here works after the fact.* |
 | **`nsapi`** | `unshare` · `setns` · `clone` + bind mount | `ip netns`&nbsp;‖ · `unshare` · `nsenter` · `runc` | A door into a namespace that already exists, or a fresh one to make — the mechanism every container runtime is built on. *Moves you; reads nothing on its own.* |
-| **`httpapi`** | HTTPS/gRPC to a daemon or API server | `docker` · `crictl` · `kubectl` · `kind` · `kubeadm` · `etcdctl` · `helm` · `cilium` · `trivy` · `cosign` · `crane` · `ctr` · `containerd` | A control plane's own declared intent, from a system built to survive individual machines dying — the layer Acts V–X exist to teach. *Intent, not a guarantee the kernel underneath agrees.* |
-| **`local`** | none — files or bytes you already have | `jq` · `xxd`/`base64` · `etcdutl` · `kustomize` · `kube-bench` | Reshapes or verifies bytes another tool already produced, with no kernel call of its own — the last mile between raw output and a readable answer. *Nothing about your machine that another tool didn't already tell it.* |
+| **`httpapi`** | HTTPS/gRPC to a daemon or API server | `docker` · `crictl` · `kubectl` · `kind` · `kubeadm` · `etcdctl` · `helm` · `cilium` · `trivy` · `cosign` · `crane` · `ctr` · `containerd` · `skopeo` · `buildctl` · `buildkitd` | A control plane's own declared intent, from a system built to survive individual machines dying — the layer Acts V–X exist to teach. *Intent, not a guarantee the kernel underneath agrees.* |
+| **`local`** | none — files or bytes you already have | `jq` · `xxd`/`base64` · `etcdutl` · `kustomize` · `kube-bench` · `umoci` | Reshapes or verifies bytes another tool already produced, with no kernel call of its own — the last mile between raw output and a readable answer. *Nothing about your machine that another tool didn't already tell it.* |
 
-`13 + 14 + 11 + 7 + 7 + 4 + 13 + 5 = 74` — every row on this page, each in exactly one interface.
+`13 + 14 + 11 + 7 + 7 + 4 + 16 + 6 = 78` — every row on this page, each in exactly one interface.
 
 > ### The unit is the *invocation*, not the binary
 >
@@ -74,7 +74,7 @@ signature below was measured in the course's own lab image.
 ## What can catch a transient
 
 The single most useful compartment on this page, because the answer is short and nobody has it
-memorised. **23 of the 74 tools can stream events**; everything else hands you a snapshot, and
+memorised. **24 of the 78 tools can stream events**; everything else hands you a snapshot, and
 *"I looked and saw nothing"* is not evidence when the thing you are hunting lasted 40 ms.
 
 | Interface | Streams with |
@@ -210,6 +210,9 @@ tell you.
 | [`docker`](httpapi/docker.md) | The developer-facing view, and `docker network inspect` — Act IV's bridge and veth pairs, printed as JSON | httpapi · obj-verb | [the fd table](../../networking-fundamentals/act-1-one-machine/01-the-fd-table.md) |
 | `ctr` | containerd's own client — the same pull-and-run `docker run` performs, one layer lower | httpapi · verb-obj | [who does this for you](../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md) |
 | `containerd` | The daemon between `docker` and `runc` — proof Docker is a client of it, not a replacement | httpapi · verb-obj | [who does this for you](../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md) |
+| `skopeo` | Move an image between a registry and an OCI layout with no daemon at all | httpapi · verb-obj | [who does this for you](../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md) |
+| `buildctl` | BuildKit's own client — same role `ctr` plays for `containerd`, for building instead of running | httpapi · verb-obj | [how a layer is made](../../networking-fundamentals/act-4-one-pretends-many/07-how-a-layer-is-made.md) |
+| `buildkitd` | The daemon `docker build` has actually called since Docker 18.09 | httpapi · verb-obj | [how a layer is made](../../networking-fundamentals/act-4-one-pretends-many/07-how-a-layer-is-made.md) |
 | [`crictl`](httpapi/crictl.md) | The node's container runtime *directly* — the only view left when the API server is down and `kubectl` is useless | httpapi · verb-obj | [the kubelet's side](../../networking-fundamentals/act-4-one-pretends-many/06-the-kubelets-side.md) |
 | [`kubectl`](httpapi/kubectl.md) | The API server's whole object graph, and `explain` makes the schema self-describing | httpapi · verb-obj | [pod networking](../../networking-fundamentals/act-5-kubernetes/02-pod-networking.md) |
 | [`kind`](httpapi/kind.md) | A real multi-node cluster on one machine, where every node is a container you can `docker exec` into | httpapi · verb-obj | [the lab with kind](../../networking-fundamentals/act-5-kubernetes/01-lab-with-kind.md) |
@@ -242,6 +245,7 @@ tell you.
 | [`pgrep`](procfs/pgrep.md) | PID lookup by name, so `/proc/<pid>/…` paths can be built in one line | procfs · flags | [the socket object](../../networking-fundamentals/act-1-one-machine/02-the-socket-object.md) |
 | [`jq`](local/jq.md) | Turns `ip -j`, `kubectl -o json` and `docker inspect` into field lookups instead of `awk` guesses | local · *filter* | [Act VIII in the wild](../../networking-fundamentals/act-8-trust/in-the-wild.md) |
 | [`xxd`](local/xxd.md) / `base64` | Reads the bytes when the text view is lying to you | local · flags | [hashing](../../networking-fundamentals/act-8-trust/01-hashing.md) |
+| `umoci` | Flattens an OCI image layout into the exact bundle shape `runc` reads — no daemon, no kernel call | local · verb-obj | [who does this for you](../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md) |
 
 ## If your laptop is not Linux
 

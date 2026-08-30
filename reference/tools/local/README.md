@@ -2,14 +2,18 @@
 
 **What you see in `strace`:** ordinary file reads. No socket, no netlink, no probe.
 
-Five tools that are in a networking reference for one reason: **they reshape output another tool
+Six tools that are in a networking reference for one reason: **they reshape output another tool
 produced.** Saying so explicitly is the point of this page. A `local` tool cannot know anything about
 your machine's network, so it can never be the source of a networking answer — only the thing that
 makes another tool's answer readable.
 
 [`jq`](jq.md) · [`xxd`](xxd.md) ·
 [`etcdutl`](etcdutl.md) · [`kustomize`](kustomize.md) ·
-[`kube-bench`](kube-bench.md)
+[`kube-bench`](kube-bench.md) · `umoci`
+
+`umoci` is the one bare name: it flattens an OCI image layout into the bundle `runc` reads, with no
+page of its own, taught in [Act IV](../../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md)
+where that bundle is what gets run.
 
 ---
 

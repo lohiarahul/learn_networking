@@ -534,7 +534,7 @@ traceroute mtr nslookup lsof prlimit ulimit chmod chown id whoami uname hostname
 eza bat fd rg jq yq cilium hubble crictl getent
 iptables-save iptables-restore etcdctl etcdutl kubeadm runc capsh getpcaps apparmor_parser trivy cosign crane kube-bench falco kyverno
 kustomize wg nstat bpftool devlink ipvsadm ipset scapy tracepath pkill timeout xargs readlink
-ctr containerd skopeo umoci apk
+ctr containerd skopeo umoci apk buildctl buildkitd
 pwru retis tshark iperf3 pgrep ifconfig nettop scutil dscacheutil pfctl lsns
 `.trim().split(/\s+/));
 
