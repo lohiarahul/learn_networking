@@ -11,20 +11,74 @@ The single most important design decision here: **do not regex-gate the semantic
 "does this lesson have a feedback loop?" check flags Act I's *best* lessons as failures, because they
 phrase success in prose (`three of these four succeed — which?`) that no keyword list can catch. So:
 
+That split has a name in the literature — **deterministic gates for objective invariants,
+agentic judges for evidence-bound interpretation** — and this repo arrived at it independently
+before adopting the vocabulary. The gates are `harness/`; the judges are the agents.
+
 | Layer | What it checks | How | Gate? |
 |---|---|---|---|
-| **Structure** | links resolve, act-shape complete, every lesson has a prediction + a ladder rung | `check_pedagogy.py` (deterministic) | **hard fail** |
-| **Freshness** | lessons indexed, roadmap banner present | `check_pedagogy.py` (warnings) | warn only |
-| **Meaning** | Spirit (drive kept alive?), River (nothing uphill?), does the feedback loop land? | learner-simulator **agent** | human-reviewed |
+| **Structure** | links resolve, act-shape complete, every lesson has a prediction + a ladder rung | `harness/invariants/` (deterministic) | **hard fail** |
+| **Order** | River: nothing hands the reader a tool they have not been given — *fenced blocks only* | `harness/invariants/river.py` over `harness/graph.py` | warn (declared exceptions) |
+| **Budgets** | no harness module past 350 lines, no lesson past 10,000 words, every declared path exists | `harness/invariants/budgets.py` | **hard fail** (module/path) |
+| **Freshness** | lessons indexed, roadmap banner present, published word counts match measurement | `harness/invariants/` (warnings) | warn only |
+| **Meaning** | Spirit (drive kept alive?), does the feedback loop land? | learner-simulator **agent** | human-reviewed |
 | **Correctness** | do the command blocks actually produce the stated output? | technical-accuracy-checker **agent** (runs them in the lab image) | human-reviewed |
 
-## `check_pedagogy.py` — the deterministic gate
+**River moved layers, and that is the substantive change.** It used to sit entirely in the
+semantic column with a stated reason: lexical checks "produce false positives on exactly the
+best-written lessons." That reason is right about prose and wrong about *fenced blocks*. A lesson
+that writes "we will meet `nft` in Act IV" has not used it; a lesson with `nft list ruleset` in a
+fence has handed the reader something to run. Measured while building it: counting inline spans
+as uses produced 14 findings, the two most interesting of which were `conntrack` in Act I 05b and
+`iptables` in Act III 02b — **both deliberate seeds**, one of which says "**Act IV builds it**" in
+the same sentence. Fences-only, plus resolving lab-setup citations, took 14 → 6 → 1. The one that
+survives is real. Spirit stays semantic, permanently.
+
+## `harness/` — the deterministic gate
 
 ```
-python3 tools/check_pedagogy.py                 # whole course
-python3 tools/check_pedagogy.py <file.md> ...    # only these files (used by the save hook)
-python3 tools/check_pedagogy.py --warn-only      # report, never exit non-zero
+cd tools && python3 -m harness              # every invariant, whole repo
+cd tools && python3 -m harness --list       # the rule table, with the reason each rule exists
+cd tools && python3 -m harness --graph      # what the course graph knows
+cd tools && python3 -m harness --only river.no-uphill-tool
+cd tools && python3 -m harness --format sarif > harness.sarif
+cd tools && python3 -m harness.selftest     # parity vs the old monolith + mutation tests
 ```
+
+`tools/check_pedagogy.py` still works and still takes the same arguments — the save hook, CI and
+muscle memory all call it by name — but it is now a shim over `harness.cli`.
+
+**Layout.** One module per concern, each bounded by `budgets.py` at 350 lines. The file this
+replaced was **970 lines and nineteen checks**, and the cost was not aesthetic: it held four
+separate copies of the roster's path and *said so in its own comments*, having noticed that a
+rename disabled three checks without failing anything. A file you cannot hold in your head is a
+file whose duplication you cannot see, so the harness now applies a size budget to itself.
+
+```
+paths.py       every path, resolved once
+model.py       closed vocabularies, Finding, Invariant
+corpus.py      cached file access; fenced-block vs inline-span separation
+parsing.py     shared table parsers
+graph.py       the course as a graph — reading order, introductions, uses, citations
+registry.py    the invariant registry and runner
+report.py      human / JSON / SARIF 2.1.0
+cli.py         one entry point
+invariants/    one module per concern; the registration table is invariants/__init__.py
+selftest.py    parity + mutation — who checks the checkers
+```
+
+**Three things the flat `HARD_CHECKS`/`WARN_CHECKS` lists could not do.** Severity used to be a
+property of *which list* a function sat in, which meant: scope was implicit, so a single-file save
+silently skipped every warning check and the author believed otherwise — now scope is declared and
+a scoped run *names what it deferred*; a check could not fail on one condition and warn on another;
+and nothing could describe itself, so `--list` was impossible and a rule whose reason nobody could
+state was a rule the next author deleted. Every invariant now carries an id, a scope and a
+rationale, and `report.py` puts the rationale in the SARIF rule so a PR annotation explains itself.
+
+**`_legacy_check_pedagogy.py` is not dead weight.** `selftest.py` runs all sixteen moved invariants
+against it on every invocation and asserts identical output, so "moved verbatim" is a checked claim
+rather than a hope. It reports **16/16 parity, 5/5 mutations firing**. Delete the legacy file only
+when you are willing to lose that proof.
 
 Hard invariants (exit non-zero on any failure):
 
@@ -73,7 +127,7 @@ The judgement-heavy checks are sub-agents, invoked on demand or in CI, not on ev
 - **technical-accuracy-checker** — runs every command block inside the real lab image
   (`netlab` / `nicolaka/netshoot` / `kind`) and confirms the stated "you should see X" appears.
   Keeps the drills "verified on the real kernel," as the JOURNEY-MAP demands.
-- **pedagogy-linter** — wraps `check_pedagogy.py` and explains failures in prose.
+- **pedagogy-linter** — wraps the harness and explains failures in prose.
 - **exercise-generator** — drafts the matching `test-yourself` question and `diagnose` drill for a
   new lesson, so the act shape stays complete.
 

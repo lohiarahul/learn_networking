@@ -34,7 +34,10 @@
 >
 > These were never in the remediation queue above, and they were the audit's **lowest score** (5.0/10).
 > Worse: the first round moved that one number the wrong way. The course was 357,717 words when this
-> audit was written and is **376,651** now — the repairs added ~19k while every other dimension improved.
+> audit was written and **376,651** at the close of this remediation round — the repairs added ~19k
+> while every other dimension improved. *(It has grown since, and that number is history rather than
+> a live claim: `tools/remeasure.py` measures the course and checks every figure the repo publishes,
+> which is the guard whose absence let this one drift through three generations unnoticed.)*
 >
 > | Finding | Status |
 > |---|---|
@@ -46,7 +49,7 @@
 > | **P3** — "`AUDIT.md`, `AUDIT-2.md`, this file — ~110,000 words at the repo root, move to `audits/`" | **Declined; the premise is off by 11×.** See below. |
 >
 > **§G's arithmetic does not survive measurement, and the correction matters more than the fix.** §G
-> claimed Route B was "roughly 240k against 358k" — a third off. Measured, it is **342,257 against
+> claimed Route B was "roughly 240k against 358k" — a third off. Measured then, it was **342,257 against
 > 376,651**: a **9%** saving. §G's estimate and §F's own inventory of off-syllabus material (~31k) never
 > reconciled with each other, and §F was the one telling the truth. So: **the length of this course is
 > not a sequencing problem and cannot be fixed by routing**, because 92% of it is on one syllabus or the

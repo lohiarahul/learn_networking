@@ -61,7 +61,7 @@ reconcile** in the cloud.
 > is earned before it is used. That is the right order to *understand* networking and it is not the
 > shortest path to a certificate. Both are published, and neither pretends to be the other:
 >
-> - **Route A — this map.** Narrative order, all 376,651 words, nothing skipped.
+> - **Route A — this map.** Narrative order, all 387,850 words, nothing skipped.
 > - **Route B — [the exam path](exam-prep/the-exam-path.md).** The same material in exam order: nine
 >   steps, the 58% you need before CKA, the 45 of 67 drills that fall on that path, and an explicit
 >   optional track for the 8% neither curriculum examines.
@@ -491,6 +491,34 @@ kernel.** Used that way, scapy, Wireshark, bpftrace, and level-ip are all deep e
 seek-don't-receive; used as recipes, none of them belong.
 
 ---
+
+## A restructure considered and declined (2026-08-30)
+
+*Recorded so it is decided once.* A recommended path for "operate an enterprise container platform"
+proposed splitting this repo into three courses — **Linux internals**, **Docker internals**,
+**Kubernetes**. Declined, because the two things are organised on different axes: that proposal is a
+**taxonomy** (grouped by product boundary), and this course is a **motivation chain** (nothing used
+before it is earned). The split cannot be done without abandoning River and Spirit, and the cost is
+concrete rather than philosophical — `seccomp` sits in Act X because that is the first point at which
+the reader has a cluster worth attacking, and `namespaces` sits in Act IV because Act III ends on "one
+host is a capacity ceiling." Hoisting either into a front-loaded Linux track hands the reader an answer
+to a question they do not yet have.
+
+It is also already answered. The repo met "I want this material in a different order" once before and
+replied **without forking**: [the exam path](exam-prep/the-exam-path.md) is Route B over the same
+words — a step table into existing lessons, no duplicated teaching. A Linux → containers → Kubernetes
+ordering is Route C, and it is a *view*, not a fork.
+
+**The gap audit inside the proposal was not declined**, and it found one defect rather than a wish list:
+the runtime peel (`docker → containerd → shim → runc`, and the OCI/CRI contracts) is taught nowhere,
+while Act VI teaches static pods and uses `crictl` 159 times. **The reader is driving a runtime layer
+that was never introduced.** Also real: nothing teaches how an image layer is *made* (Act I 06b teaches
+reading layers, Act X 08 teaches verifying them, the build between them is empty), and Act IV is the
+thinnest floor in the course — 5 lessons, 18,312 words, holding up everything from Act V on.
+
+That work, its phases, and the fourteen obligations the harness gives every new lesson, are in
+[`PLATFORM-DEPTH-PLAN.md`](PLATFORM-DEPTH-PLAN.md). Stage 7.8 (observability) is on it, so the "still
+unwritten" note above and that plan now agree about the same hole.
 
 ## Building this path
 
