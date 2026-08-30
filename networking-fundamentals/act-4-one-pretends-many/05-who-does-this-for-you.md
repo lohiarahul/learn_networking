@@ -175,4 +175,4 @@ chain, is the next layer up, and it has a name of its own: the **Container Runti
 
 ---
 
-← Prev: **[Overlay and VXLAN](04-overlay-vxlan.md)** · ↑ **[Act IV overview](README.md)** · Next: **[Test yourself](test-yourself.md)** →
+← Prev: **[Overlay and VXLAN](04-overlay-vxlan.md)** · ↑ **[Act IV overview](README.md)** · Next: **[The kubelet's side](06-the-kubelets-side.md)** →

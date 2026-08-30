@@ -24,7 +24,7 @@ with a date three weeks out and no idea which of the remaining 150k words are ex
 answers that question.
 
 > **A correction to the audit that produced this page.** [`AUDIT.md`](../AUDIT.md) §G estimated Route
-> B at "roughly 240k against 358k". Measured, it is **352,565 against 389,429** — the saving is 9%,
+> B at "roughly 240k against 358k". Measured, it is **352,565 against 390,852** — the saving is 9%,
 > not 33%. §G's estimate and §F's own inventory of off-syllabus material (~31k) never reconciled, and
 > §F was the one telling the truth. The consequence matters: **the length of this course is not a
 > sequencing problem and cannot be fixed by routing.** If it needs to be shorter, that has to come

@@ -126,7 +126,7 @@ each time. Phase 1 is therefore three lessons, not "a bit of Act IV".
 |---|---|---|
 | **0** | This document + the declined-split record in the map; `tools/remeasure.py` and the published-count guard; four stale published figures corrected | ✅ **shipped** |
 | **0b** | Harness rebuilt as `tools/harness/` — invariant registry, course graph, River made machine-checkable, self-applying size budgets, SARIF output, parity + mutation selftests | ✅ **shipped** |
-| **1** | Act IV: the runtime peel and the build side — three lessons | 🟡 **1 of 3 shipped** |
+| **1** | Act IV: the runtime peel and the build side — three lessons | 🟡 **2 of 3 shipped** |
 | **2** | Act XI: observability (Stage 7.8) | 🔜 |
 | **3** | Thin spots: user namespaces / rootless, `nsenter`, `systemd` | 🔜 |
 | **4** | Route C — the platform ordering, published as a view | 🔜 |
@@ -247,11 +247,31 @@ strongest move and is currently unused in this act.
   bar — "a real, reproduced broken state... verify it runs on the real kernel before it ships," with a
   `verify-drill.sh` SHA-256 cause hash — is separable work, tracked below rather than rushed.
 
-- **`06-the-kubelets-side.md`** 🔜 **not started.** The same contract seen from above: **CRI**. This is
-  the lesson that turns Act V's CNI-as-callback and Act VI's 159 uses of `crictl` from incantation into
-  recognition. Fixes the River break in §2.1 directly. Lesson 05 already surfaced the exact question it
-  answers, in its own closing line: *"What decides which runtime a node uses... has a name of its own:
-  the Container Runtime Interface."*
+- **`06-the-kubelets-side.md`** ✅ **shipped.** CRI as a second, independent client of the same
+  `containerd` from lesson 05: `crictl --help` against `ctr run --help` shows the whole pod-lifecycle
+  vocabulary (`runp`/`pods`/`rmp`/`stopp`) `ctr`'s single bolted-on `--sandbox` flag never grew, and
+  `crictl runp` on a minimal sandbox config **measured** failing at network setup (`cni plugin not
+  initialized`) before any container exists — proof, not assertion, that CRI treats a Pod's network as
+  part of the sandbox itself, prior to and independent of what runs inside it.
+
+  **Verification hit real walls, and the lesson reports two rather than hiding either.** `RunPodSandbox`
+  with a `NODE`-network sandbox reproduces lesson 05's nested-overlayfs constraint one layer up; a
+  containerd `native`-snapshotter workaround then hits a cgroup v2 "domain invalid" error from the same
+  nesting. Both are named as this lab's own constraint, not a CRI concept, exactly the move lesson 05
+  and Act I 06b already model — and the lesson deliberately stops at the CNI failure rather than
+  chasing a full sandbox success that Act V (with a real CNI plugin) is going to deliver anyway.
+
+  **Closed a second real River gap of the exact shape §2.1 described.** `crictl` had a full roster page
+  with `course: []` — cited 159 times across Act VI, never actually taught — the identical pattern
+  found in `runc`. Both tool pages and roster rows now cite this lesson as where the tool is introduced,
+  Act VI's usage as where it becomes routine.
+
+  **Closed a pre-existing, unrelated defect found along the way.** Act V lesson 02 opens with *"At the
+  end of Act IV you were told, in one line, that Kubernetes holds a Pod's namespace open with 'a tiny
+  pause container whose only job is to exist.'"* Nothing in Act IV said that — not before this lesson,
+  not ever, per `git log`. It predates every change in this plan. Lesson 06 now closes with exactly that
+  assertion, unexplained on purpose (Act V's own text calls it an assertion to be checked, not derived),
+  which is what makes Act V's opening line true rather than a citation to nothing.
 - **`07-how-a-layer-is-made.md`** 🔜 **not started.** The missing middle between Act I 06b and Act X 08.
   `Dockerfile` → BuildKit → layers, then read back with the `lowerdir` skill they already own. Ends by
   *demonstrating* the deleted-secret-in-a-layer claim Act I 06b currently only asserts.

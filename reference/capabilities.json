@@ -718,7 +718,20 @@
         ]
       ]
     ],
-    "course": []
+    "course": [
+      {
+        "cmd": "crictl version",
+        "why": "confirms `crictl` is a second, independent client of the same `containerd` `ctr` and `docker` both talk to",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 6 — The kubelet's side"
+      },
+      {
+        "cmd": "crictl runp sandbox.json",
+        "why": "RunPodSandbox — the two-phase model `ctr run` has no equivalent of: a Pod's network is set up before any container inside it exists, proven by the failure happening at the network step",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 6 — The kubelet's side"
+      }
+    ]
   },
   "curl": {
     "name": "\"a play on *Client for URLs*\"",

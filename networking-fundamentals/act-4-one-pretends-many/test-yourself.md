@@ -65,6 +65,15 @@ No. `docker ps` reads Docker's own bookkeeping, not the kernel. A container `run
 
 </details>
 
+> **Question 8 —** `ctr run` has an optional `--sandbox` flag. `crictl` has a whole separate verb family — `runp`, `pods`, `rmp`, `stopp` — that `ctr` lacks entirely. What does a `RunPodSandbox` call set up that a plain `ctr run`/`runc run` never does, and how did the CNI error prove it rather than just assert it?
+
+<details>
+<summary>Answer</summary>
+
+`RunPodSandbox` sets up the Pod's **network** as part of creating the sandbox itself, before any application container exists inside it — which is why the container's own IP is really the sandbox's IP, shared by everything that joins it later. The CNI failure (`cni plugin not initialized`) proved this rather than just asserting it: the call failed *at the network-setup step*, before it ever got as far as pulling an image or creating a container. CRI makes the sandbox a first-class object with its own lifecycle; `ctr`'s bolted-on `--sandbox` flag has no equivalent lifecycle commands at all.
+
+</details>
+
 ---
 
 ← Back to **[Act IV overview](README.md)** · Next: **[Diagnose it →](diagnose.md)** (apply it under fire), then **[Act V →](../act-5-kubernetes/README.md)**
