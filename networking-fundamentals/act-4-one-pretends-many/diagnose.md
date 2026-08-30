@@ -447,16 +447,332 @@ tools/verify-drill.sh act-4 4 "the property the two ends disagreed about"
 
 ---
 
+## Drill 5 — "The container isn't as isolated as the last four drills assumed"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"We built a container straight off a bundle, the way [lesson 05](05-who-does-this-for-you.md)
+> showed — no Docker, just `runc`. It's running: the cgroup exists, `runc exec` reaches it, the process is
+> alive. But someone testing it noticed it can see and use interfaces on the real network — traffic meant
+> for the host itself shows up inside the container's own capture. Nothing about the build looked wrong.
+> Where would that even come from?"*
+
+**Reproduce it** (run; don't read):
+
+```bash
+apk add --no-cache runc skopeo umoci jq >/dev/null 2>&1
+mkdir -p /work && cd /work
+skopeo copy docker://alpine:latest oci:alpine-oci:latest >/dev/null 2>&1
+umoci unpack --image alpine-oci:latest bundle >/dev/null 2>&1
+jq '.process.terminal=false | .process.args=["/bin/sleep","300"] |
+    .linux.namespaces = [.linux.namespaces[] | select(.type != "network")]' \
+    bundle/config.json > /tmp/c.json && mv /tmp/c.json bundle/config.json
+runc run -d -b bundle --pid-file /work/pid.txt drillbox
+```
+
+**Confirm the symptom:**
+
+```bash
+PID=$(cat /work/pid.txt)
+ls -la /proc/$PID/ns/net
+ls -la /proc/self/ns/net
+```
+
+```
+lrwxrwxrwx    1 root     root             0 Aug 30 04:57 /proc/562/ns/net -> net:[4026531833]
+lrwxrwxrwx    1 root     root             0 Aug 30 04:57 /proc/self/ns/net -> net:[4026531833]
+```
+
+Same inode. Whatever `runc run` just built, it is not privately networked the way
+[lesson 05](05-who-does-this-for-you.md)'s own container was — and `runc list` still shows `drillbox`
+running, cgroup and all, with no complaint anywhere.
+
+**Your move.** You already own the one document that decides which namespaces a container gets, and you
+already know which key in it to read. Read it here, and count its entries against the five
+[lesson 05](05-who-does-this-for-you.md) showed you.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+```bash
+jq '.linux.namespaces' /work/bundle/config.json
+```
+
+```json
+[
+  { "type": "pid" },
+  { "type": "ipc" },
+  { "type": "uts" },
+  { "type": "mount" }
+]
+```
+
+Four entries, not five. **`network` is missing.** `runc` did not skip isolating the network by accident
+or by some fallback rule — it isolated exactly what `config.json` told it to, and nobody told it to
+unshare a network namespace. `runc` has no opinion of its own about what "a container" needs; the
+document is the whole contract, and an omission in it is an omission in the container, silently, with no
+error at any point in the build or the run.
+
+**Root cause:** `config.json`'s `linux.namespaces` array never had a `network` entry (lesson 05).
+**Fix:**
+
+```bash
+runc delete -f drillbox
+jq '.linux.namespaces += [{"type":"network"}]' /work/bundle/config.json > /tmp/c2.json \
+  && mv /tmp/c2.json /work/bundle/config.json
+runc run -d -b /work/bundle --pid-file /work/pid.txt drillbox
+PID=$(cat /work/pid.txt)
+ls -la /proc/$PID/ns/net       # now a different inode from /proc/self
+```
+
+This is the same fact lesson 05 built forward — declared, not implied — read here backward, from a
+container that was missing one line and never once complained about it.
+
+**Cleanup:**
+```bash
+runc delete -f drillbox 2>/dev/null
+```
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 5 "the missing entry in config.json"
+```
+
+---
+
+## Drill 6 — "`ctr` works, `crictl` doesn't, and nobody touched `crictl`"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"Same containerd, same socket, same node. One engineer's `ctr images ls` works fine. The
+> kubelet's own client, `crictl`, can't do anything on that node — not list, not version, nothing. It
+> isn't a typo in the command; the connection itself is refused by something. What could possibly be
+> different between two tools pointed at the exact same daemon?"*
+
+**Reproduce it** (run; don't read):
+
+```bash
+apk add --no-cache containerd containerd-ctr cri-tools >/dev/null 2>&1
+mkdir -p /etc/containerd
+cat > /etc/containerd/config.toml <<'EOF'
+version = 2
+disabled_plugins = ["io.containerd.grpc.v1.cri"]
+EOF
+pkill containerd 2>/dev/null; sleep 1
+containerd -c /etc/containerd/config.toml >/tmp/containerd.log 2>&1 &
+sleep 2
+```
+
+**Confirm the symptom:**
+
+```bash
+ctr version >/dev/null && echo "ctr: OK, talking to containerd fine"
+crictl version
+```
+
+```
+ctr: OK, talking to containerd fine
+ERRO[0000] validate service connection: validate CRI v1 runtime API for endpoint
+"unix:///run/containerd/containerd.sock": rpc error: code = Unimplemented desc = unknown
+service runtime.v1.RuntimeService
+```
+
+Read that error before touching anything. It is **not** "connection refused" and it is **not** "no such
+file" — the socket is there and something answers on it. What comes back is `Unimplemented`: a request
+for a *service* that this endpoint has never heard of.
+
+**Your move.** [Lesson 06](06-the-kubelets-side.md) told you `crictl` and `ctr` are two independent
+clients — but of what, exactly, on the daemon's side? `ctr` just proved the daemon itself is alive and
+answering. If the same socket can be reachable for one client and answer "no such service" for another,
+what does that say about how many separate things this one daemon can be serving over one door?
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+```bash
+cat /etc/containerd/config.toml
+```
+
+```
+version = 2
+disabled_plugins = ["io.containerd.grpc.v1.cri"]
+```
+
+`containerd` is not one API — it's a daemon built out of **plugins**, and the CRI service `crictl` needs
+is one of them, not the core. `ctr` talks to containerd's own native API, which this daemon still serves
+fine. `crictl` talks to the separate `RuntimeService`/`ImageService` pair
+[lesson 06](06-the-kubelets-side.md) named — and this daemon was started with that specific plugin
+switched off. The socket is real, containerd is up, and the one gRPC service `crictl` needs simply was
+never registered on it. That is exactly why the error reads `Unimplemented` rather than any kind of
+connection failure: the door is open, the room behind it doesn't exist.
+
+**Root cause:** containerd's CRI plugin (`io.containerd.grpc.v1.cri`) was disabled at startup (lesson
+06). **Fix:**
+
+```bash
+pkill containerd; sleep 1
+rm -f /etc/containerd/config.toml
+containerd >/tmp/containerd2.log 2>&1 &
+sleep 2
+crictl version      # now answers
+```
+
+This is the real-world version of a bug that has taken down more than one cluster: a hand-rolled
+`containerd` config that disables `cri` for an unrelated reason (usually chasing a different plugin)
+leaves every `ctr`-based health check green while the kubelet — which only ever speaks CRI — cannot
+run a single Pod.
+
+**Cleanup:**
+```bash
+pkill containerd 2>/dev/null
+rm -f /etc/containerd/config.toml
+```
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 6 "the plugin that was switched off"
+```
+
+---
+
+## Drill 7 — "The fix for the leaked secret closed the ticket. Did it fix anything?"
+
+**Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"Security flagged the build from [lesson 07](07-how-a-layer-is-made.md) — a secret
+> written in one layer was still recoverable from an earlier one, even though a later `RUN` deleted it.
+> A teammate's fix: overwrite the file with zeros before deleting it, in that same step, so there's
+> nothing readable left to recover. The build log shows nothing unusual, so they closed the ticket.
+> Did it actually fix anything?"*
+
+**Reproduce it** (run; don't read):
+
+```bash
+apk add --no-cache buildkit buildctl >/dev/null 2>&1
+pkill buildkitd 2>/dev/null; sleep 1
+buildkitd >/tmp/buildkitd.log 2>&1 &
+sleep 2
+mkdir -p /work/build7 && cd /work/build7
+cat > Dockerfile <<'EOF'
+FROM alpine:latest
+RUN echo "hunter2" > /secret.txt
+RUN dd if=/dev/zero of=/secret.txt bs=1 count=7 conv=notrunc && rm /secret.txt
+CMD ["cat", "/etc/os-release"]
+EOF
+buildctl build --frontend dockerfile.v0 --local context=. --local dockerfile=. \
+  --output type=oci,dest=out.tar >/tmp/build.log 2>&1
+mkdir -p out && tar -xf out.tar -C out
+```
+
+**Confirm what "fixed" looked like:**
+
+```bash
+grep -c '^#[0-9]' /tmp/build.log && echo "the build ran clean — nothing flagged, nothing errored"
+```
+
+That log is all the teammate checked, and it tells you nothing about whether the bytes still exist
+anywhere — which is exactly [lesson 07](07-how-a-layer-is-made.md)'s own point about a running
+container's filesystem, one level removed: a clean build log isn't runtime evidence either.
+
+**Your move.** You already know how to open a raw layer instead of trusting a log or a running
+container. `dd`-ing zeros over the file happens in the *same* `RUN` as the `rm` — before you look, decide
+whether you expect that to change which layer the original bytes live in at all.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+Walk the manifest to find the two layers this Dockerfile produced, in order:
+
+```bash
+cd /work/build7/out
+M=$(jq -r '.manifests[0].digest' index.json | sed 's/sha256://')
+jq -r '.layers[].digest' "blobs/sha256/$M" | sed 's/sha256://'
+```
+
+Take the second and third lines — the write layer and the delete layer — and open each raw tar:
+
+```bash
+tar -xzOf blobs/sha256/<the-write-layer> secret.txt
+tar -tzvf blobs/sha256/<the-delete-layer>
+```
+
+```
+hunter2
+---------- 0/0         0 1970-01-01 00:00:00 .wh.secret.txt
+```
+
+**The write layer still holds the literal string `hunter2`, untouched.** The zero-and-delete step
+changed nothing about it, because a Dockerfile layer is the *net* filesystem diff at the end of one
+`RUN` — not a recording of every command that ran inside it. Overwriting the file and then removing it,
+in the same step, still ends that step with the file simply gone, so BuildKit writes exactly the one
+whiteout `rm` alone would have written. The zeroing was real work that produced a real intermediate
+state — and that state never became a layer, because nothing asked for it to. Layers are immutable and
+strictly additive: no later `RUN`, whatever it does, can reach back and rewrite the bytes an earlier
+layer already committed.
+
+**Root cause:** believing a later `RUN` can retroactively change an earlier layer's already-shipped
+bytes (lesson 07, one step further). **The actual fix** is not "wipe it before deleting it" — it's never
+letting the secret enter a committed layer in the first place. BuildKit has a real mechanism for that:
+
+```bash
+cat > Dockerfile.fixed <<'EOF'
+# syntax=docker/dockerfile:1
+FROM alpine:latest
+RUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret > /dev/null
+CMD ["cat", "/etc/os-release"]
+EOF
+echo -n "hunter2" > /tmp/mysecret.txt
+buildctl build --frontend dockerfile.v0 --local context=. --local dockerfile=. \
+  --opt filename=Dockerfile.fixed --secret id=mysecret,src=/tmp/mysecret.txt \
+  --output type=oci,dest=outfixed.tar
+mkdir -p outfixed && tar -xf outfixed.tar -C outfixed
+for f in outfixed/blobs/sha256/*; do gunzip -c "$f" 2>/dev/null | grep -a hunter2; done
+echo "(no output above — the secret was never in any layer to begin with)"
+```
+
+`--mount=type=secret` makes the secret available only inside the running build step, on a mount that is
+never part of the snapshot BuildKit diffs to produce a layer. There is no delete step to forget, because
+there is no layer to leak from.
+
+**Cleanup:**
+```bash
+pkill buildkitd 2>/dev/null
+rm -rf /work/build7
+```
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 7 "what a later RUN can never do to an earlier layer"
+```
+
+---
+
 ## Where this leaves you
 
-Four failures, four primitives, one method: meet a bare symptom, decide *which* piece of hand-built
-plumbing is missing or misconfigured, and read the one file, rule or counter that proves it — a private
-source escaping onto the wire because no `MASQUERADE` caught it; a bridge port left down so frames die at
-the switch; a published port that was never a DNAT rule at all; a link whose size nobody agreed on, which
-fails only for packets big enough to matter. Nobody told you which idea applied; you ranged across the
-whole act to find it. Every one of these is a bug you will meet again in Act V wearing a Kubernetes name —
-a node that can't egress, a Pod unreachable on its node, a Service that resolves but never answers, an
-overlay that delivers health checks and swallows real responses.
+Seven failures, seven primitives, one method: meet a bare symptom, decide *which* piece of hand-built
+plumbing — or hand-built container, or hand-written spec document — is missing, misconfigured, or simply
+misunderstood, and read the one file, rule, or raw byte that proves it. A private source escaping onto
+the wire because no `MASQUERADE` caught it. A bridge port left down so frames die at the switch. A
+published port that was never a DNAT rule at all. A link whose size nobody agreed on, which fails only
+for packets big enough to matter. A container with one line missing from the document that is its whole
+contract, silently short of the isolation everyone assumed it had. A daemon serving one client and
+silently refusing another, because the two were never talking to the same plugin. A "fix" that changed
+nothing, because no later step can rewrite a layer already shipped. Nobody told you which idea applied;
+you ranged across the whole act to find it. Every one of these is a bug you will meet again wearing a
+Kubernetes name — a node that can't egress, a Pod unreachable on its node, a Service that resolves but
+never answers, an overlay that delivers health checks and swallows real responses, a Pod stuck because
+its runtime config was wrong in one field, a kubelet that can't create a single sandbox because the
+container runtime it's calling never loaded the service it needed, an image whose layers say more than
+its last `docker history` line ever let on.
 
 ---
 

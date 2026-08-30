@@ -243,9 +243,8 @@ strongest move and is currently unused in this act.
   against `netlab:latest` (`present: false` — correct, since it needs `netshoot`, not `netlab`);
   `sync-content.mjs`'s `SHELL_COMMANDS` got `ctr`, `containerd`, `skopeo`, `umoci`, `apk`; test-yourself
   gained question 7; the act README nav and both lessons' footer links were rewired
-  (`04 → 05 → test-yourself`). **Not closed:** no `diagnose.md` drill. Building one to this repo's own
-  bar — "a real, reproduced broken state... verify it runs on the real kernel before it ships," with a
-  `verify-drill.sh` SHA-256 cause hash — is separable work, tracked below rather than rushed.
+  (`04 → 05 → test-yourself`). The fifteenth — a `diagnose.md` drill — is closed below, alongside 06 and
+  07's own.
 
 - **`06-the-kubelets-side.md`** ✅ **shipped.** CRI as a second, independent client of the same
   `containerd` from lesson 05: `crictl --help` against `ctr run --help` shows the whole pod-lifecycle
@@ -297,21 +296,42 @@ strongest move and is currently unused in this act.
   mistake from `ctr`/`containerd` (one row, two backtick names, only the first checked) caught and
   fixed the same way before it shipped a second time.
 
+- **Drills 5–7, `diagnose.md` + `drills/act-4/{05,06,07}.sh`** ✅ **shipped**, closing the one obligation
+  Phase 1 had left open. Each was built and verified against a fresh, real
+  `docker run --privileged --network host nicolaka/netshoot` lab — not assumed — before being written
+  down, matching this repo's own drill bar (a genuinely reproduced broken state, a `verify-drill.sh`
+  SHA-256 cause hash, function-level checks rather than file-existence ones):
+
+  - **Drill 5** strips `network` out of a real bundle's `config.json` before `runc run` and shows the
+    resulting container sharing the shell's own net-namespace inode — the same inode check the whole act
+    has used since lesson 01, run backward from a container that was silently short one line of its own
+    contract. Verified by reading `config.json` itself, not by trusting `runc list`.
+  - **Drill 6** disables containerd's CRI plugin (`disabled_plugins = ["io.containerd.grpc.v1.cri"]`)
+    and shows `ctr version` succeeding while `crictl version` fails with `Unimplemented` — not a
+    connection error, which is the tell that the socket is real and the *service* isn't. This is a real
+    production footgun (a hand-rolled containerd config disabling `cri` for an unrelated reason leaves
+    every `ctr`-based health check green while the kubelet, which only speaks CRI, can't run a Pod), and
+    it needed no CNI, no nested overlayfs, and hit none of lessons 05–06's environment walls.
+  - **Drill 7** extends lesson 07's own leak one step further: "fixing" it by zeroing the secret before
+    `rm`, in the same `RUN`, changes nothing — the write layer already committed the real bytes, and a
+    layer is the *net* diff at the end of one step, not a log of what ran inside it. Unpacked the raw
+    tar to prove the write layer is untouched, then built the *actual* fix
+    (`RUN --mount=type=secret`) and confirmed by decompressing every blob in the resulting image that
+    the secret never entered a layer at all — a real BuildKit mechanism, verified, not asserted.
+
+  All three verifiers are digest-agnostic (drill 7 walks the manifest's layer order rather than naming a
+  hash, since BuildKit digests shift with the base image and the build clock) and were run end-to-end —
+  reproduce, confirm, fix, verify — against disposable containers before being committed.
+
 **Outstanding, tracked rather than dropped:**
-1. `diagnose.md` drills for all three new lessons — candidate symptoms: *"a container is running but
-   `docker ps` shows nothing"* (05, bare `runc`), *"a Pod is stuck in `ContainerCreating` with no CNI
-   error visible to `kubectl`"* (06, the `crictl runp` network failure one layer down), and *"a security
-   scan passes but the image still leaks a secret"* (07, the whiteout). None built yet — this repo's
-   drill bar (`verify-drill.sh`, a SHA-256 cause hash, a genuinely reproduced broken state) is real
-   additional work, not a checkbox.
-2. Route B's step-1 word count (`exam-prep/the-exam-path.md`) was **not** hand-adjusted, across all
-   three lessons. Attempting it exposed the gap `tools/remeasure.py` already documented: summing
-   "Orientation, Act I, Act IV" gives a number that has never matched the published figure by a margin
-   nothing in the repo explains, so patching it now would trade one unexplained number for another.
-   `tools/remeasure.py --check` reports this honestly — the unaccounted figure has grown from 6,063 to
-   **8,698** words across Phase 1, tracking the three lessons added, which is itself a useful signal
-   that the drift is coming from exactly where expected. Encoding the step→file map as data (§ Phase 0b)
-   is the actual fix and remains unclaimed.
+1. Route B's step-1 word count (`exam-prep/the-exam-path.md`) was **not** hand-adjusted, across all
+   three lessons or the three drills. Attempting it exposed the gap `tools/remeasure.py` already
+   documented: summing "Orientation, Act I, Act IV" gives a number that has never matched the published
+   figure by a margin nothing in the repo explains, so patching it now would trade one unexplained
+   number for another. `tools/remeasure.py --check` reports this honestly — the unaccounted figure has
+   grown from 6,063 to **10,644** words across Phase 1, tracking the content added, which is itself a
+   useful signal that the drift is coming from exactly where expected. Encoding the step→file map as
+   data (§ Phase 0b) is the actual fix and remains unclaimed.
 
 ### Phase 2 — Act XI: observability (Stage 7.8)
 
