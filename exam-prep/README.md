@@ -12,9 +12,9 @@ So: work the acts to understand Kubernetes. Come here in the last few weeks to r
 clock. The domain maps below exist to tell you honestly which parts of the exam the course has
 covered and which it hasn't.
 
-> **If you have a date booked, start with [the exam path](the-exam-path.md).** The course is 394,010
+> **If you have a date booked, start with [the exam path](the-exam-path.md).** The course is 411,490
 > words in narrative order; that page puts it in exam order instead, and tells you which 58% of it you
-> need before CKA. It also gates the 8% that neither curriculum examines — kept, but marked, so
+> need before CKA. It also gates the 11% that neither curriculum examines — kept, but marked, so
 > skipping it is a decision rather than an accident.
 
 `tools/check_pedagogy.py` skips this directory for the Predict-first and ladder invariants (see

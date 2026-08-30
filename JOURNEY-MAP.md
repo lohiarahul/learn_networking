@@ -21,10 +21,11 @@ reconcile** in the cloud.
 > | **6** — one machine pretends to be many (containers) | Act IV | ✅ **built & teaching** |
 > | **7.3** — Kubernetes *networking* (incl. Gateway API, Service shapes) | Act V | ✅ **built & teaching** |
 > | **7.1** — the control plane: API server as a filesystem, static pods, the reconciliation loop, cluster PKI, etcd backup/restore, upgrades & version skew, node maintenance, control-plane troubleshooting | Act VI | ✅ **built & teaching** — 8 lessons + all supporting pages, every lesson run against a real cluster |
-> | **7.2, 7.4, 7.6–7.8** — workloads, scheduling, storage, config, Helm/Kustomize, CRDs/operators, autoscaling | Act VII | ✅ **built & teaching** — 11 lessons + all supporting pages, every lesson run against a real cluster and corrected |
+> | **7.2, 7.4, 7.6–7.7** — workloads, scheduling, storage, config, Helm/Kustomize, CRDs/operators, autoscaling | Act VII | ✅ **built & teaching** — 11 lessons + all supporting pages, every lesson run against a real cluster and corrected |
 > | **4** — cryptography & trust | Act VIII | ✅ **built & teaching** — 6 lessons + all supporting pages; needs no cluster, every claim verified on a real openssl |
 > | **5** — identity & access: authn vs authz, tokens & sessions, JWT, token verification, OAuth2/OIDC, RBAC vs ABAC | Act IX | ✅ **built & teaching** — 6 lessons + all supporting pages, every command run against a real cluster and a real identity provider |
 > | **7.5, 7.9** — CKS security: workload hardening, seccomp/AppArmor, Pod Security Admission, admission control and policy engines, etcd encryption, the cluster's own open doors, supply chain, Pod-to-Pod encryption, audit and runtime detection, external secret stores | Act X | ✅ **built & teaching** — 12 lessons + all supporting pages, every lesson run against a real cluster |
+> | **7.8** — observability: metrics, logs, dashboards | Act XI (in progress) | 🚧 **partial** — 4 of 8 lessons |
 > | **8** — AWS networking | *(none yet)* | 🔜 **roadmap** |
 > | **9** — AWS security | *(none yet)* | 🔜 **roadmap** |
 >
@@ -49,8 +50,8 @@ reconcile** in the cloud.
 > Kubernetes RBAC from the four-object model up and computes the reverse question against a live
 > cluster. **Act X then covers CKS**, from capabilities and seccomp up through admission control,
 > supply-chain verification, audit logging and runtime detection. Still missing from Stage 7:
-> **observability** (7.8) and the cost/DR half of 7.9. Every "you can now" line in Stage 7 that
-> reaches past those topics is roadmap.
+> **the rest of observability** (7.8) — logs off the node, alerting, dashboards, tracing — and the
+> cost/DR half of 7.9. Every "you can now" line in Stage 7 that reaches past those topics is roadmap.
 >
 > If you came here *for* those exams, read [`exam-prep/`](exam-prep/README.md) first — it maps every
 > CKA and CKS competency to the lesson that covers it, and marks honestly the ones nothing covers yet.
@@ -61,10 +62,10 @@ reconcile** in the cloud.
 > is earned before it is used. That is the right order to *understand* networking and it is not the
 > shortest path to a certificate. Both are published, and neither pretends to be the other:
 >
-> - **Route A — this map.** Narrative order, all 394,010 words, nothing skipped.
+> - **Route A — this map.** Narrative order, all 411,490 words, nothing skipped.
 > - **Route B — [the exam path](exam-prep/the-exam-path.md).** The same material in exam order: nine
 >   steps, the 58% you need before CKA, the 45 of 67 drills that fall on that path, and an explicit
->   optional track for the 8% neither curriculum examines.
+>   optional track for the 11% neither curriculum examines.
 >
 > Route B saves less than you would hope — 9% of the words, not a third — because almost all of this
 > course is on one syllabus or the other. What it saves is the *guessing*, which is the thing that
@@ -347,8 +348,10 @@ terminates, and how a NetworkPolicy drops a packet. You can run and repair the c
 the workload and storage APIs, extend the cluster with your own object types — and, from Act X,
 harden it: decide what a container may do, make that decision mandatory rather than optional, write
 your own admission rules, encrypt what is at rest and what is in flight, verify what you shipped,
-and read the record of what has already happened. **Still unwritten in Stage 7: observability (7.8)
-and the cost/DR half of 7.9.** *(Cert ground as built: CKA + CKAD + CKS.)*
+and read the record of what has already happened — and, from Act XI's first lessons, read where a
+Pod's logs actually live on a node and why a metric is a file a process keeps about itself. **Still
+unwritten in Stage 7: the rest of observability (7.8) — alerting, dashboards, tracing, and shipping
+logs off the node — and the cost/DR half of 7.9.** *(Cert ground as built: CKA + CKAD + CKS.)*
 **Which raises:** all of this runs on infrastructure someone must provision, connect, and defend at
 scale — and every primitive there is something you have already built by hand.
 

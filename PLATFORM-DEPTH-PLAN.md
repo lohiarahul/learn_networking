@@ -6,7 +6,7 @@
 [`tools/check_pedagogy.py`](tools/check_pedagogy.py) (**0 failures, 0 warnings** across the whole
 course before this work began — the bar anything here has to leave standing).*
 
-> **Status: Phase 0 shipped. Phases 1–4 are proposal.** Read the phase table's Status column, not the
+> **Status: Phases 0 and 1 shipped; Phase 2 Wave 1 shipped. Phase 2 Wave 2 and Phases 3–4 are proposal.** Read the phase table's Status column, not the
 > prose, for what exists.
 
 ## Why this document exists
@@ -127,7 +127,7 @@ each time. Phase 1 is therefore three lessons, not "a bit of Act IV".
 | **0** | This document + the declined-split record in the map; `tools/remeasure.py` and the published-count guard; four stale published figures corrected | ✅ **shipped** |
 | **0b** | Harness rebuilt as `tools/harness/` — invariant registry, course graph, River made machine-checkable, self-applying size budgets, SARIF output, parity + mutation selftests | ✅ **shipped** |
 | **1** | Act IV: the runtime peel and the build side — three lessons | ✅ **3 of 3 shipped** |
-| **2** | Act XI: observability (Stage 7.8) | 🔜 |
+| **2** | Act XI: observability (Stage 7.8) — designed in detail in [`ACT-11-PLAN.md`](ACT-11-PLAN.md) | 🚧 **Wave 1 shipped (4 of 8 lessons)** |
 | **3** | Thin spots: user namespaces / rootless, `nsenter`, `systemd` | 🔜 |
 | **4** | Route C — the platform ordering, published as a view | 🔜 |
 
@@ -335,11 +335,28 @@ strongest move and is currently unused in this act.
 
 ### Phase 2 — Act XI: observability (Stage 7.8)
 
-The motivated entry already exists and is unused: Act V's debugging discipline and Act VI's diagnostic
+**Designed in full in [`ACT-11-PLAN.md`](ACT-11-PLAN.md)**, and **Wave 1 shipped**: 4 of the planned 8
+teaching files (`01`, `03`, `04`, `04b`), README, test-yourself, and a first pass at `diagnose.md` (6 of
+9 drills) and `in-the-wild.md` — every command run against a real `netlab` cluster and a hand-run
+`prom/prometheus` container on the `kind` docker network. Wave 2 (`02`, `05`, `05b`, `06`, the rest of
+the support pages, drills 2/5/9) is still ahead.
+
+The audit that motivated the plan found **four more River breaks of exactly the §2.1 shape**, where a
+mechanism is used and never introduced — and Wave 1 closed all four. `APIService` / `apiregistration`
+was **0 files** across the repo, and `kubectl top` cannot work without the aggregation layer; lesson 03
+now traces it. `/var/log/pods`, `/var/log/containers` and `container-log-max` were **0 files**, under a
+CKA bullet the domain map marks ✅ covered — the course taught `kubectl logs`' flags and had never read
+the file underneath; lesson 01 now does. The Prometheus exposition format had been read once already,
+in Act VI lesson 06, parsed with `grep`, never named; lesson 03 goes back and reads the whole thing. As
+with `runc` and `crictl`, this was partly a defect fix rather than an enrichment.
+
+It also reports honestly what the phase does *not* buy: **Act XI closes no CKA or CKS gap.** Both
+adjacent bullets are already ✅ above depth, so the act belongs in Route B's optional track with one
+named exception. The motivated entry already exists and is unused: Act V's debugging discipline and Act VI's diagnostic
 walk both end at *"I can debug one path I am already looking at."* Observability answers the wall
-neither reaches — **how do I know before someone tells me?** Size against Act VIII (6 lessons, 32,169
-words with support pages) as the realistic floor, not the ceiling. Full act shape required by
-`check_act_shape`: README + test-yourself + diagnose + in-the-wild, plus drills.
+neither reaches — **how do I know before someone tells me?** Full act shape required by
+`check_act_shape`: README + test-yourself + diagnose + in-the-wild, plus drills — all four exist now,
+partial, and grow with Wave 2.
 
 ### Phase 3 — thin spots
 

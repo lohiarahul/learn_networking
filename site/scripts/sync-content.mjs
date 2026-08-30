@@ -125,6 +125,7 @@ const ACTS = [
   { srcDir: 'act-8-trust', slug: 'act-8' },
   { srcDir: 'act-9-identity', slug: 'act-9' },
   { srcDir: 'act-10-cluster-security', slug: 'act-10' },
+  { srcDir: 'act-11-observability', slug: 'act-11' },
 ];
 
 /**

@@ -28,7 +28,8 @@ SCOPES = (FILE, REPO_WIDE)
 ACT_DIRS = ["act-1-one-machine", "act-2-two-machines", "act-3-the-internet",
             "act-4-one-pretends-many", "act-5-kubernetes", "act-6-control-plane",
             "act-7-workloads",
-            "act-8-trust", "act-9-identity", "act-10-cluster-security"]
+            "act-8-trust", "act-9-identity", "act-10-cluster-security",
+            "act-11-observability"]
 
 # The reading order of the course, which the River invariant needs and nothing else stated.
 # Orientation precedes every act; the acts follow in numeric order.

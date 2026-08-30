@@ -15,7 +15,7 @@ usage() {
 usage: tools/verify-drill.sh <act> <drill> "<your diagnosis>"
        tools/verify-drill.sh --list
 
-  <act>    act-1 … act-10        <drill>  the drill number
+  <act>    act-1 … act-11        <drill>  the drill number
   The third argument is your own one-line diagnosis. It is required: a drill you fixed
   without being able to name the cause is a drill you have not done.
 USAGE

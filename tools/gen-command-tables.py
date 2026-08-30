@@ -198,7 +198,7 @@ def diff(page: str, acts: list[str]) -> None:
 
 ALL_ACTS = ["00-orientation", "act-1-one-machine", "act-2-two-machines", "act-3-the-internet",
             "act-4-one-pretends-many", "act-5-kubernetes", "act-6-control-plane", "act-7-workloads",
-            "act-8-trust", "act-9-identity", "act-10-cluster-security"]
+            "act-8-trust", "act-9-identity", "act-10-cluster-security", "act-11-observability"]
 
 
 def main(argv: list[str]) -> int:
