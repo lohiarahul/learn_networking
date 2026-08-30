@@ -132,30 +132,30 @@ const ACTS = [
  * The sync clears everything else in that directory, so anything hand-written must be listed here
  * or it will be deleted on the next run. These are also the only entries tracked by git.
  */
-const HAND_WRITTEN = new Set(['index.mdx', 'progress.mdx']);
+const HAND_WRITTEN = new Set(['index.mdx', 'progress.mdx', 'history-map.mdx']);
 
 /** Standalone pages: [source relative to repo root, destination relative to docs root, order]. */
 const SINGLES = [
   [`${COURSE_DIR}/README.md`, 'course.md', 1],
   [`${COURSE_DIR}/the-whole-stack.md`, 'capstone/the-whole-stack.md', 1],
   [`${COURSE_DIR}/your-own-machine.md`, 'capstone/your-own-machine.md', 2],
-  // The reference wing leads its own section, because its first page is the one that makes the rest
-  // shrink: the naming grammar that lets a reader derive a command instead of looking one up. The
-  // pages that were already here (the lab image, the code, the journey map, the toolbelt) follow it.
+  // The reference wing leads its own section. Its first two pages are the ones that make the rest
+  // shrink: the map of where kernel state lives, and the naming grammar that lets a reader derive a
+  // command instead of looking one up. The rest — the lab image, the code, the tool roster — follow.
+  //
+  // Four pages that used to sit in this list are deliberately not projected onto the site any more:
+  // `05-per-act-commands.md`, `06-derive-it.md`, `drills/README.md` and `JOURNEY-MAP.md`/`Toolbelt.md`
+  // (never listed by their own directory, so nothing to remove there). They still exist in the
+  // repository — this is a lookup wing now, and a drill or a progress tracker wants the opposite of
+  // what a lookup page wants. `reference/README.md` explains the split and still links to all four
+  // for anyone who cloned the repo. Removing them from this list does not 404 the inbound links from
+  // `diagnose.md` and the act READMEs: `rewriteLinks` sends anything with no route on the site to the
+  // GitHub source instead.
   ['reference/README.md', 'reference/index.md', 1],
   ['reference/01-the-grammar.md', 'reference/the-grammar.md', 2],
+  ['reference/03-the-map.md', 'reference/the-map.md', 3],
   ['reference/04-by-question.md', 'reference/by-question.md', 5],
-  ['reference/05-per-act-commands.md', 'reference/per-act-commands.md', 6],
-  ['reference/06-derive-it.md', 'reference/derive-it.md', 7],
   [`${COURSE_DIR}/code/README.md`, 'reference/build-the-lab-image.md', 8],
-  // The drill index is linked from every act's `diagnose.md` and from both exam routes — twelve
-  // inbound links, and until it was listed here every one of them 404'd on the site. It reads as
-  // reference (how the grading works, why the expected answer is stored as a hash) rather than as a
-  // lesson, and it sits after the lab image because that is the order a reader needs them: build the
-  // thing, then be graded on it.
-  ['drills/README.md', 'reference/the-drill-verifiers.md', 10],
-  ['JOURNEY-MAP.md', 'reference/journey-map.md', 11],
-  ['Toolbelt.md', 'reference/toolbelt.md', 12],
   // exam-prep is deliberately NOT a course act — it is rehearsal for a timed exam, which is the
   // banking the course refuses to do. It publishes under its own section so a reader can find it
   // without it ever appearing beside the lessons.
@@ -239,7 +239,6 @@ const SUPPORTING_LABELS = {
  * the course's pedagogy, not an oversight to "fix".
  */
 const LABEL_OVERRIDES = {
-  'JOURNEY-MAP.md': 'The whole journey',
   [`${COURSE_DIR}/README.md`]: 'The reading path',
   // Its H1 is "The code, and running the lab on macOS", which was fine when it was the only page about
   // the code. Now that the sources themselves have a page, two sidebar rows both began "The code" — so
@@ -535,6 +534,7 @@ traceroute mtr nslookup lsof prlimit ulimit chmod chown id whoami uname hostname
 eza bat fd rg jq yq cilium hubble crictl getent
 iptables-save iptables-restore etcdctl etcdutl kubeadm runc capsh getpcaps apparmor_parser trivy cosign crane kube-bench falco kyverno
 kustomize wg nstat bpftool devlink ipvsadm ipset scapy tracepath pkill timeout xargs readlink
+ctr containerd skopeo umoci apk
 pwru retis tshark iperf3 pgrep ifconfig nettop scutil dscacheutil pfctl lsns
 `.trim().split(/\s+/));
 

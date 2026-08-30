@@ -132,6 +132,11 @@
    "present": true,
    "version": "conntrack v1.4.8 (conntrack-tools)"
   },
+  "containerd": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
   "cosign": {
    "path": "",
    "present": false,
@@ -143,6 +148,11 @@
    "version": ""
   },
   "crictl": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
+  "ctr": {
    "path": "",
    "present": false,
    "version": ""
@@ -452,5 +462,5 @@
    "version": ""
   }
  },
- "total": 72
+ "total": 74
 }

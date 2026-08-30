@@ -19,10 +19,11 @@ Work through these in order. Each one runs experiments in the lab container and 
 3. **[veth and bridge](02-veth-and-bridge.md)** — the virtual wire and the software switch.
 4. **[iptables and NAT](03-iptables-and-nat.md)** — rewriting addresses so a private host can reach the internet, and the nftables store both grammars actually write to.
 5. **[Overlay and VXLAN](04-overlay-vxlan.md)** — wrapping a packet in a packet so two private networks share one wire.
+6. **[Who does this for you](05-who-does-this-for-you.md)** — the OCI runtime spec, `runc`, and `containerd`: the same five namespaces and cgroup, built by a program instead of your fingers.
 
 Every lesson ends by tearing down what it built, so you can work straight through in one container without tripping over the last experiment's leftovers.
 
-When you've finished them all, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills. To find these same primitives running on your own machine — including the honest twist that none of them exist on macOS — read **[Act IV in the wild →](in-the-wild.md)**. When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
+When you've finished them all, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills. To find these same primitives running on your own machine — including the honest twist that none of them exist on macOS — read **[Act IV in the wild →](in-the-wild.md)**. When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — [the map](../../reference/03-the-map.md) ties every tool to the piece of kernel state it reads, and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
 
 ## What breaks here
 

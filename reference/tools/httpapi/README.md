@@ -11,7 +11,11 @@ because those two things diverge.
 [`kubeadm`](kubeadm.md) · [`etcdctl`](etcdctl.md) ·
 [`helm`](helm.md) · [`cilium`](cilium.md) ·
 [`trivy`](trivy.md) · [`cosign`](cosign.md) ·
-[`crane`](crane.md)
+[`crane`](crane.md) · `ctr` · `containerd`
+
+Two of those eleven-turned-thirteen have no page of their own: `ctr` and `containerd` are named here
+and taught where they are actually run — [Act IV](../../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md)
+— rather than given a roster page each, since between them they have three commands worth showing.
 
 ---
 
@@ -25,6 +29,7 @@ downward. When one layer is silent, the layer below it still answers.
 | Cluster API | [`kubectl`](kubectl.md) | the API server is up |
 | Node runtime | [`crictl`](crictl.md) | **the API server is down** — this is its whole reason to exist |
 | Container engine | [`docker`](docker.md) | you are on a Docker host or a `kind` node |
+| Between docker and the kernel | `containerd`, then `ctr` as its own client | `dockerd` is a client of this too — it is not a fallback, it is the layer everything above shares |
 | Storage | [`etcdctl`](etcdctl.md) | etcd has quorum, whatever the API server thinks |
 | Below all of it | [`runc`](../nsapi/runc.md), then [`netlink`](../netlink/README.md) and [`procfs`](../procfs/README.md) | always |
 

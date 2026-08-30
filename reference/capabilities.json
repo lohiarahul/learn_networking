@@ -3486,7 +3486,26 @@
         ]
       ]
     ],
-    "course": []
+    "course": [
+      {
+        "cmd": "runc run -d -b bundle --pid-file /work/pid.txt box",
+        "why": "reads `config.json` and makes the five namespaces + cgroup itself — the same primitives lessons 01-02 built by hand, called by a program instead of typed",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 5 — Who does this for you"
+      },
+      {
+        "cmd": "runc list",
+        "why": "every container this `runc` invocation knows about — and only those; `docker ps` cannot see one runc started directly, because identity lives in the kernel object, not in a daemon's bookkeeping",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 5 — Who does this for you"
+      },
+      {
+        "cmd": "runc exec box hostname",
+        "why": "proves UTS isolation the same way lesson 01 proved network isolation — a different answer than the shell running it",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 5 — Who does this for you"
+      }
+    ]
   },
   "scapy": {
     "name": "—",
@@ -4312,5 +4331,90 @@
       ]
     ],
     "course": []
+  },
+  "ctr": {
+    "name": "containerd's own client",
+    "mode": [
+      "mutate",
+      "read-only"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "Images",
+        [
+          [
+            "ctr images pull <ref>",
+            "pull straight through containerd, no daemon in front of it"
+          ],
+          [
+            "ctr images ls",
+            "what containerd itself has, independent of `docker images`"
+          ]
+        ]
+      ],
+      [
+        "Tasks — the running processes containerd supervises",
+        [
+          [
+            "ctr run -d <image> <id> <cmd>",
+            "pull-and-run in one call, through the same `containerd-shim` → `runc` chain `docker run` uses"
+          ],
+          [
+            "ctr task ls",
+            "every task this containerd instance is supervising"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "ctr run -d docker.io/library/alpine:latest box2 sleep 300",
+        "why": "one layer above `runc`: the same pull-and-run, through the `containerd-shim` that keeps a container alive even if `containerd` restarts",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 5 — Who does this for you"
+      },
+      {
+        "cmd": "ctr task ls",
+        "why": "containerd's own view of what it is supervising, the layer `crictl` sits on in Act VI",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 5 — Who does this for you"
+      }
+    ]
+  },
+  "containerd": {
+    "name": "the daemon between docker and runc",
+    "mode": [
+      "mutate",
+      "live"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "The daemon itself",
+        [
+          [
+            "containerd &",
+            "start it directly — no dockerd required to have a working runtime"
+          ],
+          [
+            "containerd --version",
+            "confirm which build you're running"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "containerd &",
+        "why": "the daemon `dockerd` normally starts for you, run standalone — proof that Docker is a client of this, not a replacement for it",
+        "act": "Act IV — One machine pretends to be many",
+        "lesson": "Lesson 5 — Who does this for you"
+      }
+    ]
   }
 }

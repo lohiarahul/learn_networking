@@ -37,18 +37,18 @@ matter how similar their output looks.
 Each interface is defined by what `strace` shows, so a disputed row can be settled by measurement. Every
 signature below was measured in the course's own lab image.
 
-| Interface | What `strace` shows | Tools | What this interface can never tell you |
+| Interface | What `strace` shows | Tools | What only this interface gives you |
 |---|---|---|---|
-| **`netlink`** | `socket(AF_NETLINK, …)` | `ip` · `ss` · `bridge` · `tc` · `conntrack` · `nft` · `ipset` · `ipvsadm` · `ethtool` · `devlink` · `wg` · `iptables`&nbsp;† · `iptables-save`&nbsp;† | What a packet *did* — it reports configured and tracked state, never a packet's path |
-| **`procfs`** | `open()` on `/proc` or `/sys` | `cat` · `stat` · `readlink` · `netstat` · `nstat` · `lsof` · `sysctl` · `pgrep` · `arp` · `capsh` · `getpcaps` · `apparmor_parser` · `mount`/`findmnt` · `ulimit`/`prlimit` | Anything the kernel does not already export as a file — and it is a *snapshot*, so transients are invisible |
-| **`socket`** | `socket(AF_INET, SOCK_STREAM｜SOCK_DGRAM)` | `nc` · `socat` · `curl` · `dig` · `drill` · `host` · `nslookup` · `getent hosts`&nbsp;¶ · `iperf3` · `ping`&nbsp;§ · `openssl`&nbsp;⁂ | Why it failed. A socket tool reports the *verdict*, and you need another interface for the cause |
-| **`packet`** | `socket(AF_PACKET, …)` or `SOCK_RAW` | `tcpdump` · `tshark` · `scapy` · `arping` · `traceroute` · `mtr` · `nmap`&nbsp;‡ | Which *process* or *rule* was responsible — it sees bytes on a link, not the host state behind them |
-| **`probe`** | `ptrace` · `bpf(2)` · `perf_event_open` | `strace` · `ltrace` · `bpftrace` · `bpftool` · `pwru` · `retis` · `falco` | Nothing, and that is the point — this is the only interface that can answer "which kernel function dropped it". It is also the only one that needs a running target |
-| **`nsapi`** | `unshare` · `setns` · `clone` + bind mount | `ip netns`&nbsp;‖ · `unshare` · `nsenter` · `runc` | What is *inside* a namespace. These tools move you between namespaces; they read nothing |
-| **`httpapi`** | HTTPS/gRPC to a daemon or API server | `docker` · `crictl` · `kubectl` · `kind` · `kubeadm` · `etcdctl` · `helm` · `cilium` · `trivy` · `cosign` · `crane` | What the kernel actually did. Every one of these reports *intent*, and Acts V–X exist because intent and mechanism diverge |
-| **`local`** | none — files or bytes you already have | `jq` · `xxd`/`base64` · `etcdutl` · `kustomize` · `kube-bench` | Anything at all about your machine. These reshape input another tool produced |
+| **`netlink`** | `socket(AF_NETLINK, …)` | `ip` · `ss` · `bridge` · `tc` · `conntrack` · `nft` · `ipset` · `ipvsadm` · `ethtool` · `devlink` · `wg` · `iptables`&nbsp;† · `iptables-save`&nbsp;† | Configured and tracked kernel state as structured objects — routes, rules, rulesets, flows, socket internals — queryable *and* watchable live. *Never a packet's actual path.* |
+| **`procfs`** | `open()` on `/proc` or `/sys` | `cat` · `stat` · `readlink` · `netstat` · `nstat` · `lsof` · `sysctl` · `pgrep` · `arp` · `capsh` · `getpcaps` · `apparmor_parser` · `mount`/`findmnt` · `ulimit`/`prlimit` | The kernel's own file, read directly — the ground truth every wrapper tool above it re-derives, needing no daemon and no privilege beyond read access. *A snapshot: nothing it can't already export as a file, and transients between reads are invisible.* |
+| **`socket`** | `socket(AF_INET, SOCK_STREAM｜SOCK_DGRAM)` | `nc` · `socat` · `curl` · `dig` · `drill` · `host` · `nslookup` · `getent hosts`&nbsp;¶ · `iperf3` · `ping`&nbsp;§ · `openssl`&nbsp;⁂ | Whether the thing you're pointing at answers at all — in the same terms an application gets it, because these tools open the same kind of socket one would. *A verdict, never the cause of a failure.* |
+| **`packet`** | `socket(AF_PACKET, …)` or `SOCK_RAW` | `tcpdump` · `tshark` · `scapy` · `arping` · `traceroute` · `mtr` · `nmap`&nbsp;‡ | Exactly what crossed one specific point on a link, byte for byte — a packet itself, not a kernel's opinion of one. *Not which process or rule put it there.* |
+| **`probe`** | `ptrace` · `bpf(2)` · `perf_event_open` | `strace` · `ltrace` · `bpftrace` · `bpftool` · `pwru` · `retis` · `falco` | Which kernel function actually ran, or dropped the packet — the only interface with no blind spot, because it instruments the kernel directly instead of asking it to self-report. *Needs a running target; nothing here works after the fact.* |
+| **`nsapi`** | `unshare` · `setns` · `clone` + bind mount | `ip netns`&nbsp;‖ · `unshare` · `nsenter` · `runc` | A door into a namespace that already exists, or a fresh one to make — the mechanism every container runtime is built on. *Moves you; reads nothing on its own.* |
+| **`httpapi`** | HTTPS/gRPC to a daemon or API server | `docker` · `crictl` · `kubectl` · `kind` · `kubeadm` · `etcdctl` · `helm` · `cilium` · `trivy` · `cosign` · `crane` · `ctr` · `containerd` | A control plane's own declared intent, from a system built to survive individual machines dying — the layer Acts V–X exist to teach. *Intent, not a guarantee the kernel underneath agrees.* |
+| **`local`** | none — files or bytes you already have | `jq` · `xxd`/`base64` · `etcdutl` · `kustomize` · `kube-bench` | Reshapes or verifies bytes another tool already produced, with no kernel call of its own — the last mile between raw output and a readable answer. *Nothing about your machine that another tool didn't already tell it.* |
 
-`13 + 14 + 11 + 7 + 7 + 4 + 11 + 5 = 72` — every row on this page, each in exactly one interface.
+`13 + 14 + 11 + 7 + 7 + 4 + 13 + 5 = 74` — every row on this page, each in exactly one interface.
 
 > ### The unit is the *invocation*, not the binary
 >
@@ -74,7 +74,7 @@ signature below was measured in the course's own lab image.
 ## What can catch a transient
 
 The single most useful compartment on this page, because the answer is short and nobody has it
-memorised. **22 of the 72 tools can stream events**; everything else hands you a snapshot, and
+memorised. **23 of the 74 tools can stream events**; everything else hands you a snapshot, and
 *"I looked and saw nothing"* is not evidence when the thing you are hunting lasted 40 ms.
 
 | Interface | Streams with |
@@ -201,13 +201,15 @@ tell you.
 | [`capsh`](procfs/capsh.md) | Which Linux capabilities a process actually holds, decoded from `/proc/<pid>/status`'s `CapEff` bitmask | procfs · flags | [what a container may do](../../networking-fundamentals/act-10-cluster-security/01-what-a-container-may-do.md) |
 | [`getpcaps`](procfs/getpcaps.md) | The capability set `capsh --print` decodes, but for a **running PID** and in one line — no need to start a process inside it | procfs · `getpcaps <pid>` | [Act X diagnose](../../networking-fundamentals/act-10-cluster-security/diagnose.md) |
 | [`apparmor_parser`](procfs/apparmor-parser.md) | Whether a profile loads, and in what mode — the difference between "enforcing" and "you thought it was enforcing" | procfs · flags | [the kernel says no](../../networking-fundamentals/act-10-cluster-security/02-the-kernel-says-no.md) |
-| [`runc`](nsapi/runc.md) | The OCI runtime that actually creates the namespaces and cgroups. Below every higher-level tool | nsapi · verb-obj | [the kernel says no](../../networking-fundamentals/act-10-cluster-security/02-the-kernel-says-no.md) |
+| [`runc`](nsapi/runc.md) | The OCI runtime that actually creates the namespaces and cgroups. Below every higher-level tool | nsapi · verb-obj | [who does this for you](../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md) |
 
 ## Container and cluster runtimes
 
 | Tool | The one thing only it shows you | Speaks | In the course |
 |---|---|---|---|
 | [`docker`](httpapi/docker.md) | The developer-facing view, and `docker network inspect` — Act IV's bridge and veth pairs, printed as JSON | httpapi · obj-verb | [the fd table](../../networking-fundamentals/act-1-one-machine/01-the-fd-table.md) |
+| `ctr` | containerd's own client — the same pull-and-run `docker run` performs, one layer lower | httpapi · verb-obj | [who does this for you](../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md) |
+| `containerd` | The daemon between `docker` and `runc` — proof Docker is a client of it, not a replacement | httpapi · verb-obj | [who does this for you](../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md) |
 | [`crictl`](httpapi/crictl.md) | The node's container runtime *directly* — the only view left when the API server is down and `kubectl` is useless | httpapi · verb-obj | [static pods](../../networking-fundamentals/act-6-control-plane/02-static-pods.md) |
 | [`kubectl`](httpapi/kubectl.md) | The API server's whole object graph, and `explain` makes the schema self-describing | httpapi · verb-obj | [pod networking](../../networking-fundamentals/act-5-kubernetes/02-pod-networking.md) |
 | [`kind`](httpapi/kind.md) | A real multi-node cluster on one machine, where every node is a container you can `docker exec` into | httpapi · verb-obj | [the lab with kind](../../networking-fundamentals/act-5-kubernetes/01-lab-with-kind.md) |

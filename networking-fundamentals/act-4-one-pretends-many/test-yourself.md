@@ -56,6 +56,15 @@ A namespace answers **what can this process see** (its own interfaces, routes, s
 
 </details>
 
+> **Question 7 —** `config.json`'s `linux.namespaces` array lists five namespace types. If you started a container with bare `runc` and then ran `docker ps`, would Docker's list include it — and what does your answer say about where a container's identity actually lives?
+
+<details>
+<summary>Answer</summary>
+
+No. `docker ps` reads Docker's own bookkeeping, not the kernel. A container `runc` starts directly is a real, live network namespace with a real inode and a real cgroup — the kernel holds it whether or not any tool is watching. Identity lives in the kernel object, not in any daemon's tracking of it.
+
+</details>
+
 ---
 
 ← Back to **[Act IV overview](README.md)** · Next: **[Diagnose it →](diagnose.md)** (apply it under fire), then **[Act V →](../act-5-kubernetes/README.md)**

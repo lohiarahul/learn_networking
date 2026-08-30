@@ -126,7 +126,7 @@ each time. Phase 1 is therefore three lessons, not "a bit of Act IV".
 |---|---|---|
 | **0** | This document + the declined-split record in the map; `tools/remeasure.py` and the published-count guard; four stale published figures corrected | ✅ **shipped** |
 | **0b** | Harness rebuilt as `tools/harness/` — invariant registry, course graph, River made machine-checkable, self-applying size budgets, SARIF output, parity + mutation selftests | ✅ **shipped** |
-| **1** | Act IV: the runtime peel and the build side — three lessons | 🔜 next |
+| **1** | Act IV: the runtime peel and the build side — three lessons | 🟡 **1 of 3 shipped** |
 | **2** | Act XI: observability (Stage 7.8) | 🔜 |
 | **3** | Thin spots: user namespaces / rootless, `nsenter`, `systemd` | 🔜 |
 | **4** | Route C — the platform ordering, published as a view | 🔜 |
@@ -218,24 +218,54 @@ cgroups, veth and NAT with their own hands in 01–03, so the runtime arrives as
 for you, and the contract they agreed on"* — an earned rival to their own labour, which is the method's
 strongest move and is currently unused in this act.
 
-- **`05-who-does-this-for-you.md`** — run a container with `runc` directly from an OCI bundle, then
-  `ctr`, then Docker, and watch the same namespaces appear in `/proc`. Closes on the **OCI runtime
-  spec** as the contract. The rival is Act IV 01–03 — the reader's own hands.
-- **`06-the-kubelets-side.md`** — the same contract seen from above: **CRI**. This is the lesson that
-  turns Act V's CNI-as-callback and Act VI's 159 uses of `crictl` from incantation into recognition.
-  Fixes the River break in §2.1 directly.
-- **`07-how-a-layer-is-made.md`** — the missing middle between Act I 06b and Act X 08. `Dockerfile` →
-  BuildKit → layers, then read back with the `lowerdir` skill they already own. Ends by *demonstrating*
-  the deleted-secret-in-a-layer claim Act I 06b currently only asserts.
+- **`05-who-does-this-for-you.md`** ✅ **shipped.** Runs `runc` directly from an OCI bundle
+  (`skopeo`/`umoci`, no Docker in the loop), then `containerd`/`ctr`, and proves equivalence with
+  lessons 01–02 by the tool the reader already owns — the `/proc/<pid>/ns/net` inode read, differing
+  from the shell's own — plus the cgroup leaf `0::/box` and UTS isolation. Closes on the **OCI runtime
+  spec** as the contract, and redeems Act X 02's promissory note early (`runc` was named there only
+  inside a Kubernetes error message; here it is run directly).
 
-New tools needing items 6–10: `runc`, `ctr`, `nerdctl` (rival), `buildctl`/`docker build`. Likely
-facets: `runc`/`ctr` → `local` + `mutate`; verification reads stay `procfs` + `read-only`.
+  **The open question resolved itself against evidence rather than needing a decision.** Act IV's lab
+  invocation is already `docker run --privileged --network host nicolaka/netshoot` — checked directly
+  in `networking-fundamentals/act-4-one-pretends-many/01-namespaces.md` — so no new lab variant was
+  needed. `apk add runc containerd containerd-ctr skopeo umoci jq` and every command in the lesson was
+  run for real in that exact container before being written down. The one genuine constraint met along
+  the way: `ctr run` under containerd's `overlayfs` snapshotter fails inside Docker Desktop's own VM
+  (`mount ... invalid argument`, nested overlay on its backing filesystem) and the `native` snapshotter
+  then hits a cgroup v2 "domain invalid" error from the nesting — both real, both avoided by keeping
+  the verified walkthrough on bare `runc` plus `ctr` for image operations only, the same
+  honest-constraint move Act I 06b already models for `docker diff`.
 
-**Open question for Phase 1, to settle before drafting:** Act IV runs on
-`nicolaka/netshoot --network host`, and `runc`/`ctr` need a containerd socket and root on the host VM.
-Act I 06b already solved the shape of this problem by stepping out to the Mac shell for `docker diff`
-and *saying so plainly* as an honest constraint. Decide whether lesson 05 does the same, or whether
-Act IV gains a privileged lab variant — this changes the lesson, so settle it first.
+  Fourteen of fifteen obligations closed as part of shipping it: `runc`'s `capabilities.json` entry
+  (previously `course: []` — roster-only, never taught) now cites this lesson; `ctr` and `containerd`
+  are new entries; both gained roster rows in `reference/tools/README.md` and a place in
+  `reference/tools/httpapi/README.md`'s layering table; `lab-inventory.json` was regenerated for real
+  against `netlab:latest` (`present: false` — correct, since it needs `netshoot`, not `netlab`);
+  `sync-content.mjs`'s `SHELL_COMMANDS` got `ctr`, `containerd`, `skopeo`, `umoci`, `apk`; test-yourself
+  gained question 7; the act README nav and both lessons' footer links were rewired
+  (`04 → 05 → test-yourself`). **Not closed:** no `diagnose.md` drill. Building one to this repo's own
+  bar — "a real, reproduced broken state... verify it runs on the real kernel before it ships," with a
+  `verify-drill.sh` SHA-256 cause hash — is separable work, tracked below rather than rushed.
+
+- **`06-the-kubelets-side.md`** 🔜 **not started.** The same contract seen from above: **CRI**. This is
+  the lesson that turns Act V's CNI-as-callback and Act VI's 159 uses of `crictl` from incantation into
+  recognition. Fixes the River break in §2.1 directly. Lesson 05 already surfaced the exact question it
+  answers, in its own closing line: *"What decides which runtime a node uses... has a name of its own:
+  the Container Runtime Interface."*
+- **`07-how-a-layer-is-made.md`** 🔜 **not started.** The missing middle between Act I 06b and Act X 08.
+  `Dockerfile` → BuildKit → layers, then read back with the `lowerdir` skill they already own. Ends by
+  *demonstrating* the deleted-secret-in-a-layer claim Act I 06b currently only asserts.
+
+**Outstanding from shipping 05, tracked rather than dropped:**
+1. A `diagnose.md` drill and `drills/act-4/05.sh` — candidate symptom: *"a container is running but
+   `docker ps` shows nothing"* (started with bare `runc`), which is the exact thing lesson 05 measured.
+2. Route B's step-1 word count (`exam-prep/the-exam-path.md`) was **not** hand-adjusted. Attempting it
+   exposed the gap `tools/remeasure.py` already documented: summing "Orientation, Act I, Act IV" gives
+   a number that has never matched the published figure by a margin nothing in the repo explains, so
+   patching it now would trade one unexplained number for another. `tools/remeasure.py --check` reports
+   this honestly as "6,063 words are on neither Route B's path nor its optional track" — a real gap,
+   correctly surfaced as a warning rather than silently absorbed. Encoding the step→file map as data
+   (§ Phase 0b) is the actual fix and remains unclaimed.
 
 ### Phase 2 — Act XI: observability (Stage 7.8)
 

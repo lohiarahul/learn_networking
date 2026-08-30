@@ -32,7 +32,13 @@ BASELINE: dict[str, str] = {
 }
 
 # Genuine forward references, declared: (tool, lesson-path-substring) -> why.
-DECLARED_SEEDS: dict[tuple[str, str], str] = {}
+DECLARED_SEEDS: dict[tuple[str, str], str] = {
+    ("nc", "00-orientation/02-how-processes-communicate.md"):
+        "orientation is framing material, already exempt from Predict-first (see "
+        "corpus.PREDICTION_EXEMPT). `nc -l` there opens a listening socket as a first look at "
+        "'a socket is a file' — Act I 05b is where the TCP-state and SYN-scan mechanism `nc` "
+        "sits inside is actually taught. Shallow use before deep use, not uphill flow.",
+}
 
 
 def check_river(_files=None) -> list[Finding]:
