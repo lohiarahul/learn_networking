@@ -171,6 +171,11 @@ pod.spec.containers.resources` has no `pids`, and no manifest you can write sets
 setting — the kubelet's `podPidsLimit` — so the one limit that stops a fork bomb is the one a workload
 author cannot request and cannot see in their own YAML. Read what your Pods actually got:
 
+> **Start a cluster first** — if you don't have one already:
+> ```bash
+> kind create cluster
+> ```
+
 ```bash
 kubectl run pidprobe --image=busybox:1.36 --restart=Never \
   --command -- sh -c 'cat /sys/fs/cgroup/pids.max; sleep 20'
