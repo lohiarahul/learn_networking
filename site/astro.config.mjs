@@ -89,6 +89,7 @@ export default defineConfig({
           items: [
             { slug: 'course' },
             { slug: 'progress' },
+            { slug: 'history-map' },
           ],
         },
         {

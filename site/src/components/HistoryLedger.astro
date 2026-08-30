@@ -1,0 +1,85 @@
+---
+/**
+ * The chronological ledger on `/history-map/` — every entry in EVENTS, in year order, as a plain
+ * list. Each row carries the same `data-hm-key` a pin in HistoryMap.astro does, so that component's
+ * script (which queries `[data-hm-key]` across the whole page, not just its own markup) highlights
+ * this row when its pin is clicked and vice versa. Nothing here breaks if that script never runs:
+ * every date, claim and source is real server-rendered text.
+ */
+import { EVENTS, MARKERS } from '../lib/history-events';
+
+const rows = [...EVENTS].sort((a, b) => a.year - b.year);
+---
+
+<ol class="hl not-content">
+  {rows.map((ev) => (
+    <li>
+      <button type="button" class="hl__row" data-hm-key={ev.key}>
+        <span class="hl__year">{ev.label}</span>
+        <span class="hl__main">
+          <span class="hl__title">{ev.title}</span>
+          <span class="hl__text">{ev.detail}</span>
+        </span>
+        <span class="hl__place">{MARKERS[ev.key].name}</span>
+      </button>
+    </li>
+  ))}
+</ol>
+
+<style>
+  .hl {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-block-start: 1px solid var(--sl-color-hairline);
+  }
+
+  .hl__row {
+    all: unset;
+    display: flex;
+    gap: var(--s-4);
+    align-items: baseline;
+    width: 100%;
+    padding: var(--s-3) var(--s-2);
+    cursor: pointer;
+    border-block-end: 1px solid var(--sl-color-hairline);
+    border-radius: var(--r-sm);
+    font: inherit;
+    color: inherit;
+    box-sizing: border-box;
+  }
+  .hl__row:hover,
+  .hl__row:focus-visible,
+  .hl__row.is-active { background: var(--sl-color-accent-low); }
+
+  .hl__year {
+    font-family: var(--kz-font-mono);
+    color: var(--sl-color-accent-high);
+    min-width: 6.5rem;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--sl-text-xs);
+    padding-block-start: 2px;
+  }
+
+  .hl__main { flex: 1; min-width: 0; }
+  .hl__title { display: block; font-weight: 600; color: var(--sl-color-text); font-size: var(--sl-text-sm); }
+  .hl__text { display: block; color: var(--sl-color-gray-2); font-size: var(--sl-text-xs); margin-block-start: 3px; line-height: 1.55; }
+
+  .hl__place {
+    font-family: var(--kz-font-mono);
+    font-size: var(--sl-text-2xs, 0.75rem);
+    color: var(--sl-color-gray-3);
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: var(--r-xs);
+    padding: 3px 7px;
+    white-space: nowrap;
+    align-self: center;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 37.5rem) {
+    .hl__row { flex-direction: column; gap: var(--s-1); }
+    .hl__place { align-self: flex-start; }
+  }
+</style>

@@ -1,0 +1,261 @@
+---
+/**
+ * The pin map for `/history-map/`. Land, graticule and the "first ARPANET link" line are drawn here
+ * from literal coordinates; the pins themselves come from `MARKERS` in lib/history-events.ts, so
+ * moving a pin there moves its label, its hit target and its place in the detail panel together.
+ *
+ * The projection is custom, not equirectangular: x runs true to longitude (-132°..128°, so the strip
+ * reaches from the California coast to the Chinese coast) but y is stretched about 2x against
+ * latitude (15°N..65°N) so a fifty-degree band of the mid-latitudes doesn't render as a sliver. It's
+ * a schematic strip, not a chart you'd navigate by — the graticule is there to say so, not to be read
+ * precisely.
+ *
+ * No JavaScript, no `<script>` block here: the reader still gets every pin, every label and the full
+ * ledger below without it. The only thing JavaScript adds is cross-highlighting a pin with its ledger
+ * row, wired up from history-map.mdx once both are on the page.
+ */
+import { MARKERS } from '../lib/history-events';
+
+const LA = MARKERS.la;
+const BAYAREA = MARKERS.bayarea;
+---
+
+<div class="hm not-content">
+  <div class="hm__panel">
+    <svg viewBox="0 0 1000 380" role="img" aria-label="A schematic map showing where each dated event in the course took place, from IBM's Cambridge lab in 1967 to Meta's 2021 outage in Menlo Park.">
+      <!-- graticule -->
+      <g class="hm__grid">
+        <line x1="46.2" y1="0" x2="46.2" y2="380"></line>
+        <line x1="161.5" y1="0" x2="161.5" y2="380"></line>
+        <line x1="276.9" y1="0" x2="276.9" y2="380"></line>
+        <line x1="392.3" y1="0" x2="392.3" y2="380"></line>
+        <line x1="507.7" y1="0" x2="507.7" y2="380"></line>
+        <line x1="623.1" y1="0" x2="623.1" y2="380"></line>
+        <line x1="738.5" y1="0" x2="738.5" y2="380"></line>
+        <line x1="853.8" y1="0" x2="853.8" y2="380"></line>
+        <line x1="969.2" y1="0" x2="969.2" y2="380"></line>
+        <line x1="0" y1="342" x2="1000" y2="342"></line>
+        <line x1="0" y1="266" x2="1000" y2="266"></line>
+        <line x1="0" y1="190" x2="1000" y2="190"></line>
+        <line x1="0" y1="114" x2="1000" y2="114"></line>
+        <line x1="0" y1="38" x2="1000" y2="38"></line>
+      </g>
+      <g class="hm__grid-label">
+        <text x="4" y="345">20°N</text>
+        <text x="4" y="193">40°N</text>
+        <text x="4" y="41">60°N</text>
+        <text x="46.2" y="378" text-anchor="middle">120°W</text>
+        <text x="276.9" y="378" text-anchor="middle">60°W</text>
+        <text x="507.7" y="378" text-anchor="middle">0°</text>
+        <text x="738.5" y="378" text-anchor="middle">60°E</text>
+        <text x="969.2" y="378" text-anchor="middle">120°E</text>
+      </g>
+
+      <!-- North America -->
+      <path class="hm__land" d="M0,98.8 L26.9,114.0 L30.8,174.8 L34.6,212.8 L53.8,235.6 L57.7,247.0 L84.6,258.4 L103.8,273.6 L134.6,296.4 L161.5,273.6 L192.3,304.0 L196.2,258.4 L215.4,220.4 L223.1,190.0 L238.5,174.8 L250.0,152.0 L261.5,121.6 L200.0,98.8 L142.3,68.4 L84.6,53.2 L26.9,76.0 Z"></path>
+
+      <!-- Eurasia -->
+      <path class="hm__land" d="M469.2,159.6 L473.1,212.8 L515.4,212.8 L546.2,205.2 L576.9,190.0 L596.2,220.4 L615.4,190.0 L642.3,212.8 L642.3,266.0 L692.3,205.2 L742.3,220.4 L788.5,235.6 L815.4,281.2 L873.1,296.4 L923.1,326.8 L976.9,258.4 L1000,190.0 L1000,114.0 L892.3,98.8 L796.2,98.8 L700.0,76.0 L623.1,53.2 L553.8,53.2 L526.9,91.2 L496.2,121.6 Z"></path>
+
+      <!-- the first ARPANET link, UCLA to SRI in Menlo Park -->
+      <line class="hm__first-link" x1={LA.x} y1={LA.y} x2={BAYAREA.x} y2={BAYAREA.y}></line>
+      <text class="hm__first-link-label" x="18" y="256">first link, 1969</text>
+
+      {Object.entries(MARKERS).map(([key, m]) => (
+        <g data-hm-key={key} tabindex="0" role="button" aria-label={m.name}>
+          <circle class="hm__pulse" cx={m.x} cy={m.y}></circle>
+          <circle class="hm__dot" cx={m.x} cy={m.y} r="6.5"></circle>
+          <text class="hm__label" x={m.x + m.labelDx} y={m.y + m.labelDy} text-anchor={m.anchor}>{m.name}</text>
+          <circle class="hm__hit" cx={m.x} cy={m.y} r="16"></circle>
+        </g>
+      ))}
+    </svg>
+    <p class="hm__caption">
+      <span>equirectangular-ish strip, 15°–65°N</span>
+      <span>every pin responds to a click</span>
+    </p>
+  </div>
+
+  <div class="hm__detail" id="hm-detail" data-hm-detail>
+    <p class="hm__detail-hint" data-hm-hint>Click a pin, or a row in the ledger below, to see what happened there.</p>
+    <div data-hm-body></div>
+  </div>
+</div>
+
+<script>
+  import { MARKERS, EVENTS } from '../lib/history-events';
+
+  const hint = document.querySelector<HTMLElement>('[data-hm-hint]');
+  const body = document.querySelector<HTMLElement>('[data-hm-body]');
+
+  function select(key: string) {
+    const marker = (MARKERS as Record<string, { name: string }>)[key];
+    if (!marker || !hint || !body) return;
+
+    for (const el of document.querySelectorAll<HTMLElement>('[data-hm-key]')) {
+      el.classList.toggle('is-active', el.dataset.hmKey === key);
+    }
+
+    const evs = EVENTS.filter((e) => e.key === key).sort((a, b) => a.year - b.year);
+    hint.textContent = `${marker.name} — ${evs.length} event${evs.length === 1 ? '' : 's'}`;
+    body.replaceChildren(
+      ...evs.map((ev) => {
+        const row = document.createElement('div');
+        row.className = 'hm__detail-row';
+        const yr = document.createElement('span');
+        yr.className = 'hm__detail-year';
+        yr.textContent = ev.label;
+        const main = document.createElement('div');
+        main.className = 'hm__detail-main';
+        const title = document.createElement('div');
+        title.className = 'hm__detail-title';
+        title.textContent = ev.title;
+        const detail = document.createElement('div');
+        detail.className = 'hm__detail-text';
+        detail.textContent = ev.detail;
+        const src = document.createElement('span');
+        src.className = 'hm__detail-source';
+        src.textContent = ev.source;
+        main.append(title, detail, src);
+        row.append(yr, main);
+        return row;
+      }),
+    );
+  }
+
+  for (const el of document.querySelectorAll<HTMLElement>('[data-hm-key]')) {
+    const key = el.dataset.hmKey!;
+    el.addEventListener('click', () => select(key));
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        select(key);
+      }
+    });
+  }
+</script>
+
+<style>
+  .hm {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    margin-block: var(--s-6);
+  }
+
+  .hm__panel {
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: var(--r-lg);
+    padding: var(--s-4) var(--s-4) var(--s-2);
+  }
+
+  .hm__panel svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .hm__grid { stroke: var(--sl-color-hairline); stroke-width: 1; }
+  .hm__grid-label { font-family: var(--kz-font-mono); font-size: 8px; fill: var(--sl-color-gray-3); }
+
+  .hm__land {
+    fill: var(--sl-color-gray-5);
+    stroke: var(--sl-color-hairline);
+    stroke-width: 1;
+    stroke-linejoin: round;
+  }
+
+  .hm__first-link { stroke: var(--sl-color-gray-3); stroke-width: 1.3; stroke-dasharray: 3 3; fill: none; }
+  .hm__first-link-label { font-family: var(--kz-font-mono); font-size: 7.5px; fill: var(--sl-color-gray-3); }
+
+  .hm__dot {
+    fill: var(--sl-color-accent);
+    stroke: var(--sl-color-gray-6);
+    stroke-width: 1.4;
+  }
+  g[data-hm-key] { cursor: pointer; }
+  g[data-hm-key]:hover .hm__dot,
+  g[data-hm-key].is-active .hm__dot { fill: var(--sl-color-accent-high); }
+  g[data-hm-key]:focus-visible .hm__dot { outline: 2px solid var(--sl-color-accent-high); outline-offset: 1px; }
+
+  .hm__label {
+    font-size: 9.5px;
+    fill: var(--sl-color-gray-2);
+    pointer-events: none;
+    transition: fill var(--dur-fast) var(--ease-standard);
+  }
+  g[data-hm-key].is-active .hm__label { fill: var(--sl-color-text); font-weight: 600; }
+
+  .hm__hit { fill: transparent; }
+
+  .hm__pulse {
+    fill: none;
+    stroke: var(--sl-color-accent-high);
+    stroke-width: 1.4;
+    opacity: 0;
+  }
+  g[data-hm-key].is-active .hm__pulse {
+    animation: hm-pulse 1.5s var(--ease-out) infinite;
+  }
+  @keyframes hm-pulse {
+    0% { r: 6px; opacity: 0.85; }
+    100% { r: 20px; opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    g[data-hm-key].is-active .hm__pulse { animation: none; opacity: 0.5; r: 10px; }
+  }
+
+  .hm__caption {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--s-3);
+    flex-wrap: wrap;
+    font-family: var(--kz-font-mono);
+    font-size: var(--sl-text-2xs, 0.75rem);
+    color: var(--sl-color-gray-3);
+    margin: var(--s-2) var(--s-1) 0;
+  }
+
+  .hm__detail {
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: var(--r-lg);
+    padding: var(--s-4) var(--s-5);
+    min-height: 4.5rem;
+  }
+
+  .hm__detail-hint { color: var(--sl-color-gray-2); font-size: var(--sl-text-sm); margin: 0; }
+
+  .hm__detail-row {
+    display: flex;
+    gap: var(--s-4);
+    padding-block: var(--s-3);
+    border-block-start: 1px solid var(--sl-color-hairline);
+  }
+  .hm__detail-row:first-child { border-block-start: none; }
+
+  .hm__detail-year {
+    font-family: var(--kz-font-mono);
+    color: var(--sl-color-accent-high);
+    min-width: 5.5rem;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--sl-text-xs);
+  }
+
+  .hm__detail-main { min-width: 0; }
+  .hm__detail-title { font-weight: 600; }
+  .hm__detail-text { color: var(--sl-color-gray-2); font-size: var(--sl-text-sm); margin-block-start: 3px; line-height: 1.55; }
+  .hm__detail-source {
+    font-family: var(--kz-font-mono);
+    font-size: var(--sl-text-2xs, 0.75rem);
+    color: var(--sl-color-gray-3);
+    margin-block-start: var(--s-1);
+    display: inline-block;
+  }
+
+  @media (max-width: 40rem) {
+    .hm__detail-row { flex-direction: column; gap: var(--s-1); }
+  }
+</style>

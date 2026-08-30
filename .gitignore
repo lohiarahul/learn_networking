@@ -21,12 +21,14 @@ site/.astro/
 # generated projection of them (see site/scripts/sync-content.mjs). Only the hand-written pages are
 # tracked — everything else is rebuilt by `npm run sync`.
 #
-# Both exceptions are load-bearing: sync-content.mjs lists index.mdx and progress.mdx in HAND_WRITTEN
-# and never regenerates them, and astro.config.mjs puts `slug: 'progress'` in the sidebar. Ignoring
-# progress.mdx meant a fresh clone had no such page and `npm run build` failed on the missing slug.
+# These exceptions are load-bearing: sync-content.mjs lists index.mdx, progress.mdx and
+# history-map.mdx in HAND_WRITTEN and never regenerates them, and astro.config.mjs puts explicit
+# `slug` entries for them in the sidebar. Ignoring one of these files meant a fresh clone had no such
+# page and `npm run build` failed on the missing slug.
 site/src/content/docs/*
 !site/src/content/docs/index.mdx
 !site/src/content/docs/progress.mdx
+!site/src/content/docs/history-map.mdx
 site/src/lib/lesson-meta.generated.json
 
 # illustrations/ at the repo root is the source of truth (SVGs plus the generator that draws them).

@@ -1,0 +1,65 @@
+---
+/**
+ * The "no fixed address" list on `/history-map/` — dated claims from the lessons that don't reduce
+ * to one point on a map (a spec finalized by committee, a kernel feature merged over years). Plain
+ * and static on purpose: nothing here has a pin to link to.
+ */
+import { UNPINNED } from '../lib/history-events';
+---
+
+<ul class="hu not-content">
+  {UNPINNED.map((ev) => (
+    <li class="hu__row">
+      <span class="hu__year">{ev.year}</span>
+      <span class="hu__main">
+        <span class="hu__title">{ev.title}</span>
+        <span class="hu__text">{ev.detail}</span>
+      </span>
+      <span class="hu__source">{ev.source}</span>
+    </li>
+  ))}
+</ul>
+
+<style>
+  .hu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-block-start: 1px solid var(--sl-color-hairline);
+  }
+
+  .hu__row {
+    display: flex;
+    gap: var(--s-4);
+    align-items: baseline;
+    padding: var(--s-3) var(--s-2);
+    border-block-end: 1px solid var(--sl-color-hairline);
+  }
+
+  .hu__year {
+    font-family: var(--kz-font-mono);
+    color: var(--sl-color-gray-2);
+    min-width: 6.5rem;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--sl-text-xs);
+    padding-block-start: 2px;
+  }
+
+  .hu__main { flex: 1; min-width: 0; }
+  .hu__title { display: block; font-weight: 600; color: var(--sl-color-text); font-size: var(--sl-text-sm); }
+  .hu__text { display: block; color: var(--sl-color-gray-2); font-size: var(--sl-text-xs); margin-block-start: 3px; line-height: 1.55; }
+
+  .hu__source {
+    font-family: var(--kz-font-mono);
+    font-size: var(--sl-text-2xs, 0.75rem);
+    color: var(--sl-color-gray-3);
+    white-space: nowrap;
+    align-self: center;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 37.5rem) {
+    .hu__row { flex-direction: column; gap: var(--s-1); }
+  }
+</style>

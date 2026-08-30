@@ -1,0 +1,38 @@
+---
+title: Every date this course drops, mapped
+description: Every historical date and place mentioned across these lessons — IBM's CP-67 in 1967, the first ARPANET call in 1969, Meta's 2021 outage — pulled out and put on one map.
+editUrl: false
+# A companion page, not a lesson: nothing here dates the course's own material, so a "last updated"
+# line would be describing when a paraphrase was last tweaked, not when anything technical changed.
+lastUpdated: false
+sidebar:
+  label: History, mapped
+---
+
+import HistoryMap from '../../components/HistoryMap.astro';
+import HistoryLedger from '../../components/HistoryLedger.astro';
+import HistoryUnpinned from '../../components/HistoryUnpinned.astro';
+
+Every lesson in this course drops a date and a place in passing — "in 1967, IBM's CP-67 ran on a System/360," "on the night of October 29, 1969, at UCLA." A postmark does the same thing to a letter: one stamp, fusing a date to a place. Below are the twenty-two dated claims from these lessons that reduce to one point on a map, plus the ones that don't.
+
+<div class="kz-note">
+  <strong>The map's real finding:</strong> seven of these events — Ethernet (1973), the TCP/IP paper (1974), SSL (1994–95), cgroups (2007), the Borg paper (2014), and Meta's 2021 outage — happened within about ten miles of each other on the San Francisco peninsula. So did the far end of the very first ARPANET call, dialed from UCLA in 1969. Half a century of this course's timeline keeps landing on the same stretch of coastline.
+</div>
+
+<HistoryMap />
+
+Pins mark the best-documented institutional home for each event — a lab, a university, a company's HQ — not the exact room. It's a schematic strip of the mid-latitude northern hemisphere, not a navigational chart: longitude runs true, latitude is stretched so the pins don't crowd into a sliver.
+
+## The ledger
+
+All twenty-two pinned events, in the order they happened. Click a row — or a pin above — to line them up.
+
+<HistoryLedger />
+
+## No fixed address
+
+The lessons mention plenty of other dated milestones that don't reduce to one point on a map — a spec finalized by a working group, a kernel feature merged in pieces over years, a tool released by a distributed team. Real dates; no pin to put them on.
+
+<HistoryUnpinned />
+
+Every date, quote and attribution above is paraphrased from this course's own lessons — the `source` on each row names the file. Treat the locations as citations, not surveillance-grade coordinates.
