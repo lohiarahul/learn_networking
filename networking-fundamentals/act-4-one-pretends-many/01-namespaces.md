@@ -55,7 +55,7 @@ Each entry looks like `net -> net:[4026531992]`. That number in brackets is the 
 
 **The experiment** — In `docker run --rm -it --privileged --network host nicolaka/netshoot`, make a brand-new network from nothing:
 
-> **Predict first —** the diagram above says a fresh namespace has a `lo` and nothing else. Commit to the details it does not tell you: will that `lo` be `UP` or `DOWN`, what inode will this namespace's `net:` file carry compared to the host's, and when you ping `8.8.8.8` will you get a timeout or an immediate error?
+> **Predict first —** the diagram above shows a fresh namespace has a `lo` and nothing else. Commit to the details it does not tell you: will that `lo` be `UP` or `DOWN`, what inode will this namespace's `net:` file carry compared to the host's, and when you ping `8.8.8.8` will you get a timeout or an immediate error? (Modern kernels may also show tunnel pseudo-interfaces like `tunl0`, `gre0`, etc. — all `DOWN` — which do not affect isolation.)
 
 ```bash
 ip netns add test
@@ -64,7 +64,11 @@ ls -la /proc/self/ns/net                       # the host's inode
 ip netns exec test ls -la /proc/self/ns/net     # and this namespace's
 ```
 
-The new namespace contains exactly one interface — `lo`, loopback — and it is `DOWN`. No `eth0`. No routes (`ip netns exec test ip route` prints nothing). It is a freshly built machine that has never been plugged into anything. And the two `net:[…]` inodes differ, which is the difference you were promised: that single integer, not any interface or address, is what makes these two stacks two machines. Now prove the isolation bites:
+The new namespace contains exactly one interface — `lo`, loopback — and it is `DOWN`. No `eth0`. No routes (`ip netns exec test ip route` prints nothing). It is a freshly built machine that has never been plugged into anything.
+
+> **Newer kernels add tunnel pseudo-devices** — Modern Linux kernels (5.10+) include tunnel pseudo-interfaces by default in every namespace: `tunl0`, `gre0`, `gretap0`, `erspan0`, `ip_vti0`, `ip6_vti0`, `sit0`, `ip6tnl0`, `ip6gre0`. They are all `DOWN` and have no addresses or routes. They do not change the isolation — you still cannot reach anything, and they are not functional until explicitly configured. If you see them, that is normal.
+
+And the two `net:[…]` inodes differ, which is the difference you were promised: that single integer, not any interface or address, is what makes these two stacks two machines. Now prove the isolation bites:
 
 ```bash
 ip netns exec test ping 8.8.8.8
@@ -88,7 +92,7 @@ Because isolation is the thing being manufactured, and connectivity is what you 
 
 </details>
 
-> **You understand this when you can** read the inode out of `ls -la /proc/self/ns/net`, explain why two processes sharing that inode share a network while two with different inodes cannot reach each other's sockets, and predict that a fresh `ip netns` has only a downed `lo` and an empty routing table before you run `ip addr`.
+> **You understand this when you can** read the inode out of `ls -la /proc/self/ns/net`, explain why two processes sharing that inode share a network while two with different inodes cannot reach each other's sockets, and predict that a fresh `ip netns` has a downed `lo`, possibly tunnel pseudo-devices (all `DOWN`), and an empty routing table before you run `ip addr`.
 
 **Kubernetes sees this as** — Every Pod *is* one of these namespaces. That is the whole reason two containers in a Pod reach each other on `localhost` while two Pods cannot: same Pod means same inode means the same `127.0.0.1` and the same socket table. `kubectl exec mypod -- ip addr` is you looking inside that Pod's namespace, exactly as `ip netns exec` looked inside `test`.
 
