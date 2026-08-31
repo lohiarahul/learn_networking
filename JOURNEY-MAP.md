@@ -58,20 +58,25 @@ reconcile** in the cloud.
 > If you came here *for* those exams, read [`exam-prep/`](exam-prep/README.md) first — it maps every
 > CKA and CKS competency to the lesson that covers it, and marks honestly the ones nothing covers yet.
 
-> ## ⚑ This map is Route A. There is a Route B.
+> ## ⚑ This map is Route A. There are two others.
 >
 > Everything below is the course **in the order it was written**, which is the order in which each idea
 > is earned before it is used. That is the right order to *understand* networking and it is not the
-> shortest path to a certificate. Both are published, and neither pretends to be the other:
+> shortest path to a certificate, and it is not container-floor-first. All three are published, and
+> none pretends to be the other:
 >
-> - **Route A — this map.** Narrative order, all 437,040 words, nothing skipped.
+> - **Route A — this map.** Narrative order, all 437,039 words, nothing skipped.
 > - **Route B — [the exam path](exam-prep/the-exam-path.md).** The same material in exam order: nine
->   steps, the 58% you need before CKA, the 45 of 67 drills that fall on that path, and an explicit
->   optional track for the 11% neither curriculum examines.
+>   steps, the 56% you need before CKA, the 52 of 83 drills that fall on that path, and an explicit
+>   optional track for the 14% neither curriculum examines.
+> - **Route C — [the platform path](the-platform-path.md).** The same material in platform order: the
+>   container floor before the network, the network before Kubernetes — for a reader who wants `runc`
+>   before ARP.
 >
-> Route B saves less than you would hope — 9% of the words, not a third — because almost all of this
+> Route B saves less than you would hope — 15% of the words, not a third — because almost all of this
 > course is on one syllabus or the other. What it saves is the *guessing*, which is the thing that
-> actually strands people in Act VIII with a date three weeks out.
+> actually strands people in Act VIII with a date three weeks out. Route C saves nothing — it defers
+> 55,990 words of networking rather than cutting them, and pays every one of them back before Act V.
 
 ## How we learn here — seek, don't receive
 

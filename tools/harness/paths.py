@@ -31,6 +31,7 @@ JOURNEY_MAP = os.path.join(REPO, "JOURNEY-MAP.md")
 LESSON_INDEX = os.path.join(REPO, "LESSON-INDEX.md")
 SYNC_MJS = os.path.join(REPO, "site", "scripts", "sync-content.mjs")
 PER_ACT_COMMANDS = os.path.join(REFERENCE, "05-per-act-commands.md")
+ROUTES_JSON = os.path.join(REFERENCE, "routes.json")
 
 
 def rel(p: str) -> str:

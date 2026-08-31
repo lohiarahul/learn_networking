@@ -1,4 +1,4 @@
-# Act IV drill 5 — "the container isn't as isolated as the last four drills assumed"
+# Act IV drill 5 — "the container isn't as isolated as the networking drills assumed"
 HINT='name what was missing from one JSON array, and where that array lives.'
 CAUSE_SHA='dde8599cf2ab04ece7ae49ef512ef36839c1e0330f545f6d40e813de82b46033
 573f0cc0b71956fb991a7b4bfa934ed6c5ba74e696c3a5a7bd7278674cd0c06e

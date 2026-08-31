@@ -6,7 +6,7 @@
 [`tools/check_pedagogy.py`](tools/check_pedagogy.py) (**0 failures, 0 warnings** across the whole
 course before this work began — the bar anything here has to leave standing).*
 
-> **Status: Phases 0, 1 and 2 shipped. Phases 3–4 are proposal.** Read the phase table's Status column, not the
+> **Status: Phases 0–4 shipped.** Read the phase table's Status column, not the
 > prose, for what exists.
 
 ## Why this document exists
@@ -39,7 +39,8 @@ There is also precedent that settles it. The repo has already met "I want this m
 order" once, and answered it **without forking**:
 [`exam-prep/the-exam-path.md`](exam-prep/the-exam-path.md) is Route B over the same words — a step
 table pointing into existing lessons, ~2k words of new prose, zero duplicated teaching. A
-Linux → containers → Kubernetes ordering is Route C, and it is **a view, not a fork** (Phase 4).
+Linux → containers → Kubernetes ordering is Route C, and it is **a view, not a fork** — shipped as
+[`the-platform-path.md`](the-platform-path.md), Phase 4.
 
 ## 2. What the proposal got right
 
@@ -129,7 +130,7 @@ each time. Phase 1 is therefore three lessons, not "a bit of Act IV".
 | **1** | Act IV: the runtime peel and the build side — three lessons | ✅ **3 of 3 shipped** |
 | **2** | Act XI: observability (Stage 7.8) — designed in detail in [`ACT-11-PLAN.md`](ACT-11-PLAN.md) | ✅ **shipped (8 of 8 lessons, both waves)** |
 | **3** | Thin spots: user namespaces / rootless, `nsenter`, `systemd` — designed in detail in [`PHASE-3-PLAN.md`](PHASE-3-PLAN.md) | ✅ **shipped (3 of 3 lessons + the Act X insertion)** |
-| **4** | Route C — the platform ordering, published as a view | 🔜 |
+| **4** | Route C — the platform ordering, published as a view — designed in detail in [`PHASE-4-PLAN.md`](PHASE-4-PLAN.md) | ✅ **shipped** |
 
 ### Phase 0 — shipped
 
@@ -406,12 +407,19 @@ marked ✅ covered on the strength of `journalctl -u kubelet`, a command the cou
 and `journalctl -n` closes a flag `kubectl-speed.md` drilled but no lesson had shown); `05b`/`05c` are
 optional-track. Final size ≈13,600 words against the ≈13,000 estimate.
 
-### Phase 4 — Route C, as a view
+### Phase 4 — Route C, as a view (shipped)
 
-The platform ordering as a third route file, same pattern as `the-exam-path.md`: a step table pointing
-into existing lessons, no duplicated prose. This is what actually satisfies the original proposal, at
-~2k words instead of a fork. Do it **last** — a view over material still in motion goes stale before
-it is read.
+**Designed in full in [`PHASE-4-PLAN.md`](PHASE-4-PLAN.md), then built.** Shipped as two waves, in the
+order the design required: `reference/routes.json` first, holding the step→file map as data for both
+Route B and the new Route C, plus `tools/gen-route-tables.py` and three harness invariants
+(`routes.step-globs-resolve`, `routes.reorder-covers-course`, `routes.published-figures`) so a route
+page's Words/Drills columns can never drift unnoticed again — the exact defect the design phase found
+in Route B itself (step 1 had drifted 13,087 words since Phase 1). Then
+[`the-platform-path.md`](the-platform-path.md): the platform ordering as a `kind: reorder` route, whose
+steps partition the whole 437,040-word course exactly, checked rather than asserted. No lesson was
+added and no lesson was edited — the one prose change outside the route pages themselves is a
+one-line reword of `drills/act-4/05.sh`'s ticket, which used to name a drill count only true in
+Route A's order.
 
 ## 6. Sequencing note
 

@@ -1,0 +1,58 @@
+---
+/**
+ * Sidebar override: Starlight's own sidebar, plus the accordion behaviour it doesn't have.
+ *
+ * Every act group is a <details>, and Starlight persists each one's open/closed state in
+ * sessionStorage keyed by *position*, not by page (see SidebarPersister.astro) — so a group opened
+ * while browsing stays open after navigating somewhere else entirely, and groups pile up expanded
+ * over a session. This closes every collapsible group but the one holding the current page after
+ * each navigation, and turns manual opening into a real accordion (opening one closes the rest).
+ *
+ * "Start here" and "Capstone" are configured in astro.config.mjs with no `collapsed` flag, meaning
+ * Starlight always renders them open — that's excluded here by label, since Starlight gives the
+ * client no other signal for which groups are meant to stay open regardless of the current page.
+ */
+import Default from '@astrojs/starlight/components/Sidebar.astro';
+
+const ALWAYS_OPEN = ['Start here', 'Capstone'];
+---
+
+<Default />
+
+<script define:vars={{ ALWAYS_OPEN }}>
+  function setUpAccordion() {
+    const sidebar = document.getElementById('starlight__sidebar');
+    if (!sidebar) return;
+
+    const groups = Array.from(sidebar.querySelectorAll('ul.top-level > li > details')).filter(
+      (details) => {
+        const label = details.querySelector('summary .large')?.textContent?.trim();
+        return !ALWAYS_OPEN.includes(label);
+      }
+    );
+
+    const active = groups.find((details) => details.querySelector('[aria-current="page"]'));
+    for (const details of groups) details.open = details === active;
+
+    for (const details of groups) {
+      details.addEventListener('toggle', () => {
+        if (!details.open) return;
+        for (const other of groups) {
+          if (other !== details) other.open = false;
+        }
+      });
+    }
+  }
+
+  // Run directly for this load, since page-load can fire before this script has even registered
+  // the listener below; the listener then covers a future soft navigation, on the (untested here)
+  // chance one occurs without a full script re-run. The setTimeout defers past Starlight's own
+  // sidebar-restore script (synchronous, but not guaranteed to run before this one) without relying
+  // on requestAnimationFrame, which a backgrounded tab can suspend indefinitely.
+  const runSoon = () => setTimeout(setUpAccordion, 0);
+  runSoon();
+  if (!window.__kzSidebarAccordion) {
+    window.__kzSidebarAccordion = true;
+    document.addEventListener('astro:page-load', runSoon);
+  }
+</script>

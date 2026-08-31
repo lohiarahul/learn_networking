@@ -62,9 +62,25 @@ MUTATIONS = {
                                                    "> **You understand this when you can** "
                                                    + "padding " * 120)),
     "counts.published": ("JOURNEY-MAP.md",
-                         lambda t: t.replace("387,850 words, nothing skipped",
+                         lambda t: t.replace("437,039 words, nothing skipped",
                                              "1 words, nothing skipped")),
+    "routes.step-globs-resolve": ("reference/routes.json",
+                                  lambda t: t.replace('"00-orientation/**"',
+                                                      '"00-orientation-typo/**"')),
+    "routes.published-figures": ("exam-prep/the-exam-path.md",
+                                 lambda t: t.replace("| **1** | Orientation, **Act I**, **Act IV** | 59,881 | 12 |",
+                                                     "| **1** | Orientation, **Act I**, **Act IV** | 1 | 1 |")),
 }
+
+# `routes.reorder-covers-course` only fires for a `kind: reorder` route, and Route B (the only
+# route registered so far) is `kind: split` — so its mutation is a JSON edit rather than a
+# find-and-replace on prose: add a second, disjoint `reorder` route with one step that omits most
+# of the course, and assert the coverage check names the gap.
+MUTATIONS["routes.reorder-covers-course"] = (
+    "reference/routes.json",
+    lambda t: t.rstrip()[:-1] + ',\n  "Z": {"name": "test", "page": "exam-prep/the-exam-path.md", '
+                                '"kind": "reorder", "steps": [{"n": 1, "include": ["00-orientation/**"]}]}\n}\n'
+)
 
 
 def _load_legacy():

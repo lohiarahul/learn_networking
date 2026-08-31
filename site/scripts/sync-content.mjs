@@ -138,6 +138,11 @@ const HAND_WRITTEN = new Set(['index.mdx', 'progress.mdx', 'history-map.mdx']);
 /** Standalone pages: [source relative to repo root, destination relative to docs root, order]. */
 const SINGLES = [
   [`${COURSE_DIR}/README.md`, 'course.md', 1],
+  // Route C — same treatment as Route B's `exam-prep/the-exam-path.md` below: a route page is a
+  // reader-facing document, unlike JOURNEY-MAP.md (Route A), which stays repo-only by design (see
+  // the note further down). It sits in "Start here" rather than its own section because, unlike
+  // exam-prep, it is one page with no sub-pages of its own.
+  ['the-platform-path.md', 'the-platform-path.md', 4],
   [`${COURSE_DIR}/the-whole-stack.md`, 'capstone/the-whole-stack.md', 1],
   [`${COURSE_DIR}/your-own-machine.md`, 'capstone/your-own-machine.md', 2],
   // The reference wing leads its own section. Its first two pages are the ones that make the rest

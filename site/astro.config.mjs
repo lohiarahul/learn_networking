@@ -82,6 +82,8 @@ export default defineConfig({
         // Adds a section eyebrow and motif above the <h1>. Restates Starlight's own h1 styles, which
         // stop shipping the moment the component is overridden.
         PageTitle: './src/components/PageTitle.astro',
+        // Makes the act groups an accordion: opening one, or navigating into one, collapses the rest.
+        Sidebar: './src/components/Sidebar.astro',
       },
       sidebar: [
         {
@@ -90,6 +92,7 @@ export default defineConfig({
             { slug: 'course' },
             { slug: 'progress' },
             { slug: 'history-map' },
+            { slug: 'the-platform-path' },
           ],
         },
         {

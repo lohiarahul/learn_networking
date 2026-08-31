@@ -447,7 +447,7 @@ tools/verify-drill.sh act-4 4 "the property the two ends disagreed about"
 
 ---
 
-## Drill 5 — "The container isn't as isolated as the last four drills assumed"
+## Drill 5 — "The container isn't as isolated as the networking drills assumed"
 
 **Target: 5 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
 

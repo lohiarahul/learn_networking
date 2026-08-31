@@ -27,28 +27,36 @@ their own arithmetic.
 so a single-lesson save is never blocked by a total it cannot know it changed. `--check` is the
 hard gate: run it before publishing, and after any commit that adds or removes prose.
 
-WHAT IS NOT AUTOMATED, AND WHY
-------------------------------
-Route B's per-step figures (225,333 CKA · 127,232 CKS · 352,565 cumulative · 60,541 optional)
-are NOT recomputed here. They are measured over a set of files the step table names in prose,
-and reverse-engineering that set does not reproduce the published numbers: step 1 reads
-"Orientation, Act I, Act IV", but summing those three directories gives 46,834 against a
-published 46,795 — so the real scope excludes something by a rule stated nowhere. Guessing it
-would replace a stale number with a confident wrong one, which is worse. Instead this script
-checks the arithmetic those figures must satisfy internally, and warns when the course total
-moves underneath them so a human knows to remeasure. Encoding the step→file map as data (and
-generating that table) is the honest fix; see PLATFORM-DEPTH-PLAN.md, Phase 0.
+WHAT USED NOT TO BE AUTOMATED, AND WHY IT NOW IS
+-------------------------------------------------
+Route B's per-step figures used to live here as hardcoded constants, with a docstring explaining
+why: reverse-engineering the step table's prose ("Orientation, Act I, Act IV") into a file set
+did not reproduce the published number — summing those three directories gave 46,834 against a
+published 46,795, a 39-word gap with no stated rule behind it. Guessing the rule would have
+replaced a stale number with a confident wrong one.
+
+Retried once more before this rewrite, at both the commit that published 46,795 and the commit
+that first quoted the 46,834 figure: both give **exactly 46,795** for the three directories,
+`wc -w` and `len(read().split())` agreeing to the word. The gap does not reproduce, and nothing
+found supports the "some rule excludes 39 words" explanation — the figures simply agreed the
+whole time, and nobody re-summed them after the first measurement to notice they still did.
+
+That retired the reason for hardcoding. `reference/routes.json` now names the step→file map as
+data, `routes_lib.py` turns it into word and drill counts, and `tools/gen-route-tables.py`
+regenerates every route page from the same arithmetic this module now reads (`path_words`,
+`path_drills`, `optional_words`) rather than duplicating it. `tools/harness/invariants/routes.py`
+checks it on every run; a route page more than a few words stale is a `routes.published-figures`
+finding, not something waiting to be rediscovered four phases later.
 """
 from __future__ import annotations
 import os, re, sys, glob
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import routes_lib
+from routes_lib import words
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COURSE_DIR = os.path.join(REPO, "networking-fundamentals")
-
-
-def words(path: str) -> int:
-    with open(path, encoding="utf-8", errors="replace") as fh:
-        return len(fh.read().split())
 
 
 def course_md() -> list[str]:
@@ -92,21 +100,22 @@ CLAIMS = [
     ("exam-prep/README.md",
      r"(?<=The course is )[\d,]+(?=\s*\n>\s*words in narrative order)", "course"),
     ("exam-prep/the-exam-path.md",
-     r"(?<=Measured, it is \*\*352,565 against )[\d,]+(?=\*\*)", "course"),
+     r"(?<=Measured, it is \*\*371,953 against )[\d,]+(?=\*\*)", "course"),
 ]
 
-# The optional track is quoted as a percentage of the course in two places. Same numerator,
-# and they disagreed. Both are recomputed from the measured total.
-OPTIONAL_WORDS = 65_578
+# The optional track's word total and percentage are derived from reference/routes.json —
+# `routes_lib.optional_words()` — rather than hardcoded, which is what let the *same* number
+# read "8.0%" in one place and "8.2%" in another the last time this was measured by hand.
 PCT_CLAIMS = [
     ("exam-prep/the-exam-path.md",
-     r"(?<=Only 65,578 words — )[\d.]+(?=% — sit outside both curricula)"),
+     r"(?<=Only 61,273 words — )[\d.]+(?=% — sit outside both curricula)"),
     ("exam-prep/the-exam-path.md",
-     r"(?<=^65,578 words, )[\d.]+(?=% of the course)"),
+     r"(?<=^61,273 words, )[\d.]+(?=% of the course)"),
 ]
 
-# Route B's hand-measured figures, and the identity they must satisfy.
-ROUTE_B = {"cka": 229_127, "cks_only": 127_232, "cumulative": 356_359}
+
+def _routes() -> dict:
+    return routes_lib.load()["B"]
 
 
 def fmt(n: int) -> str:
@@ -142,7 +151,8 @@ def claim_issues(measured: dict | None = None) -> list[tuple[str, str]]:
                 issues.append(("WARN", f"wordcount: {rel_path} says {got} words; measured "
                                        f"{fmt(m[key])} — run tools/remeasure.py --write"))
 
-    want_pct = round(OPTIONAL_WORDS / m["course"] * 100, 1)
+    optional_words = routes_lib.optional_words(_routes())
+    want_pct = round(optional_words / m["course"] * 100, 1)
     for rel_path, pattern in PCT_CLAIMS:
         path = os.path.join(REPO, rel_path)
         if not os.path.exists(path):
@@ -154,30 +164,21 @@ def claim_issues(measured: dict | None = None) -> list[tuple[str, str]]:
             continue
         for got in found:
             if abs(float(got) - want_pct) > 0.05:
-                issues.append(("WARN", f"wordcount: {rel_path} calls the 30,801-word optional track "
-                                       f"{got}% of the course; against {fmt(m['course'])} it is "
-                                       f"{want_pct}% — run tools/remeasure.py --write"))
+                issues.append(("WARN", f"wordcount: {rel_path} calls the {fmt(optional_words)}-word "
+                                       f"optional track {got}% of the course; against "
+                                       f"{fmt(m['course'])} it is {want_pct}% — run "
+                                       f"tools/remeasure.py --write"))
 
-    if ROUTE_B["cka"] + ROUTE_B["cks_only"] != ROUTE_B["cumulative"]:
-        issues.append(("WARN", "wordcount: Route B's CKA + CKS-only figures no longer sum to the "
-                               "published cumulative total"))
-    if ROUTE_B["cumulative"] + OPTIONAL_WORDS > m["course"]:
-        issues.append(("WARN", f"wordcount: Route B claims {fmt(ROUTE_B['cumulative'])} on-path plus "
-                               f"{fmt(OPTIONAL_WORDS)} optional = "
-                               f"{fmt(ROUTE_B['cumulative'] + OPTIONAL_WORDS)} words, which exceeds "
-                               f"the {fmt(m['course'])} the course contains"))
-    else:
-        unaccounted = m["course"] - ROUTE_B["cumulative"] - OPTIONAL_WORDS
-        if unaccounted > 5_000:
-            issues.append(("WARN", f"wordcount: {fmt(unaccounted)} words are on neither Route B's "
-                                   f"path nor its optional track — the step figures were measured "
-                                   f"against a smaller course and want remeasuring"))
+    # Route B's own arithmetic (steps summing to its summaries, the summaries matching what's
+    # printed) is checked by `routes.published-figures` and `routes.step-globs-resolve` — see
+    # tools/harness/invariants/routes.py — which read the same reference/routes.json this does,
+    # so there is nothing left for this function to duplicate.
     return issues
 
 
 def write_claims(m: dict) -> list[str]:
     changed = []
-    want_pct = f"{round(OPTIONAL_WORDS / m['course'] * 100, 1)}"
+    want_pct = f"{round(routes_lib.optional_words(_routes()) / m['course'] * 100, 1)}"
     edits: list[tuple[str, str, str]] = [(p, pat, fmt(m[k])) for p, pat, k in CLAIMS]
     edits += [(p, pat, want_pct) for p, pat in PCT_CLAIMS]
 
@@ -220,12 +221,16 @@ def main(argv: list[str]) -> int:
     for act, n in sorted(m["acts"].items(), key=lambda kv: -kv[1]):
         print(f"  {act:<34} {fmt(n):>9}")
     print()
-    pct = OPTIONAL_WORDS / m["course"] * 100
-    print(f"  Route B through CKA (hand-measured) {fmt(ROUTE_B['cka']):>9}"
-          f"   {ROUTE_B['cka'] / m['course'] * 100:.0f}% of the course")
-    print(f"  Route B through CKS (hand-measured) {fmt(ROUTE_B['cumulative']):>9}"
-          f"   {ROUTE_B['cumulative'] / m['course'] * 100:.0f}% of the course")
-    print(f"  optional track      (hand-measured) {fmt(OPTIONAL_WORDS):>9}   {pct:.1f}%")
+    route_b = _routes()
+    cka = routes_lib.cumulative_words(route_b, 7)
+    cks = routes_lib.cumulative_words(route_b, 9)
+    optional = routes_lib.optional_words(route_b)
+    print(f"  Route B through CKA (from routes.json) {fmt(cka):>9}"
+          f"   {cka / m['course'] * 100:.0f}% of the course")
+    print(f"  Route B through CKS (from routes.json) {fmt(cks):>9}"
+          f"   {cks / m['course'] * 100:.0f}% of the course")
+    print(f"  optional track      (from routes.json) {fmt(optional):>9}"
+          f"   {optional / m['course'] * 100:.1f}%")
     return 0
 
 

@@ -15,6 +15,7 @@ from ..registry import REGISTRY
 from . import (budgets, capabilities, commands, freshness, illustrations, links,
                reference_roster, river, shape)
 from . import counts
+from . import routes as routes_inv
 
 _TABLE = [
     # ── Hard gates: the shape of a lesson, and the integrity of what points at it ──────────
@@ -65,6 +66,15 @@ _TABLE = [
      "An illustration referenced by nothing is either unplaced or unfindable."),
     ("budget.lesson-words", budgets.check_lesson_budget, WARN, REPO_WIDE,
      "A lesson far past the course's distribution is two lessons wearing one filename."),
+    ("routes.step-globs-resolve", routes_inv.check_step_globs_resolve, WARN, REPO_WIDE,
+     "A renamed lesson can silently shrink a route step — the gen-tool-pages.py failure mode, "
+     "here for reference/routes.json."),
+    ("routes.reorder-covers-course", routes_inv.check_reorder_covers_course, WARN, REPO_WIDE,
+     "A `kind: reorder` route's steps must partition the whole course, once each — enforced "
+     "instead of asserted."),
+    ("routes.published-figures", routes_inv.check_published_figures, WARN, REPO_WIDE,
+     "A route page's printed Words/Drills must match what its own globs compute today — Route "
+     "B's 13,087-word drift, made impossible to repeat."),
 ]
 
 for _id, _fn, _sev, _scope, _why in _TABLE:

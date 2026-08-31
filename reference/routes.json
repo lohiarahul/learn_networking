@@ -1,0 +1,157 @@
+{
+  "B": {
+    "name": "The exam path",
+    "page": "exam-prep/the-exam-path.md",
+    "kind": "split",
+    "steps": [
+      {
+        "n": 1,
+        "include": ["00-orientation/**", "act-1-one-machine/**", "act-4-one-pretends-many/**"],
+        "drills": ["act-1/*", "act-4/*"]
+      },
+      {
+        "n": 2,
+        "include": [
+          "act-2-two-machines/01-*.md", "act-2-two-machines/02-*.md", "act-2-two-machines/03-*.md",
+          "act-2-two-machines/03b-*.md", "act-2-two-machines/04-*.md",
+          "act-2-two-machines/README.md", "act-2-two-machines/diagnose.md",
+          "act-2-two-machines/test-yourself.md", "act-2-two-machines/in-the-wild.md",
+          "act-3-the-internet/01-*.md", "act-3-the-internet/02-*.md", "act-3-the-internet/02b-*.md",
+          "act-3-the-internet/03-*.md",
+          "act-3-the-internet/README.md", "act-3-the-internet/diagnose.md",
+          "act-3-the-internet/test-yourself.md", "act-3-the-internet/in-the-wild.md"
+        ],
+        "drills": ["act-2/*", "act-3/*"]
+      },
+      {
+        "n": 3,
+        "include": ["act-5-kubernetes/**", "the-whole-stack.md"],
+        "drills": ["act-5/*"]
+      },
+      {
+        "n": 4,
+        "include": ["act-6-control-plane/**"],
+        "drills": ["act-6/*"]
+      },
+      {
+        "n": 5,
+        "include": ["act-7-workloads/**"],
+        "drills": ["act-7/*"]
+      },
+      {
+        "n": 6,
+        "include": ["act-9-identity/06-*.md"],
+        "drills": ["act-9/02.sh", "act-9/04.sh", "act-9/06.sh"]
+      },
+      {
+        "n": 7,
+        "count": false,
+        "include": [
+          "../exam-prep/README.md", "../exam-prep/cka-domain-map.md", "../exam-prep/cks-domain-map.md",
+          "../exam-prep/kubectl-speed.md", "../exam-prep/exam-day.md", "../exam-prep/authoring-sprint.md"
+        ],
+        "drills": []
+      },
+      {
+        "n": 8,
+        "include": [
+          "act-8-trust/05-*.md", "act-8-trust/06-*.md",
+          "act-8-trust/README.md", "act-8-trust/diagnose.md",
+          "act-8-trust/test-yourself.md", "act-8-trust/in-the-wild.md"
+        ],
+        "drills": ["act-8/*"]
+      },
+      {
+        "n": 9,
+        "include": [
+          "act-9-identity/01-*.md", "act-9-identity/02-*.md", "act-9-identity/03-*.md",
+          "act-9-identity/04-*.md",
+          "act-9-identity/README.md", "act-9-identity/diagnose.md",
+          "act-9-identity/test-yourself.md", "act-9-identity/in-the-wild.md",
+          "act-10-cluster-security/**"
+        ],
+        "drills": ["act-9/01.sh", "act-9/03.sh", "act-9/05.sh", "act-10/*"]
+      }
+    ],
+    "summaries": [
+      {"label": "sit CKA", "through_step": 7},
+      {"label": "sit CKS", "through_step": 9}
+    ],
+    "optional": [
+      {
+        "label": "Act VIII 01–04 — hashing, HMAC, ciphers, key exchange",
+        "include": ["act-8-trust/01-*.md", "act-8-trust/02-*.md", "act-8-trust/03-*.md", "act-8-trust/04-*.md"]
+      },
+      {
+        "label": "Act IX 05 — OAuth2/OIDC against a live IdP",
+        "include": ["act-9-identity/05-*.md"]
+      },
+      {
+        "label": "Act II 01b, 02b, 03c — VLANs, BGP, DHCP",
+        "include": [
+          "act-2-two-machines/01b-*.md", "act-2-two-machines/02b-*.md", "act-2-two-machines/03c-*.md"
+        ]
+      },
+      {
+        "label": "Act III 04, 05 — HTTP, TLS",
+        "include": ["act-3-the-internet/04-*.md", "act-3-the-internet/05-*.md"]
+      },
+      {
+        "label": "Act XI — observability",
+        "include": ["act-11-observability/**"]
+      },
+      {
+        "label": "Act IV 05b, 05c — nsenter and PID-addressed namespace entry; user namespaces",
+        "include": [
+          "act-4-one-pretends-many/05b-*.md", "act-4-one-pretends-many/05c-*.md"
+        ],
+        "already_on_path": true,
+        "already_on_path_note": "counted inside step 1's whole-Act-IV glob — kept out of the optional-track word total so it is not counted twice; the row stays for the reading guidance (skippable if short on time), not for the arithmetic."
+      }
+    ]
+  },
+  "C": {
+    "name": "The platform path",
+    "page": "the-platform-path.md",
+    "kind": "reorder",
+    "steps": [
+      {"n": 0, "include": ["README.md", "your-own-machine.md", "code/*.md"], "drills": []},
+      {"n": 1, "include": ["00-orientation/**", "act-1-one-machine/**"], "drills": ["act-1/*"]},
+      {
+        "n": 2,
+        "include": ["act-4-one-pretends-many/01-*.md", "act-4-one-pretends-many/01b-*.md"],
+        "drills": []
+      },
+      {
+        "n": 3,
+        "include": [
+          "act-4-one-pretends-many/05-*.md", "act-4-one-pretends-many/05b-*.md",
+          "act-4-one-pretends-many/05c-*.md", "act-4-one-pretends-many/07-*.md"
+        ],
+        "drills": ["act-4/05.sh", "act-4/06.sh", "act-4/07.sh", "act-4/08.sh", "act-4/09.sh"]
+      },
+      {"n": 4, "include": ["act-2-two-machines/**"], "drills": ["act-2/*"]},
+      {"n": 5, "include": ["act-3-the-internet/**"], "drills": ["act-3/*"]},
+      {
+        "n": 6,
+        "include": [
+          "act-4-one-pretends-many/02-*.md", "act-4-one-pretends-many/03-*.md",
+          "act-4-one-pretends-many/04-*.md", "act-4-one-pretends-many/06-*.md",
+          "act-4-one-pretends-many/README.md", "act-4-one-pretends-many/test-yourself.md",
+          "act-4-one-pretends-many/diagnose.md", "act-4-one-pretends-many/in-the-wild.md"
+        ],
+        "drills": ["act-4/01.sh", "act-4/02.sh", "act-4/03.sh", "act-4/04.sh"]
+      },
+      {"n": 7, "include": ["act-5-kubernetes/**", "the-whole-stack.md"], "drills": ["act-5/*"]},
+      {"n": 8, "include": ["act-6-control-plane/**"], "drills": ["act-6/*"]},
+      {"n": 9, "include": ["act-7-workloads/**"], "drills": ["act-7/*"]},
+      {"n": 10, "include": ["act-8-trust/**"], "drills": ["act-8/*"]},
+      {"n": 11, "include": ["act-9-identity/**"], "drills": ["act-9/*"]},
+      {"n": 12, "include": ["act-10-cluster-security/**"], "drills": ["act-10/*"]},
+      {"n": 13, "include": ["act-11-observability/**"], "drills": ["act-11/*"]}
+    ],
+    "summaries": [
+      {"label": "total", "through_step": 13}
+    ]
+  }
+}
