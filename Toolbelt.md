@@ -190,8 +190,13 @@ and when you're building, you wield the modern one without ceremony.
 - **Named as gaps, honestly:** `bom` (the SBOM tool the exam whitelists — the course teaches Trivy's SBOM instead), `kubesec`, `kube-linter`, `aa-status`, and sigstore keyless signing. [`exam-prep/`](exam-prep/README.md) says so in the domain maps; no lesson closes them.
 
 **Scaling & observability**
-- `metrics-server` · `KEDA` · Cluster Autoscaler · `Velero` (DR) · `Kubecost` ·
-  `kube-prometheus-stack` (Prometheus + Grafana + Alertmanager) · `Loki` · `Jaeger`/`OpenTelemetry` ·
+- `metrics-server` (taught, Act VII [`10-choosing-the-number.md`](networking-fundamentals/act-7-workloads/10-choosing-the-number.md); the endpoints and aggregation layer behind it taught, Act XI [`03-a-number-a-process-keeps.md`](networking-fundamentals/act-11-observability/03-a-number-a-process-keeps.md)) · `KEDA` · Cluster Autoscaler · `Velero` (DR) · `Kubecost` ·
+  `Prometheus` (taught, hand-configured, Act XI [`04-the-loop-that-scrapes.md`](networking-fundamentals/act-11-observability/04-the-loop-that-scrapes.md)) ·
+  `Alertmanager` (taught, Act XI [`05-an-alert-is-a-loop.md`](networking-fundamentals/act-11-observability/05-an-alert-is-a-loop.md)) ·
+  `Grafana` (taught, provisioned from a file, Act XI [`05b-a-panel-is-a-query.md`](networking-fundamentals/act-11-observability/05b-a-panel-is-a-query.md)) ·
+  `Loki`/`logcli` (taught, Act XI [`02-copying-it-off-the-node.md`](networking-fundamentals/act-11-observability/02-copying-it-off-the-node.md)) ·
+  `kube-prometheus-stack` as the packaged, Helm-installed version of the four above (recognition only — Act XI [`in-the-wild.md`](networking-fundamentals/act-11-observability/in-the-wild.md)) ·
+  the `traceparent` header and sampling arithmetic (taught, Act XI [`06-which-request-was-slow.md`](networking-fundamentals/act-11-observability/06-which-request-was-slow.md)); `Jaeger`/`Tempo` and the OpenTelemetry Collector's own pipeline config remain untaught (one paragraph on OTLP's wire format only) ·
   `bpftrace`/`bcc`/`Pixie` (eBPF tracing — the near-zero-overhead successor to `strace`, finally appreciable now that you understand kernel hooks).
 
 **Validation**

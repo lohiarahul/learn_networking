@@ -80,6 +80,11 @@
  "image": "netlab:latest",
  "present": 47,
  "tools": {
+  "alertmanager": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
   "apparmor_parser": {
    "path": "",
    "present": false,
@@ -222,6 +227,11 @@
    "present": false,
    "version": ""
   },
+  "grafana": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
   "helm": {
    "path": "",
    "present": false,
@@ -299,6 +309,16 @@
    "present": false,
    "version": ""
   },
+  "logcli": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
+  "loki": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
   "lsof": {
    "path": "/usr/bin/lsof",
    "present": true,
@@ -370,6 +390,11 @@
    "path": "/bin/ping",
    "present": true,
    "version": "ping from iputils 20250605"
+  },
+  "prometheus": {
+   "path": "",
+   "present": false,
+   "version": ""
   },
   "pwru": {
    "path": "",
@@ -482,5 +507,5 @@
    "version": ""
   }
  },
- "total": 78
+ "total": 83
 }

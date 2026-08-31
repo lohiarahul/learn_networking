@@ -201,8 +201,8 @@ It buys you more history *per container, per node, for as long as that specific 
 
 </details>
 
-```
 <!-- figure -->
+```
    THE LOG LINE, AND EVERYTHING THAT DECIDES HOW LONG IT LIVES
 
    THE PATH kubectl logs ACTUALLY READS
@@ -252,4 +252,4 @@ kubectl delete pod reader longline crasher --ignore-not-found
 
 ---
 
-↑ **[Act XI overview](README.md)** · Next: **[A number a process keeps](03-a-number-a-process-keeps.md)** →
+↑ **[Act XI overview](README.md)** · Next: **[Copying it off the node](02-copying-it-off-the-node.md)** →

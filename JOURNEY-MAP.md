@@ -25,7 +25,7 @@ reconcile** in the cloud.
 > | **4** — cryptography & trust | Act VIII | ✅ **built & teaching** — 6 lessons + all supporting pages; needs no cluster, every claim verified on a real openssl |
 > | **5** — identity & access: authn vs authz, tokens & sessions, JWT, token verification, OAuth2/OIDC, RBAC vs ABAC | Act IX | ✅ **built & teaching** — 6 lessons + all supporting pages, every command run against a real cluster and a real identity provider |
 > | **7.5, 7.9** — CKS security: workload hardening, seccomp/AppArmor, Pod Security Admission, admission control and policy engines, etcd encryption, the cluster's own open doors, supply chain, Pod-to-Pod encryption, audit and runtime detection, external secret stores | Act X | ✅ **built & teaching** — 12 lessons + all supporting pages, every lesson run against a real cluster |
-> | **7.8** — observability: metrics, logs, dashboards | Act XI (in progress) | 🚧 **partial** — 4 of 8 lessons |
+> | **7.8** — observability: metrics, logs, alerting, dashboards, tracing | Act XI | ✅ **built & teaching** — 8 lessons + all four supporting pages, every command run against a real cluster plus hand-run Prometheus/Alertmanager/Grafana/Loki containers |
 > | **8** — AWS networking | *(none yet)* | 🔜 **roadmap** |
 > | **9** — AWS security | *(none yet)* | 🔜 **roadmap** |
 >
@@ -49,9 +49,11 @@ reconcile** in the cloud.
 > **Acts I–VII covering essentially all of CKA**, with **Act IX closing the RBAC gap** — it builds
 > Kubernetes RBAC from the four-object model up and computes the reverse question against a live
 > cluster. **Act X then covers CKS**, from capabilities and seccomp up through admission control,
-> supply-chain verification, audit logging and runtime detection. Still missing from Stage 7:
-> **the rest of observability** (7.8) — logs off the node, alerting, dashboards, tracing — and the
-> cost/DR half of 7.9. Every "you can now" line in Stage 7 that reaches past those topics is roadmap.
+> supply-chain verification, audit logging and runtime detection. **Act XI closes 7.8** — logs off
+> the node, metrics and their aggregation layer, cardinality, alerting, dashboards and distributed
+> tracing, each mechanism built by hand before the packaged version is named. Still missing from
+> Stage 7: the cost/DR half of 7.9. Every "you can now" line in Stage 7 that reaches past that is
+> roadmap.
 >
 > If you came here *for* those exams, read [`exam-prep/`](exam-prep/README.md) first — it maps every
 > CKA and CKS competency to the lesson that covers it, and marks honestly the ones nothing covers yet.
@@ -62,7 +64,7 @@ reconcile** in the cloud.
 > is earned before it is used. That is the right order to *understand* networking and it is not the
 > shortest path to a certificate. Both are published, and neither pretends to be the other:
 >
-> - **Route A — this map.** Narrative order, all 411,490 words, nothing skipped.
+> - **Route A — this map.** Narrative order, all 423,996 words, nothing skipped.
 > - **Route B — [the exam path](exam-prep/the-exam-path.md).** The same material in exam order: nine
 >   steps, the 58% you need before CKA, the 45 of 67 drills that fall on that path, and an explicit
 >   optional track for the 11% neither curriculum examines.
@@ -334,8 +336,10 @@ which is our bridge into AWS.
 **7.7 Scaling & resilience.** HPA, VPA, **KEDA** (event-driven, scale-to-zero), Cluster Autoscaler,
 PodDisruptionBudgets.
 
-**7.8 Observability.** Metrics (Prometheus/ServiceMonitor), dashboards (Grafana, RED/USE), logs
-(Loki), traces (Jaeger/OpenTelemetry) — and the disciplined debugging workflow that ties them together.
+**7.8 Observability — built, Act XI.** Metrics (Prometheus, the aggregation layer, cardinality),
+alerting (Alertmanager, `absent()`, error budgets), dashboards (Grafana, `query_range`, RED/USE),
+logs (Loki, a hand-written shipper), traces (a `traceparent` header, sampling) — each mechanism built
+by hand first, the packaged version (`kube-prometheus-stack`) named only at the end as recognition.
 
 **7.9 Multi-tenancy, cost, and DR (production).** Namespaces with ResourceQuota/LimitRange and
 default-deny; cost attribution (Kubecost); disaster recovery (Velero); upgrades; and CIS benchmarking
@@ -348,10 +352,11 @@ terminates, and how a NetworkPolicy drops a packet. You can run and repair the c
 the workload and storage APIs, extend the cluster with your own object types — and, from Act X,
 harden it: decide what a container may do, make that decision mandatory rather than optional, write
 your own admission rules, encrypt what is at rest and what is in flight, verify what you shipped,
-and read the record of what has already happened — and, from Act XI's first lessons, read where a
-Pod's logs actually live on a node and why a metric is a file a process keeps about itself. **Still
-unwritten in Stage 7: the rest of observability (7.8) — alerting, dashboards, tracing, and shipping
-logs off the node — and the cost/DR half of 7.9.** *(Cert ground as built: CKA + CKAD + CKS.)*
+and read the record of what has already happened — and, from Act XI, read where a Pod's logs actually
+live on a node and ship them off before they are lost, know why a metric is a file a process keeps
+about itself and what that costs at scale, watch an alert move through its own three states, read a
+dashboard as nothing but a saved query, and follow one request across a header instead of a hop.
+**Still unwritten in Stage 7: the cost/DR half of 7.9.** *(Cert ground as built: CKA + CKAD + CKS.)*
 **Which raises:** all of this runs on infrastructure someone must provision, connect, and defend at
 scale — and every primitive there is something you have already built by hand.
 
@@ -520,8 +525,8 @@ reading layers, Act X 08 teaches verifying them, the build between them is empty
 thinnest floor in the course — 5 lessons, 18,312 words, holding up everything from Act V on.
 
 That work, its phases, and the fourteen obligations the harness gives every new lesson, are in
-[`PLATFORM-DEPTH-PLAN.md`](PLATFORM-DEPTH-PLAN.md). Stage 7.8 (observability) is on it, so the "still
-unwritten" note above and that plan now agree about the same hole.
+[`PLATFORM-DEPTH-PLAN.md`](PLATFORM-DEPTH-PLAN.md). Stage 7.8 (observability) was on it as Phase 2 and
+has since shipped as Act XI — the plan's own status banner tracks what remains.
 
 ## Building this path
 

@@ -3,7 +3,7 @@
 **What you see in `strace`:** a TLS or Unix-socket connection, then HTTP or gRPC
 
 Eleven tools. Every one of them talks to *another program* — a daemon, an API server, a registry — and
-that program answers with **what it intends**, not with what the kernel did. Acts V–X exist largely
+that program answers with **what it intends**, not with what the kernel did. Acts V–XI exist largely
 because those two things diverge.
 
 [`docker`](docker.md) · [`crictl`](crictl.md) ·
@@ -11,15 +11,20 @@ because those two things diverge.
 [`kubeadm`](kubeadm.md) · [`etcdctl`](etcdctl.md) ·
 [`helm`](helm.md) · [`cilium`](cilium.md) ·
 [`trivy`](trivy.md) · [`cosign`](cosign.md) ·
-[`crane`](crane.md) · `ctr` · `containerd` · `skopeo` · `buildctl` · `buildkitd`
+[`crane`](crane.md) · `ctr` · `containerd` · `skopeo` · `buildctl` · `buildkitd` ·
+`prometheus` · `alertmanager` · `grafana` · `loki` · `logcli`
 
-Five of those eleven-turned-sixteen have no page of their own: `ctr`, `containerd`, `skopeo`,
+Ten of those eleven-turned-twenty-one have no page of their own. `ctr`, `containerd`, `skopeo`,
 `buildctl` and `buildkitd` are named here and taught where they are actually run —
 [Act IV](../../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md), which
 builds and runs a container by hand before ever installing Docker, then
 [builds an image the same way](../../../networking-fundamentals/act-4-one-pretends-many/07-how-a-layer-is-made.md)
 — rather than given a roster page each, since none of the five carries enough distinct commands to
-earn one on its own.
+earn one on its own. `prometheus`, `alertmanager`, `grafana`, `loki` and `logcli` are the same shape,
+taught where each is actually run in
+[Act XI](../../../networking-fundamentals/act-11-observability/README.md): every one of them is driven
+almost entirely through one or two HTTP endpoints hand-rolled with `curl`/`wget` across that act's own
+lessons, and a roster page over that thin a surface would be furniture, not content.
 
 ---
 

@@ -31,7 +31,7 @@ Each act is a chain of lessons that ends by pointing at the next, so you never h
 | **[VIII — Trust on an untrusted wire](act-8-trust/README.md)** | Act III handed you a padlock and told you not to open it. What is actually inside it? | Say which of cryptography's four promises a mechanism keeps — and which one everybody assumes it keeps. |
 | **[IX — Identity and access](act-9-identity/README.md)** | Act VIII proves who is at the other end and stops, holding a name. Who decides what a name may *do*? | Ask of any authorization system: when this says yes, what moment is it telling me about? |
 | **[X — Securing the cluster](act-10-cluster-security/README.md)** | Nine acts built a thing that works. Nobody ever asked whether it was safe — and safety was never once the default. | Ask of any control: at what moment does it refuse, what did it know then, and what would be different if it stopped working? |
-| **[XI — Knowing before someone tells you](act-11-observability/README.md)** *(4 of 8 lessons, in progress)* | Act X taught the cluster to remember every authorised change. What did it write down about everything nobody changed on purpose? | Find the exact file a Pod's logs live in and why deleting the Pod erases them; read the exposition format under `kubectl top`; hand-compute a percentile from raw histogram buckets; and price one label's cardinality in resident memory before it is ever stored. |
+| **[XI — Knowing before someone tells you](act-11-observability/README.md)** | Act X taught the cluster to remember every authorised change. What did it write down about everything nobody changed on purpose? | Find the exact file a Pod's logs live in and ship them off before the Pod erases them; read the exposition format under `kubectl top`; hand-compute a percentile from raw histogram buckets; price one label's cardinality in resident memory; watch an alert move through its own three states and know why absence is not zero; read a dashboard as nothing but a saved query; and follow one request across a header instead of a hop. |
 
 ## The capstone
 
@@ -41,7 +41,7 @@ Then **[`your-own-machine.md`](your-own-machine.md)** points the same reflexes a
 
 ## Where the road ends (for now)
 
-The built course is Acts I–X, plus the first half of Act XI. Act V is scoped to Kubernetes **networking** — Pods, CNI, Services (with headless, SRV and the traffic-policy shapes), CoreDNS, Ingress, Gateway API, NetworkPolicy and a debugging discipline. **[Act VI](act-6-control-plane/README.md)** is the control plane in eight lessons: the API server as a filesystem over etcd, static pods, the reconciliation loop, the cluster's own PKI, etcd backup and restore, upgrades and version skew, node maintenance, and the diagnostic walk for a control plane that will not answer. Every lesson in it has been run against a real cluster and corrected against what actually happened.
+The built course is Acts I–XI. Act V is scoped to Kubernetes **networking** — Pods, CNI, Services (with headless, SRV and the traffic-policy shapes), CoreDNS, Ingress, Gateway API, NetworkPolicy and a debugging discipline. **[Act VI](act-6-control-plane/README.md)** is the control plane in eight lessons: the API server as a filesystem over etcd, static pods, the reconciliation loop, the cluster's own PKI, etcd backup and restore, upgrades and version skew, node maintenance, and the diagnostic walk for a control plane that will not answer. Every lesson in it has been run against a real cluster and corrected against what actually happened.
 
 **[Act VII](act-7-workloads/README.md)** is workloads in ten lessons — the Deployment family, scheduling, probes, configuration, storage, Helm, CRDs and autoscaling — every one of them run against a real cluster. **[Act VIII](act-8-trust/README.md)** finally opens Act III's padlock: hashes, HMAC, AEAD, key exchange, certificates, and a TLS 1.3 handshake narrated against a CA you build yourself. It needs no cluster at all, only `openssl`.
 
@@ -51,6 +51,6 @@ The built course is Acts I–X, plus the first half of Act XI. Act V is scoped t
 
 **[Act XI](act-11-observability/README.md)** has started: four of eight planned lessons, on where a log line actually lives, the exposition format under every `kubectl top` and Grafana panel, and cardinality as arithmetic you can do before installing anything. Alerting, dashboards and tracing are not written yet.
 
-Still **mapped but not fully written**: the rest of observability (alerting, dashboards, tracing), and AWS networking and security — see the roadmap banner in [`../JOURNEY-MAP.md`](../JOURNEY-MAP.md).
+Still **mapped but not yet written**: AWS networking and security — see the roadmap banner in [`../JOURNEY-MAP.md`](../JOURNEY-MAP.md).
 
 If you are here for **CKA or CKS**, start at [`../exam-prep/`](../exam-prep/README.md): it maps every competency to the lesson that covers it and is honest about the ones nothing covers yet.

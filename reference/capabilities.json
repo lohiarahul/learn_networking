@@ -4565,5 +4565,201 @@
         "lesson": "Lesson 7 — How a layer is made"
       }
     ]
+  },
+  "prometheus": {
+    "name": "—",
+    "mode": [
+      "read-only"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "What it scraped, and whether it succeeded",
+        [
+          [
+            "curl <addr>/api/v1/targets",
+            "every scrape target and its last error, if any — the first thing to read before trusting any query"
+          ],
+          [
+            "curl <addr>/api/v1/status/config",
+            "the running config as YAML, including a scrape interval that may not match what a query's range window assumes"
+          ]
+        ]
+      ],
+      [
+        "What it computed from that",
+        [
+          [
+            "curl <addr>/api/v1/query?query=<expr>",
+            "one instant — the same computation `kubectl top` does, minus the aggregation layer"
+          ],
+          [
+            "curl <addr>/api/v1/query_range?query=<expr>&start=&end=&step=",
+            "the exact HTTP call behind every Grafana panel, with no rendering on top of it"
+          ],
+          [
+            "curl <addr>/api/v1/rules",
+            "each alerting rule's own state: inactive, pending, or firing, and for how long"
+          ]
+        ]
+      ],
+      [
+        "Its own health, since it scrapes itself by default",
+        [
+          [
+            "curl <addr>/api/v1/query?query=prometheus_tsdb_head_series",
+            "the one number that predicts a cardinality-driven outage before it happens"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "docker run -d --name prom --network kind -v prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus:v3.0.1",
+        "why": "one container, a hand-written config — the fixed version of the six-line scrape loop written by hand first",
+        "act": "Act XI — Knowing before someone tells you",
+        "lesson": "Lesson 4 — The loop that scrapes"
+      },
+      {
+        "cmd": "curl <addr>/api/v1/query?query=count({__name__=~\".+\"})",
+        "why": "every unique label-value combination is its own series — measured going from 536 to 50,596 on one exporter's one unbounded label",
+        "act": "Act XI — Knowing before someone tells you",
+        "lesson": "Lesson 4b — The cost of one label"
+      },
+      {
+        "cmd": "curl <addr>/api/v1/rules",
+        "why": "a rule's three states — inactive, pending, firing — and why a comparison against a metric that was never scraped can never leave inactive",
+        "act": "Act XI — Knowing before someone tells you",
+        "lesson": "Lesson 5 — An alert is a loop"
+      }
+    ]
+  },
+  "alertmanager": {
+    "name": "—",
+    "mode": [
+      "read-only"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "What it is currently holding",
+        [
+          [
+            "curl <addr>/api/v2/alerts",
+            "every alert Prometheus has sent it, grouped and deduplicated by label — the label model's third appearance in this course"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "docker run -d --name am --network kind -v alertmanager.yml:/etc/alertmanager/alertmanager.yml prom/alertmanager:v0.28.0",
+        "why": "one container, one hand-written route with group_by — the fix for one node down and forty pages for one root cause",
+        "act": "Act XI — Knowing before someone tells you",
+        "lesson": "Lesson 5 — An alert is a loop"
+      }
+    ]
+  },
+  "grafana": {
+    "name": "—",
+    "mode": [
+      "read-only"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "Its own state, provisioned from files rather than clicked",
+        [
+          [
+            "curl <addr>/api/search",
+            "every dashboard it has, including one written entirely as JSON on disk"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "docker run -d --name graf --network kind -v provisioning:/etc/grafana/provisioning -v dashboards:/var/lib/grafana/dashboards grafana/grafana:11.4.0",
+        "why": "a datasource and a dashboard, both YAML/JSON files read at startup — no wizard, because the panel *is* one query_range call",
+        "act": "Act XI — Knowing before someone tells you",
+        "lesson": "Lesson 5b — A panel is a query"
+      }
+    ]
+  },
+  "loki": {
+    "name": "—",
+    "mode": [
+      "mutate",
+      "read-only"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "What it will accept",
+        [
+          [
+            "curl -X POST <addr>/loki/api/v1/push -d '{\"streams\":[...]}'",
+            "the same shape a DaemonSet-based shipper sends, one JSON body per batch of lines"
+          ]
+        ]
+      ],
+      [
+        "What it indexes, and what it only greps",
+        [
+          [
+            "curl <addr>/loki/api/v1/labels",
+            "the entire index: label *names* only, regardless of how many distinct log lines exist"
+          ],
+          [
+            "curl <addr>/loki/api/v1/query_range?query={ns=\"x\"}",
+            "a label lookup, narrowing to a stream, before any text filter runs"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "curl <addr>/loki/api/v1/labels",
+        "why": "measured: exactly four label names, total, regardless of log content — the entire index Loki keeps",
+        "act": "Act XI — Knowing before someone tells you",
+        "lesson": "Lesson 2 — Copying it off the node"
+      }
+    ]
+  },
+  "logcli": {
+    "name": "Loki CLI",
+    "mode": [
+      "read-only"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "caps": [
+      [
+        "The same query language, from a terminal instead of a browser",
+        [
+          [
+            "logcli --addr=<addr> query '{namespace=\"x\"} |= \"error\"'",
+            "a label lookup (fast, indexed) followed by a grep over the chunks it found (not indexed) — the `|=` operator is the scan, never the lookup"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "logcli --addr=http://localhost:3100 query '{namespace=\"kube-system\"} |= \"error\"' --since=15m",
+        "why": "confirms Loki's index holds label names only — `|=` is a grep over already-fetched chunks",
+        "act": "Act XI — Knowing before someone tells you",
+        "lesson": "Lesson 2 — Copying it off the node"
+      }
+    ]
   }
 }

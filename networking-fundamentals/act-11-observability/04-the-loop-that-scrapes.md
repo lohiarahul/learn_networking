@@ -177,8 +177,8 @@ Nothing changed about who is allowed to ask. Both need the same bearer token and
 
 </details>
 
-```
 <!-- figure -->
+```
    YOUR LOOP, AND WHAT PROMETHEUS ADDS -- NOTHING ELSE
 
    THE SIX LINES

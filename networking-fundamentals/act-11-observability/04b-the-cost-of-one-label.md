@@ -157,8 +157,8 @@ No, and the confusion is worth naming precisely: scrape interval controls how of
 
 </details>
 
-```
 <!-- figure -->
+```
    CARDINALITY IS MULTIPLICATION, THEN IT IS BYTES
 
    A METRIC NAME IS NOT WHAT IS STORED
@@ -204,4 +204,4 @@ docker rm -f promcard cardexp
 
 ---
 
-↑ **[Act XI overview](README.md)** · Prev: **[The loop that scrapes](04-the-loop-that-scrapes.md)** · Next: **[Test yourself](test-yourself.md)** →
+↑ **[Act XI overview](README.md)** · Prev: **[The loop that scrapes](04-the-loop-that-scrapes.md)** · Next: **[An alert is a loop](05-an-alert-is-a-loop.md)** →

@@ -29,7 +29,7 @@ hard gate: run it before publishing, and after any commit that adds or removes p
 
 WHAT IS NOT AUTOMATED, AND WHY
 ------------------------------
-Route B's per-step figures (225,333 CKA · 127,232 CKS · 352,565 cumulative · 43,325 optional)
+Route B's per-step figures (225,333 CKA · 127,232 CKS · 352,565 cumulative · 60,541 optional)
 are NOT recomputed here. They are measured over a set of files the step table names in prose,
 and reverse-engineering that set does not reproduce the published numbers: step 1 reads
 "Orientation, Act I, Act IV", but summing those three directories gives 46,834 against a
@@ -97,12 +97,12 @@ CLAIMS = [
 
 # The optional track is quoted as a percentage of the course in two places. Same numerator,
 # and they disagreed. Both are recomputed from the measured total.
-OPTIONAL_WORDS = 43_325
+OPTIONAL_WORDS = 60_541
 PCT_CLAIMS = [
     ("exam-prep/the-exam-path.md",
-     r"(?<=Only 43,325 words — )[\d.]+(?=% — sit outside both curricula)"),
+     r"(?<=Only 60,541 words — )[\d.]+(?=% — sit outside both curricula)"),
     ("exam-prep/the-exam-path.md",
-     r"(?<=^43,325 words, )[\d.]+(?=% of the course)"),
+     r"(?<=^60,541 words, )[\d.]+(?=% of the course)"),
 ]
 
 # Route B's hand-measured figures, and the identity they must satisfy.

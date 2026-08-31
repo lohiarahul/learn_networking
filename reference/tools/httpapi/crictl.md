@@ -6,8 +6,8 @@ The node's container runtime *directly* — the only view left when the API serv
 |---|---|
 | **Speaks** | [`httpapi`](README.md) · verb-obj |
 | **Mode** | mutate |
-| **Taught in** | [the kubelet's side](../../../networking-fundamentals/act-4-one-pretends-many/06-the-kubelets-side.md) (built and run against `containerd` directly); the tool of choice once real Pods exist, in [static pods](../../../networking-fundamentals/act-6-control-plane/02-static-pods.md) |
-| **In the lab** | ❌ not installed in `netlab:latest` — but `apk add cri-tools` puts it in the Act IV `netshoot` lab, same as `runc` |
+| **Taught in** | [the kubelet's side](../../../networking-fundamentals/act-4-one-pretends-many/06-the-kubelets-side.md) |
+| **In the lab** | ❌ not installed in `netlab:latest` — you will meet this one outside the lab |
 | **Blind spot** | `httpapi` cannot tell you what the kernel actually did. Every one of these reports *intent*, and Acts V–X exist because intent and mechanism diverge |
 | **Also here** | [the roster](../README.md) · [by question](../../04-by-question.md) |
 
@@ -31,3 +31,12 @@ The node's container runtime *directly* — the only view left when the API serv
 | `crictl pods` | sandboxes |
 | `crictl logs <id>` | logs straight from the runtime |
 | `crictl inspectp <id>` | the pod sandbox config, including its network namespace |
+
+## As the course runs it
+
+*2 commands this course actually runs, taken apart. The breakdowns are hand-written.*
+
+| Command | Syntax breakdown | Lesson |
+|---|---|---|
+| `crictl version` | confirms `crictl` is a second, independent client of the same `containerd` `ctr` and `docker` both talk to | Lesson 6 — The kubelet's side |
+| `crictl runp sandbox.json` | RunPodSandbox — the two-phase model `ctr run` has no equivalent of: a Pod's network is set up before any container inside it exists, proven by the failure happening at the network step | Lesson 6 — The kubelet's side |

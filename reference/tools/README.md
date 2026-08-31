@@ -45,10 +45,10 @@ signature below was measured in the course's own lab image.
 | **`packet`** | `socket(AF_PACKET, …)` or `SOCK_RAW` | `tcpdump` · `tshark` · `scapy` · `arping` · `traceroute` · `mtr` · `nmap`&nbsp;‡ | Exactly what crossed one specific point on a link, byte for byte — a packet itself, not a kernel's opinion of one. *Not which process or rule put it there.* |
 | **`probe`** | `ptrace` · `bpf(2)` · `perf_event_open` | `strace` · `ltrace` · `bpftrace` · `bpftool` · `pwru` · `retis` · `falco` | Which kernel function actually ran, or dropped the packet — the only interface with no blind spot, because it instruments the kernel directly instead of asking it to self-report. *Needs a running target; nothing here works after the fact.* |
 | **`nsapi`** | `unshare` · `setns` · `clone` + bind mount | `ip netns`&nbsp;‖ · `unshare` · `nsenter` · `runc` | A door into a namespace that already exists, or a fresh one to make — the mechanism every container runtime is built on. *Moves you; reads nothing on its own.* |
-| **`httpapi`** | HTTPS/gRPC to a daemon or API server | `docker` · `crictl` · `kubectl` · `kind` · `kubeadm` · `etcdctl` · `helm` · `cilium` · `trivy` · `cosign` · `crane` · `ctr` · `containerd` · `skopeo` · `buildctl` · `buildkitd` | A control plane's own declared intent, from a system built to survive individual machines dying — the layer Acts V–X exist to teach. *Intent, not a guarantee the kernel underneath agrees.* |
+| **`httpapi`** | HTTPS/gRPC to a daemon or API server | `docker` · `crictl` · `kubectl` · `kind` · `kubeadm` · `etcdctl` · `helm` · `cilium` · `trivy` · `cosign` · `crane` · `ctr` · `containerd` · `skopeo` · `buildctl` · `buildkitd` · `prometheus` · `alertmanager` · `grafana` · `loki` · `logcli` | A control plane's own declared intent, from a system built to survive individual machines dying — the layer Acts V–XI exist to teach. *Intent, not a guarantee the kernel underneath agrees.* |
 | **`local`** | none — files or bytes you already have | `jq` · `xxd`/`base64` · `etcdutl` · `kustomize` · `kube-bench` · `umoci` | Reshapes or verifies bytes another tool already produced, with no kernel call of its own — the last mile between raw output and a readable answer. *Nothing about your machine that another tool didn't already tell it.* |
 
-`13 + 14 + 11 + 7 + 7 + 4 + 16 + 6 = 78` — every row on this page, each in exactly one interface.
+`13 + 14 + 11 + 7 + 7 + 4 + 21 + 6 = 83` — every row on this page, each in exactly one interface.
 
 > ### The unit is the *invocation*, not the binary
 >
@@ -74,7 +74,7 @@ signature below was measured in the course's own lab image.
 ## What can catch a transient
 
 The single most useful compartment on this page, because the answer is short and nobody has it
-memorised. **24 of the 78 tools can stream events**; everything else hands you a snapshot, and
+memorised. **24 of the 83 tools can stream events**; everything else hands you a snapshot, and
 *"I looked and saw nothing"* is not evidence when the thing you are hunting lasted 40 ms.
 
 | Interface | Streams with |
@@ -233,6 +233,16 @@ tell you.
 | [`crane`](httpapi/crane.md) | A registry's raw content: digests, manifests, layers, without pulling the image | httpapi · verb-obj | [what you shipped](../../networking-fundamentals/act-10-cluster-security/08-what-you-shipped.md) |
 | [`kube-bench`](local/kube-bench.md) | The cluster's own config scored against the CIS benchmark, file by file | local · flags | [the doors left open](../../networking-fundamentals/act-10-cluster-security/07-the-doors-left-open.md) |
 | [`falco`](probe/falco.md) | Syscall-level events *as they happen* — the runtime half that no scanner can give you | probe · rules + flags | [seeing it happen](../../networking-fundamentals/act-10-cluster-security/10-seeing-it-happen.md) |
+
+## Observability
+
+| Tool | The one thing only it shows you | Speaks | In the course |
+|---|---|---|---|
+| `prometheus` | A metric's own history, kept as a time series scraped on its own schedule — the fixed version of the six-line loop you can write by hand in one sitting | httpapi · verb-obj | [the loop that scrapes](../../networking-fundamentals/act-11-observability/04-the-loop-that-scrapes.md) |
+| `alertmanager` | Whether a firing rule becomes one notification or forty — the label-grouping mechanism, a third time in this course | httpapi · verb-obj | [an alert is a loop](../../networking-fundamentals/act-11-observability/05-an-alert-is-a-loop.md) |
+| `grafana` | A saved query, a time range and a `step`, rendered — and nothing else, once you have read its own `query_range` call yourself | httpapi · verb-obj | [a panel is a query](../../networking-fundamentals/act-11-observability/05b-a-panel-is-a-query.md) |
+| `loki` | An index built from label names only, never from a line's own text — the design decision that trades expensive full-text search for cheap ingestion | httpapi · verb-obj | [copying it off the node](../../networking-fundamentals/act-11-observability/02-copying-it-off-the-node.md) |
+| `logcli` | Loki's own query language from a terminal, so a line-content filter is visibly a grep over already-fetched chunks rather than an index hit | httpapi · verb-obj | [copying it off the node](../../networking-fundamentals/act-11-observability/02-copying-it-off-the-node.md) |
 
 ## General-purpose, used here to read kernel state
 

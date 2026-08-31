@@ -14,7 +14,7 @@ Route B is not a shortcut through the material. It is a *split* of it, and the h
 this:
 
 > **You can sit CKA having read 58% of the course.** The CKA path is 225,333 words. CKS is the other
-> 127,232. Only 43,325 words — 10.5% — sit outside both curricula, and those are gated as an
+> 127,232. Only 60,541 words — 14.3% — sit outside both curricula, and those are gated as an
 > [optional track](#the-optional-track) rather than removed.
 
 That is a smaller saving than it sounds like and a bigger one than it looks like. Smaller, because
@@ -24,7 +24,7 @@ with a date three weeks out and no idea which of the remaining 150k words are ex
 answers that question.
 
 > **A correction to the audit that produced this page.** [`AUDIT.md`](../AUDIT.md) §G estimated Route
-> B at "roughly 240k against 358k". Measured, it is **352,565 against 411,490** — the saving is 9%,
+> B at "roughly 240k against 358k". Measured, it is **352,565 against 423,996** — the saving is 9%,
 > not 33%. §G's estimate and §F's own inventory of off-syllabus material (~31k) never reconciled, and
 > §F was the one telling the truth. The consequence matters: **the length of this course is not a
 > sequencing problem and cannot be fixed by routing.** If it needs to be shorter, that has to come
@@ -67,7 +67,7 @@ explain the fix.
 
 ## The optional track
 
-43,325 words, 10.5% of the course, examined by neither curriculum. **None of it is cut**, and the
+60,541 words, 14.3% of the course, examined by neither curriculum. **None of it is cut**, and the
 reason is in the last row of each entry: this is the material that answers *why*, and the course is
 better for having it.
 
@@ -77,7 +77,7 @@ better for having it.
 | **Act IX 05** — OAuth2/OIDC against a live IdP | 5,485 | The only lesson in the repo needing a live external service (Keycloak). Kubernetes OIDC auth is examined nowhere and configured by hand rarely. | Whenever you next meet an identity provider at work, which is more likely than meeting one in an exam. |
 | **Act II 01b, 02b, 03c** — VLANs, BGP, DHCP | 6,465 | A CCNA annex. Zero CKA/CKS surface. `03b` (MTU) is the opposite and stays on the path. | If you also want the networking certification, or the day a VLAN tag ruins your afternoon. |
 | **Act III 04, 05** — HTTP, TLS | 6,528 | **Deferred, not optional — and the two differ.** Act VIII 05–06 at step 8 cover TLS properly, so `05` is genuinely superseded. `04` (HTTP) is not superseded by anything: Act V teaches Ingress and Gateway API without ever opening a request, so if header-and-method routing is not already yours, read `04` before step 3. | `05`: step 8 replaces it. `04`: before step 3, or never. |
-| **Act XI** — observability, 4 of 8 lessons so far (log-file mechanics, the Prometheus exposition format, a hand-rolled scrape loop, cardinality) | 12,524 | Closes no CKA/CKS gap by design — `kubectl top`, `kubectl logs` and "install a monitoring stack" appear on neither syllabus below the level this act teaches them. What it adds is the mechanism the exam only ever asks you to *use*: where a log line actually lives on a node, what a counter survives that a gauge does not, and why one label can double the size of a Prometheus instance's memory before anyone notices. | Whenever `kubectl logs --previous` or a flat, quiet dashboard panel has ever left you guessing instead of measuring — no exam deadline required. |
+| **Act XI** — observability: log-file mechanics, the Prometheus exposition format, a hand-rolled scrape loop, cardinality, alerting, dashboards, tracing | 29,740 | Closes no CKA/CKS gap by design — `kubectl top`, `kubectl logs` and "install a monitoring stack" appear on neither syllabus below the level this act teaches them, and Prometheus/Alertmanager/Grafana/Loki/tracing appear in neither curriculum at all. What it adds is the mechanism the exam only ever asks you to *use*: where a log line actually lives on a node, what a counter survives that a gauge does not, and why one label can double the size of a Prometheus instance's memory before anyone notices. | Whenever `kubectl logs --previous` or a flat, quiet dashboard panel has ever left you guessing instead of measuring — no exam deadline required. Read it after the certificate: this is the most job-relevant act in the repo and the least examinable one. |
 
 ---
 

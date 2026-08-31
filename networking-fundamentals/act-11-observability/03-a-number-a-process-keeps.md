@@ -206,8 +206,8 @@ system_usec 9997
 
 `usage_usec` in microseconds, divided by a million, is the same number `container_cpu_usage_seconds_total` reports in seconds — a file Act IV made you read with your own eyes, wearing a `# HELP` line and an HTTP response. **A metric is a file a process keeps about itself, exposed as a file you `GET`.** Nothing in this lesson has been a new fact about the kernel; every number in it was already sitting somewhere you had already been shown, and the only thing this lesson added was the vocabulary for reading many of them fast, without a `cat` per file, per node, per container.
 
-```
 <!-- figure -->
+```
    FOUR NUMBERS, FOUR DIFFERENT LIES A GAP TELLS
 
    THE FORMAT (unnamed since Act VI)
@@ -265,4 +265,4 @@ kubectl delete pod burner --ignore-not-found
 
 ---
 
-↑ **[Act XI overview](README.md)** · Prev: **[Nothing here remembers](01-nothing-here-remembers.md)** · Next: **[The loop that scrapes](04-the-loop-that-scrapes.md)** →
+↑ **[Act XI overview](README.md)** · Prev: **[Copying it off the node](02-copying-it-off-the-node.md)** · Next: **[The loop that scrapes](04-the-loop-that-scrapes.md)** →

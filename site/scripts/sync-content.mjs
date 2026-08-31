@@ -537,6 +537,7 @@ iptables-save iptables-restore etcdctl etcdutl kubeadm runc capsh getpcaps appar
 kustomize wg nstat bpftool devlink ipvsadm ipset scapy tracepath pkill timeout xargs readlink
 ctr containerd skopeo umoci apk buildctl buildkitd
 pwru retis tshark iperf3 pgrep ifconfig nettop scutil dscacheutil pfctl lsns
+prometheus promtool logcli amtool grafana alertmanager loki
 `.trim().split(/\s+/));
 
 /** Box-drawing and arrow glyphs: a sure sign the block is a diagram, not a command. */

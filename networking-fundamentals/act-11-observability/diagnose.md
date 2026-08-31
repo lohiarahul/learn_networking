@@ -1,6 +1,6 @@
 # Diagnose it — Act XI
 
-Six drills so far, covering the four lessons built to date — three more will arrive once the rest of the act ships. Act X's diagnose page found the sharpest possible framing for its own subject: *every component is healthy, every command succeeds, and the control is not doing what somebody believes.* That is also, precisely, what a monitoring failure is, so this act inherits the framing rather than inventing a new one — with one turn of the screw: here, **the thing that is wrong is the instrument you would have used to find out that something is wrong.**
+Nine drills, covering all eight lessons in this act. Act X's diagnose page found the sharpest possible framing for its own subject: *every component is healthy, every command succeeds, and the control is not doing what somebody believes.* That is also, precisely, what a monitoring failure is, so this act inherits the framing rather than inventing a new one — with one turn of the screw: here, **the thing that is wrong is the instrument you would have used to find out that something is wrong.**
 
 This act's method, in the position where Act V has five questions and Act X has four:
 
@@ -9,7 +9,7 @@ This act's method, in the position where Act V has five questions and Act X has 
 3. **Who decided this target exists, and would I know if they stopped?**
 4. **If this signal quietly stopped arriving, what would look different?** — Act X's question four, pointed at the monitoring instead of the control, and again the one nobody asks.
 
-Three of the six drills below need no cluster at all — they are arithmetic over samples you can do on a train, which matters for the reason Act X said it does: it tells you which of these you can practice without a laptop.
+Five of the nine drills below need no live Kubernetes cluster at all — two are arithmetic you can do on a train with nothing running, and three more (Bench D and Bench E, below) are one Prometheus container talking to one exporter container, which matters for the reason Act X said it does: it tells you which of these you can practice without a whole lab up.
 
 ---
 
@@ -106,6 +106,72 @@ The general rule, worth carrying past this one metric: **a range window should b
 
 ```bash
 tools/verify-drill.sh act-11 1 "why the 1-minute window came back empty"
+```
+
+## Bench E — a Prometheus with nothing pointed at the thing that matters
+
+Drill 2 needs its own small bench: a Prometheus with no scrape job at all for the name a rule is about to watch.
+
+```bash
+docker rm -f diag-prom2 >/dev/null 2>&1
+docker run -d --name diag-prom2 --network kind prom/prometheus:v3.0.1
+sleep 5
+```
+
+## Drill 2 — a dashboard flat green, an alert that never fired, nothing unhealthy
+
+**No repair needed here either — read, run, and diagnose.** A Service that an alert rule's scrape selector depends on gets its label renamed during a routine cleanup. Nobody updates the rule. Six months later there is an incident, the dashboard is calm, the pager never rang, and every person who looks at the dashboard concludes — reasonably, from what they can see — that nothing is wrong.
+
+```bash
+docker exec diag-prom2 wget -qO- 'http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22checkout%22%7D' \
+  | python3 -m json.tool
+```
+
+```json
+{"status": "success", "data": {"resultType": "vector", "result": []}}
+```
+
+**An empty array. Not a `0` anywhere in it — an empty array.** Now check what a rule written the obvious way, `up{job="checkout"} == 0`, would actually see if it evaluated this expression right now:
+
+```bash
+docker exec diag-prom2 wget -qO- 'http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22checkout%22%7D%20%3D%3D%200' \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['data']['result'])"
+```
+
+```
+[]
+```
+
+<details>
+<summary>Answer</summary>
+
+`up{job="checkout"}` is not `0` — there is no series to have a value, because `checkout` matches no scrape target in the config at all, so nothing was ever created to compare against zero. `up{job="checkout"} == 0` inherits that emptiness: comparing nothing against `0` produces nothing, not `true`, and a rule built on this expression can sit past its own `for:` window forever without once reaching `pending`, because the condition it is waiting to see continuously true was never satisfied even once. **The alert is not late. It cannot fire, structurally, no matter how long the incident lasts.**
+
+The fix is a different function asking a different question — not "what is the value" but "does anything exist here at all":
+
+```bash
+docker exec diag-prom2 wget -qO- 'http://localhost:9090/api/v1/query?query=absent(up%7Bjob%3D%22checkout%22%7D)' \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['data']['result'])"
+```
+
+```
+[{"metric": {"job": "checkout"}, "value": [..., "1"]}]
+```
+
+`absent()` returns a one-row vector with value `1` the instant nothing matches the selector — and note there is no `== 1` in a real rule built on it: any non-empty result fires an alerting rule, regardless of what the value in that row says. Every threshold rule in a real cluster deserves a sibling `absent()` rule watching the same selector, because a threshold alone can only ever answer "is the value bad," never "did the thing I am measuring stop existing."
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-11 2 "why a comparison against a metric that was never scraped cannot fire"
+```
+
+**Tear down Bench E:**
+
+```bash
+docker rm -f diag-prom2
 ```
 
 ## Drill 3 — queries time out, and Prometheus's own memory is climbing
@@ -250,6 +316,61 @@ tools/verify-drill.sh act-11 4 "why the filenames were visible but unreadable"
 kubectl delete pod shiptest --ignore-not-found
 ```
 
+## Drill 5 — the stack trace in the log store is three broken lines
+
+**No bench needed beyond the cluster itself.** A service logs a multi-line stack trace as one long write. The log aggregator receiving it from a hand-rolled shipper shows the trace as three separate, disconnected entries, each one useless on its own — no obvious way to tell they were ever one thing.
+
+```bash
+kubectl delete pod longline --ignore-not-found --wait=true
+kubectl run longline --image=busybox:1.36 --restart=Never \
+  --command -- sh -c "awk 'BEGIN{s=\"\"; for(i=0;i<70000;i++)s=s\"x\"; print s}'; sleep 600"
+sleep 5
+NODE=$(kubectl get pod longline -o jsonpath='{.spec.nodeName}')
+UID=$(kubectl get pod longline -o jsonpath='{.metadata.uid}')
+DIR=$(docker exec "$NODE" sh -c "ls /var/log/pods/ | grep $UID")
+docker exec "$NODE" sh -c "wc -l /var/log/pods/$DIR/longline/0.log; awk '{print length(\$0)}' /var/log/pods/$DIR/longline/0.log"
+```
+
+```
+5 /var/log/pods/default_longline_.../0.log
+16424
+16424
+16424
+16424
+4504
+```
+
+**One `print` statement in the container. Five separate lines on disk**, four of them exactly the same length. `kubectl logs longline` shows a single, complete line — the same bytes, reassembled:
+
+```bash
+kubectl logs longline | wc -c
+```
+
+```
+70001
+```
+
+<details>
+<summary>Answer</summary>
+
+The container runtime's log pipe writes in fixed-size chunks — around 16KB, measured here as five records of roughly 16,424 bytes (including the CRI metadata prefix) covering one 70,000-character write. Every record but the last is tagged **`P`** (partial); the last is tagged **`F`** (full), and that tag is the entire signal a reader needs to know whether a logical line continues onto the next record. `kubectl logs` already knows this convention and buffers `P` records until it sees the matching `F`, which is why it shows one clean 70,001-byte line (70,000 characters plus the trailing newline) instead of five.
+
+A hand-rolled shipper that tails the raw file and forwards each *line* of the file — which is what `tail -F` naturally produces, one shell line per newline-delimited record on disk — ships the four `P` fragments and the one `F` fragment as **five unrelated log entries**, because nothing about reading a file line-by-line knows that byte position 16,424 was actually the middle of one write. The fix is not a bigger buffer; it is teaching the shipper the same tag-based reassembly `kubectl logs` already does: hold `P` records for a given container in memory, keyed by stream, and only emit a complete line to the destination once an `F` closes the group out.
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-11 5 "why a single write became several records on disk"
+```
+
+**Tear down:**
+
+```bash
+kubectl delete pod longline --ignore-not-found
+```
+
 ## Drill 6 — the crash that mattered is not in `kubectl logs`, and `--previous` is empty
 
 **No bench beyond the cluster.** An incident: a Pod crashed three times over several minutes before anyone looked. By the time someone runs `kubectl logs --previous`, it returns nothing.
@@ -366,9 +487,50 @@ The corrected rule is `sum(rate(errors_total[5m])) / sum(rate(requests_total[5m]
 tools/verify-drill.sh act-11 8 "why averaging the ratios gave the wrong fleet rate"
 ```
 
----
+## Drill 9 — two complete-looking traces for one real request
 
-More drills will land here as lessons 02, 05, 05b and 06 ship.
+**No bench beyond the cluster itself.** Three services, `svc-a` → `svc-b` → `svc-c`, propagate a `traceparent` header through a chain, the same shape lesson 06 built. Somebody's on-call notes a request that looked slow on `svc-a`'s own logs, but the tracing backend shows two separate traces around that time window, each ending cleanly, neither one obviously the request in question. Reproduce the chain and look at what each service actually received:
+
+```bash
+kubectl exec curltest -- python3 -c "import urllib.request; urllib.request.urlopen('http://svc-a:8080/', timeout=5).read()"
+kubectl logs svc-a --tail=2; kubectl logs svc-b --tail=2; kubectl logs svc-c --tail=2
+```
+
+```
+=== svc-a ===
+received traceparent: 00-c1d5495493f6a6a824708a59b11352f5-158d8febff07ca9d-01
+calling svc-b, forwarding traceparent: 00-c1d5495493f6a6a824708a59b11352f5-c6567b3e257fd31c-01
+=== svc-b ===
+received traceparent: 00-c1d5495493f6a6a824708a59b11352f5-c6567b3e257fd31c-01
+calling svc-c, NOT forwarding (dropped the header)
+=== svc-c ===
+received traceparent: 00-4cefa960b71a23cf87a6935507bbaac3-0c5dbc4e48f31280-01
+```
+
+**`svc-a` and `svc-b` agree on a trace ID. `svc-c` has a completely different one, that it minted itself.** Diagnose which hop is responsible and why the backend cannot be blamed for showing two traces.
+
+<details>
+<summary>Answer</summary>
+
+`svc-b` is the hop that dropped the `traceparent` header on its call to `svc-c` — its own log says so directly ("NOT forwarding"), and the fix is exactly as small as the bug: copy the header, with a fresh span ID but the same trace ID, onto the outgoing request. Once `svc-b` receives no `traceparent` at all, `svc-c` cannot distinguish "the caller forgot to forward one" from "I am genuinely the first service this request ever touched," so it does the only reasonable thing available to it and mints a brand-new trace ID, becoming the root of what looks, from the backend's point of view, like an entirely separate, complete request.
+
+**The backend did nothing wrong.** It stored exactly two well-formed traces, because that is exactly what it was given — two independent identifiers, sent by two processes that had no way to know they were supposed to agree. Nothing about better storage, better sampling, or a better query fixes this; the information that ties the two spans together was never transmitted, and no amount of cleverness downstream recovers a fact that was never sent.
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-11 9 "which hop dropped the header, and why the backend cannot be blamed"
+```
+
+**Tear down:**
+
+```bash
+kubectl delete pod svc-a svc-b svc-c curltest --ignore-not-found
+kubectl delete service svc-a svc-b svc-c --ignore-not-found
+kubectl delete configmap tracer-script --ignore-not-found
+```
 
 ---
 
