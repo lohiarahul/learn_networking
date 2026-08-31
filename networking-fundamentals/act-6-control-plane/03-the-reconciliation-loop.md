@@ -188,4 +188,4 @@ That last check matters. If you interrupted this lesson partway through, a manif
 
 ---
 
-← Prev: **[Static pods — where the control plane lives](02-static-pods.md)** · ↑ **[Act VI overview](README.md)** · Next: **[The cluster's own PKI](04-the-clusters-own-pki.md)** →
+← Prev: **[What starts the kubelet](02b-what-starts-the-kubelet.md)** · ↑ **[Act VI overview](README.md)** · Next: **[The cluster's own PKI](04-the-clusters-own-pki.md)** →

@@ -134,13 +134,13 @@ docker exec $CP crictl pods --name kube-apiserver     # nothing -- not even a sa
 
 (Sixty seconds, because the previous sandbox lingers for about that long before it too is torn down. The three breaks in this lesson all reward a little patience, and all three punish checking early with an answer that looks like the opposite of the truth.)
 
-So the evidence has to be with whatever did the parsing, and that is the kubelet itself. Lesson 02 introduced systemd as the init system that starts the kubelet, and `systemctl` as the way to ask about one of its services. Systemd also *captures* every service's output into a single system journal, and **`journalctl -u <unit>`** is how you read one unit's share of it:
+So the evidence has to be with whatever did the parsing, and that is the kubelet itself. [Lesson 02b](02b-what-starts-the-kubelet.md) read the kubelet's unit file and the journal systemd captures its output into, so **`journalctl -u <unit>`** is a tool you already have; this is the Question-4 use it was for:
 
 ```bash
 docker exec $CP journalctl -u kubelet --since '-2min' --no-pager | grep -i -A3 'manifest\|error' | tail -20
 ```
 
-`-u kubelet` selects the unit, `--since '-2min'` limits it to the recent past, and `--no-pager` stops it trying to open an interactive pager you cannot use through `docker exec`. And there it is, repeating every twenty seconds or so:
+Same three flags as lesson 02b, with `--since '-2min'` doing the narrowing this time. And there it is, repeating every twenty seconds or so:
 
 ```
 "Could not process manifest file" err="/etc/kubernetes/manifests/kube-apiserver.yaml:

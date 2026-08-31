@@ -24,6 +24,32 @@ Two exceptions: a **Service** splits into `/registry/services/specs/<ns>/<name>`
 
 </details>
 
+> **Question 2b —** A colleague reports three things about a node's kubelet: `systemctl restart kubelet` exited 0, the unit is `inactive`, and `journalctl -u kubelet` shows no crash. Separately, `Restart=always` is in the unit file. Explain all four facts together, name the property that settles it in one read, and say why `Restart=always` is not the contradiction it looks like.
+
+<details>
+<summary>Answer</summary>
+
+`systemctl show kubelet -p ConditionResult` settles it, and it reads `no`. The unit has a condition — `ConditionPathExists=/var/lib/kubelet/config.yaml` — which systemd evaluates *before* starting the process. An unmet condition is a **no-op, not a failure**: `Result=success`, `NRestarts=0`, and the journal's only entry is "skipped, unmet condition check." There was never a process to crash, so there is nothing for the journal to hold.
+
+`Restart=always` is not contradicted because a restart policy governs a process that ran and exited. Nothing ran. That is also the asymmetry to keep from the same three lines: a kubelet that *crashes* comes back once a second forever, and a kubelet you `systemctl stop` stays stopped — because an administrative stop is systemd's own decision and systemd does not fight itself.
+
+The diagnostic value is the branch. `failed` means it ran and died and the journal has the reason; `inactive` with `ConditionResult=no` means it never ran and the journal has nothing to give you. Going looking for a crash in the second case is how this eats an hour.
+
+</details>
+
+> **Question 2c —** Somebody adds a drop-in under `/etc/systemd/system/kubelet.service.d/`, runs `systemctl restart kubelet`, gets exit 0 and a healthy service, and the setting has no effect. Name the missing step, the one property that proves it, and the file you would read to confirm the fix actually took.
+
+<details>
+<summary>Answer</summary>
+
+The missing step is `systemctl daemon-reload`. Unit files are parsed from disk once and then **cached in memory**; a `restart` restarts the process from the cache and re-reads nothing, so it truthfully reports success while running the old definition. Modern systemd does warn — but on stderr, with exit 0 and a running service, so every other signal says the change landed.
+
+`systemctl show kubelet -p DropInPaths` proves it: the new file is simply absent from the list, even though it is on disk. That is the difference between what is in the directory and what systemd believes the unit is.
+
+To confirm the fix, do not stop at `systemctl show`. A resource setting is not honoured until it is a byte in a cgroup file — so for `MemoryMax=512M`, read `/sys/fs/cgroup/kubelet.slice/kubelet.service/memory.max` and expect `536870912`. That is the same file Act IV had you `cat` by hand, and `systemctl show -p MemoryCurrent`/`CPUUsageNSec` are formatted reads of its neighbours.
+
+</details>
+
 > **Question 3 —** The API server is a Pod. The scheduler, which assigns Pods to nodes, is also a Pod. Construct the boot order. When you fail, say precisely which component escapes the problem and why it can.
 
 <details>

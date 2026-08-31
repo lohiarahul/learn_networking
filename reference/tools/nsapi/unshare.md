@@ -1,12 +1,12 @@
 # `unshare`
 
-A new namespace of any type, created *around a new process* — the mechanism `docker run` performs for you
+A new namespace of any type, created *around a new process* — the mechanism `docker run` performs for you, and the only one an unprivileged user can perform themselves
 
 | | |
 |---|---|
 | **Speaks** | [`nsapi`](README.md) · flags (`-m -u -i -n -p -U -C -T`) |
 | **Mode** | mutate |
-| **Taught in** | [the kernel says no](../../../networking-fundamentals/act-10-cluster-security/02-the-kernel-says-no.md) |
+| **Taught in** | [who am I](../../../networking-fundamentals/act-4-one-pretends-many/05c-who-am-i.md) |
 | **In the lab** | ✅ `/usr/bin/unshare` · unshare from util-linux 2.41.3 |
 | **Blind spot** | `nsapi` cannot tell you what is *inside* a namespace. These move you between namespaces; they read nothing — a property of the [interface](README.md), not of this tool |
 | **Also here** | [the roster](../README.md) · [by question](../../04-by-question.md) |

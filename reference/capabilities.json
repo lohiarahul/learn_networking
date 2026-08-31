@@ -2193,6 +2193,66 @@
     ],
     "course": []
   },
+  "journalctl": {
+    "name": "“journal control”",
+    "mode": [
+      "read-only"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "keys": [
+      [
+        "-u <unit>",
+        "one unit's share of the store. A **field match against structured records**, not a text search — which is why it can separate one unit's lines from a thousand interleaved by timestamp, and `grep` on a text log cannot"
+      ],
+      [
+        "-n <count>",
+        "the last *n* records. The flag `exam-prep/kubectl-speed.md` drills as `journalctl -u kubelet -n 50 --no-pager` and no lesson had shown before Act VI 02b"
+      ],
+      [
+        "--no-pager",
+        "do not open an interactive pager. Required through `docker exec`, where there is no terminal for one to attach to"
+      ]
+    ],
+    "caps": [
+      [
+        "One unit's output, when nothing above it will answer",
+        [
+          [
+            "journalctl -u kubelet -n 50 --no-pager",
+            "the last fifty records for one unit"
+          ],
+          [
+            "journalctl -u kubelet --since '-2min' --no-pager",
+            "a bounded window — and `-- No entries --` is a claim about the store, not about the unit"
+          ],
+          [
+            "journalctl --disk-usage",
+            "how much the store holds, which bounds how far back any question can reach"
+          ],
+          [
+            "journalctl --file <path>",
+            "read a journal file directly, with systemd never consulted — the measurement that puts this tool in `local` rather than `httpapi`"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "journalctl -u kubelet --since '-1min' --no-pager",
+        "why": "the evidence that an unmet `ConditionPathExists` is recorded as “skipped, unmet condition check” rather than as a crash — an `inactive` unit whose journal holds no failure, because nothing ran",
+        "act": "Act VI — The cluster that runs itself",
+        "lesson": "Lesson 2b — What starts the kubelet"
+      },
+      {
+        "cmd": "journalctl -u kubelet -n 3 --no-pager",
+        "why": "introduces `-n`, the flag `exam-prep/kubectl-speed.md` drills as reflex for the moment `kubectl` stops answering",
+        "act": "Act VI — The cluster that runs itself",
+        "lesson": "Lesson 2b — What starts the kubelet"
+      }
+    ]
+  },
   "kind": {
     "name": "Kubernetes in Docker",
     "mode": [
@@ -3901,6 +3961,89 @@
         "why": "the table ceiling. Compare against `-C`: as they converge, new connections fail intermittently under load — a failure that looks exactly like a flaky network",
         "act": "Act III — The internet",
         "lesson": "Lesson 2b — conntrack"
+      }
+    ]
+  },
+  "systemctl": {
+    "name": "“system control”",
+    "mode": [
+      "mutate"
+    ],
+    "standing": {
+      "level": "default"
+    },
+    "keys": [
+      [
+        "cat <unit>",
+        "the unit's **definition, merged from disk** — base file plus every drop-in, each path printed as a comment. The only honest way to read a unit"
+      ],
+      [
+        "show -p <prop>",
+        "one property of the definition **currently in memory**. It differs from `cat` exactly when somebody edited a file and did not `daemon-reload`, which is the bug"
+      ],
+      [
+        "is-active <unit>",
+        "one word and an exit code. `3` means not running — the useful check, because `restart` exits **0** even when a condition refused to let the unit run at all"
+      ]
+    ],
+    "caps": [
+      [
+        "What a service is, and what will happen to it",
+        [
+          [
+            "systemctl cat <unit>",
+            "the file, plus its drop-in stack in merge order"
+          ],
+          [
+            "systemctl show <unit> -p Restart -p ConditionResult -p Result",
+            "why it is in the state it is in — `ConditionResult=no` with `Result=success` is a unit that *declined*, not one that failed"
+          ],
+          [
+            "systemctl show <unit> -p FragmentPath -p DropInPaths",
+            "every file that contributed to the definition"
+          ],
+          [
+            "systemctl is-active <unit>",
+            "one word, and an exit code worth reading: `3` is not-running. Check this rather than `restart`'s status, because `restart` exits 0 even when a condition stopped the unit from running"
+          ],
+          [
+            "systemctl daemon-reload",
+            "re-read the files from disk. Without it a `restart` succeeds and runs the old definition"
+          ]
+        ]
+      ],
+      [
+        "What it is using, which is a cgroup read in disguise",
+        [
+          [
+            "systemctl show <unit> -p CPUUsageNSec -p MemoryCurrent",
+            "the same integers as `cpu.stat` and `memory.current` in the unit's own cgroup — measured identical, digit for digit"
+          ],
+          [
+            "systemctl status <unit>",
+            "state, drop-in stack, main PID and the cgroup path, on one screen"
+          ]
+        ]
+      ]
+    ],
+    "course": [
+      {
+        "cmd": "systemctl cat kubelet",
+        "why": "the whole unit — `ConditionPathExists`, the `Restart=`/`RestartSec=` trio, `Slice=`, and both drop-ins in merge order, including kubeadm's `ExecStart=`-clears-then-resets pattern",
+        "act": "Act VI — The cluster that runs itself",
+        "lesson": "Lesson 2b — What starts the kubelet"
+      },
+      {
+        "cmd": "systemctl show kubelet -p CPUUsageNSec -p MemoryCurrent",
+        "why": "returns the same integers as the unit's `cpu.stat` and `memory.current`, proving `systemctl show` is a formatted read of Act IV's cgroup files rather than a monitoring system of its own",
+        "act": "Act VI — The cluster that runs itself",
+        "lesson": "Lesson 2b — What starts the kubelet"
+      },
+      {
+        "cmd": "systemctl daemon-reload",
+        "why": "earned rather than pasted: the restart before it succeeds, exits 0, warns only on stderr, and runs the old configuration — with the new drop-in absent from `DropInPaths`",
+        "act": "Act VI — The cluster that runs itself",
+        "lesson": "Lesson 2b — What starts the kubelet"
       }
     ]
   },

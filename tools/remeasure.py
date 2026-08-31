@@ -97,16 +97,16 @@ CLAIMS = [
 
 # The optional track is quoted as a percentage of the course in two places. Same numerator,
 # and they disagreed. Both are recomputed from the measured total.
-OPTIONAL_WORDS = 60_541
+OPTIONAL_WORDS = 65_578
 PCT_CLAIMS = [
     ("exam-prep/the-exam-path.md",
-     r"(?<=Only 60,541 words — )[\d.]+(?=% — sit outside both curricula)"),
+     r"(?<=Only 65,578 words — )[\d.]+(?=% — sit outside both curricula)"),
     ("exam-prep/the-exam-path.md",
-     r"(?<=^60,541 words, )[\d.]+(?=% of the course)"),
+     r"(?<=^65,578 words, )[\d.]+(?=% of the course)"),
 ]
 
 # Route B's hand-measured figures, and the identity they must satisfy.
-ROUTE_B = {"cka": 225_333, "cks_only": 127_232, "cumulative": 352_565}
+ROUTE_B = {"cka": 229_127, "cks_only": 127_232, "cumulative": 356_359}
 
 
 def fmt(n: int) -> str:

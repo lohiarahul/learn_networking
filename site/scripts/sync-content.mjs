@@ -530,7 +530,7 @@ ip iptables ip6tables nft curl wget cat ls docker kubectl ping ping6 dig drill d
 tcpdump ss netstat nc ncat socat conntrack arp arping ethtool bridge tc nsenter unshare mount findmnt
 umount df stat ln rm mkdir touch echo printf export exec cd pwd sleep kill strace ltrace ps
 bpftrace nmap python3 python make gcc cc bash sh sudo kind helm openssl base64 xxd od hexdump
-awk sed grep cut sort uniq head tail wc tr tee seq watch dhclient resolvectl systemctl modprobe sysctl
+awk sed grep cut sort uniq head tail wc tr tee seq watch dhclient resolvectl systemctl journalctl modprobe sysctl setpriv
 traceroute mtr nslookup lsof prlimit ulimit chmod chown id whoami uname hostname date env true
 eza bat fd rg jq yq cilium hubble crictl getent
 iptables-save iptables-restore etcdctl etcdutl kubeadm runc capsh getpcaps apparmor_parser trivy cosign crane kube-bench falco kyverno

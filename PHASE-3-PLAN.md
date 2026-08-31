@@ -7,10 +7,15 @@
 run against the real lab — `netlab:latest` and a two-node `kindest/node:v1.37.0` cluster — and is
 pasted from the run, not paraphrased. Where a claim has **not** been run, §9 says so in those words.*
 
-> **Status: proposal.** Nothing here is shipped. Unlike Phase 2, this phase's central argument is not
-> "here is a subject the course lacks" — it is **"here are three things the course already leans on and
-> never built, and in one case the repo prints the contradiction itself."** §5 is that argument, and it
-> is the reason to build this rather than Phase 4.
+> **Status: shipped.** All three lessons plus the Act X insertion are live —
+> [`act-4/05b`](networking-fundamentals/act-4-one-pretends-many/05b-entering-what-you-did-not-name.md),
+> [`act-4/05c`](networking-fundamentals/act-4-one-pretends-many/05c-who-am-i.md),
+> [`act-6/02b`](networking-fundamentals/act-6-control-plane/02b-what-starts-the-kubelet.md), and the
+> `hostUsers` section in `act-10/01`. §12 records how each open question was actually resolved during the
+> build, rather than leaving them as open questions in a shipped phase. Unlike Phase 2, this phase's
+> central argument was never "here is a subject the course lacks" — it was **"here are three things the
+> course already leaned on and never built, and in one case the repo printed the contradiction itself."**
+> §5 was that argument, verified again against a rebuilt lab during the build and found to still hold.
 
 ---
 
@@ -695,28 +700,50 @@ already, closes the only exam gap, and touches Act VI only.
 
 ---
 
-## 12. Open questions this plan does not decide
+## 12. Open questions this plan left — and how the build actually resolved each
 
-Recorded rather than resolved, in the manner Phase 2 recorded its Loki question before evidence settled
-it:
+Phase 2 recorded its Loki question before evidence settled it; these five were written the same way,
+and the build settled all five. Recorded here as resolved rather than deleted, because the reasoning is
+the part worth keeping.
 
-1. **Does `01c` belong in Act IV at all, or in Act X 01 as one long section?** §2 argues Act IV on River
-   grounds and I believe it — but the counter-argument is real: Act IV is pre-Kubernetes, so `01c` can
-   never show the payoff, and a reader may meet `uid_map` 400 pages before it does anything. Settle by
-   writing `01c` and asking `learner-simulator` whether the motivation survives without the Pod field.
-2. **What interface family do `systemctl` and `journalctl` belong to?** Neither is `procfs`, `netlink`,
-   `httpapi` nor `nsapi` in the sense the roster means. They speak a D-Bus API and a binary journal.
-   This may argue for a ninth family, which is a roster-schema change and therefore a bigger decision
-   than two pages. **Do not default it silently.**
-3. **Is `05b` a lesson or a section of `05`?** It is 2,200 words and lesson 05 is 1,449 — folding gives
-   ~3,600, above the median but unremarkable. Phase 2 asked this about `05b` and the answer was "keep it
-   separate because the insight stands alone". The `ip netns`-is-blind finding probably does too. Decide
-   after writing, not before.
-4. **Should `01b-cgroups.md` gain the systemd-slice bridge, or does `02b` own it?** §5.3 finding 4 says
-   the cgroups lesson is the natural home for "systemd owns the cgroup tree", but that lesson is in
-   Act IV and systemd is not introduced until Act VI. Either `01b` gains a forward pointer, or `02b`
-   carries the whole bridge backwards. **Prefer the latter** — a forward reference to an act three
-   acts away is the defect this phase exists to remove — but it is not settled.
-5. **Does the journal's volatility deserve the drill it was denied in §7?** It is a genuine 3am
-   experience ("I rebooted the node and now there is no evidence") and the reason it was cut is lab
-   cost, not pedagogy. If Act VI's `diagnose.md` gains a paper-shaped drill anyway, reconsider.
+1. **Does the user-namespace lesson belong in Act IV at all, or in Act X 01 as one long section?**
+   **Resolved: Act IV, but not at `01c` — moved to `05c`, after `05b`.** Writing it at `01b`'s position
+   surfaced exactly the counter-argument this question named: with no container in front of the reader,
+   "container root is host root" is an assertion, not a measurement. Placing it after `05` and `05b`
+   means the reader already has a running `runc` container, a PID, and the `ip netns`-is-blind result —
+   so `unshare -U --map-root-user` lands as *"you have just been shown one handle fails; here is a second
+   thing about identity you have also been assuming."` The Pod payoff still waits for Act X 01, and that
+   gap is now named explicitly in `05c`'s own closing rather than left implicit.
+2. **What interface family do `systemctl` and `journalctl` belong to?** **Resolved: no ninth family.**
+   Measured rather than argued: `/proc/net/unix` on the lab node shows live connections to
+   `/run/systemd/private` while `systemctl` runs, which is the same shape as any other daemon client — so
+   `systemctl` is `httpapi`, transport footnoted as a unix socket rather than HTTP/gRPC. `journalctl`
+   measured the opposite way: `journalctl --file <a copy of the journal>` returns identical records with
+   systemd never consulted, and a running `journalctl -f` holds no socket at all in `/proc/<pid>/fd/`. It
+   reads a file, which is `local`'s definition exactly. Both pages shipped in `reference/tools/`, the
+   roster's interface table carries a footnote explaining the split, and `reference/capabilities.json`
+   gained both entries.
+3. **Is `05b` a lesson or a section of `05`?** **Resolved: separate**, matching Phase 2's answer for the
+   same question about a different `05b`. Final length 2,170 words against lesson 05's roughly 1,450 —
+   folding would give ~3,600, unremarkable but with no gain, and the `ip netns`-is-blind finding is a
+   complete argument on its own that a fold would bury under lesson 05's runtime-chain argument.
+4. **Should `01b-cgroups.md` gain the systemd-slice bridge, or does `02b` own it?** **Resolved: `02b`
+   owns it, as guessed.** `01b` was left untouched; `02b` carries the whole bridge, reading
+   `/sys/fs/cgroup/kubelet.slice/kubelet.service/{cpu.stat,memory.current}` and Act IV's own file paths in
+   one command so the connection is measured rather than asserted, with a parenthetical noting the path
+   shape changed (a container's own cgroup root in Act IV vs. a nested slice path read from the node in
+   Act VI) so the reader is not left to notice the discrepancy alone.
+5. **Does the journal's volatility deserve the drill it was denied in §7?** **Resolved: still no**, on the
+   original reasoning — reboot-shaped drills are destructive to a shared lab. It surfaces as prose
+   instead, in `02b`'s own journal section (`/run/log/journal` on `tmpfs`, confirmed with `findmnt` rather
+   than asserted) and in drill 13's reveal, which is the volatility's diagnostic consequence — an
+   `inactive` unit with `ConditionResult=no` and an empty journal — without needing to actually reboot
+   anything.
+
+**One thing this plan did not anticipate and the build found anyway:** two review passes on `02b` (before
+and after a revision) each surfaced the same defect class Phase 1 and Act XI kept finding — an argument
+built by citing lessons the reader has not read yet (lesson 08, `diagnose.md`, lesson 09) instead of from
+what lesson 02 itself left unanswered. The fix was to rebuild the opening from lesson 02's own two loose
+threads — "how do you stop the kubelet, given it has no manifest" and "who restarts the one thing nothing
+above it can restart" — which is the shape §5.3 argued for in the abstract; the first draft did not follow
+its own argument.

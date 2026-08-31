@@ -1168,6 +1168,226 @@ tools/verify-drill.sh act-6 11 "the daemon that stopped"
 
 ---
 
+## Drill 12 — "we capped the kubelet's memory and the cap is not there"
+
+> **Ticket:** *"The kubelet on `netlab-worker` grew to eat most of the node last month, so we added a
+> memory cap to its service. Change reviewed, file written, service restarted, no errors, service came
+> back healthy. And `systemctl show` still says the limit is infinity. Did the change not apply, or is
+> `show` lying to us?"*
+
+**Reproduce it** (run; don't read):
+
+```bash
+docker exec netlab-worker sh -c 'printf "[Service]\nMemoryMax=512M\n" > /etc/systemd/system/kubelet.service.d/20-memcap.conf'
+docker exec netlab-worker systemctl restart kubelet
+sleep 3
+```
+
+**Confirm the symptom:**
+
+```bash
+docker exec netlab-worker sh -c 'systemctl is-active kubelet; systemctl show kubelet -p MemoryMax'
+docker exec netlab-worker cat /sys/fs/cgroup/kubelet.slice/kubelet.service/memory.max
+docker exec netlab-worker cat /etc/systemd/system/kubelet.service.d/20-memcap.conf
+```
+
+```
+active
+MemoryMax=infinity
+max
+[Service]
+MemoryMax=512M
+```
+
+The file says `512M`. The service is healthy. Both the service manager and the kernel say there is no
+limit. Nothing failed anywhere.
+
+**Your move.** Do not edit the file — it is correct. Find out what systemd currently believes the
+definition of this unit *is*, and where it got that from.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+```bash
+docker exec netlab-worker systemctl show kubelet -p DropInPaths
+```
+
+```
+DropInPaths=/etc/systemd/system/kubelet.service.d/10-kubeadm.conf /etc/systemd/system/kubelet.service.d/11-kind.conf
+```
+
+**Your file is not in the list.** Two drop-ins, and `20-memcap.conf` is not one of them — so systemd is
+running a definition that does not contain your change, and `MemoryMax=infinity` is a truthful answer
+about that definition.
+
+Unit files are parsed from disk and then **cached in memory**. A `restart` restarts the process from the
+cached definition; it does not re-read anything. And the restart reported success, because from
+systemd's point of view it did exactly what it was asked ([lesson 02b](02b-what-starts-the-kubelet.md)).
+
+The one signal you were given, and it is easy to lose in a CI log, was on stderr:
+
+```
+Warning: The unit file, source configuration file or drop-ins of kubelet.service changed on disk.
+Run 'systemctl daemon-reload' to reload units.
+```
+
+Exit code 0, service `active`, one warning on the stream nobody reads.
+
+**Root cause:** the drop-in was written but never loaded — no `systemctl daemon-reload`, so systemd
+restarted the cached definition.
+**Fix:**
+
+```bash
+docker exec netlab-worker systemctl daemon-reload
+docker exec netlab-worker systemctl restart kubelet
+sleep 3
+docker exec netlab-worker sh -c 'systemctl show kubelet -p MemoryMax; cat /sys/fs/cgroup/kubelet.slice/kubelet.service/memory.max'
+```
+
+```
+MemoryMax=536870912
+536870912
+```
+
+Two tools, one number. `536870912` is 512 MiB, and it is now in `memory.max` — the same file
+[Act IV's cgroups lesson](../act-4-one-pretends-many/01b-cgroups.md) had you read by hand. That is the
+confirmation worth taking: a unit setting is not honoured until it is a byte in a cgroup file, and you
+can go and look.
+
+**Cleanup** — leave the kubelet uncapped, because 512 MiB is not a limit you want on a lab node:
+
+```bash
+docker exec netlab-worker sh -c 'rm -f /etc/systemd/system/kubelet.service.d/20-memcap.conf; systemctl daemon-reload; systemctl restart kubelet'
+```
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 12 "no daemon-reload"
+```
+
+---
+
+## Drill 13 — "the kubelet will not start and there is nothing in the log"
+
+> **Ticket:** *"`netlab-worker` went `NotReady` after a maintenance window. We got as far as the kubelet
+> being down, so we started it. `systemctl start` returned no error and the kubelet is still down.
+> `journalctl -u kubelet` shows a clean shutdown and then nothing — no crash, no stack trace, no
+> repeated attempts. Is systemd broken?"*
+
+**Reproduce it** (run; don't read):
+
+```bash
+docker exec netlab-worker sh -c 'mv /var/lib/kubelet/config.yaml /root/held.yaml'
+docker exec netlab-worker systemctl restart kubelet
+sleep 45
+```
+
+**Confirm the symptom:**
+
+```bash
+kubectl get node netlab-worker
+docker exec netlab-worker sh -c 'systemctl start kubelet; echo "start exit=$?"'
+docker exec netlab-worker sh -c 'systemctl is-active kubelet; echo "is-active exit=$?"'
+docker exec netlab-worker journalctl -u kubelet -n 3 --no-pager
+```
+
+```
+netlab-worker   NotReady   <none>   12m   v1.37.0
+start exit=0
+inactive
+is-active exit=3
+kubelet.service: Deactivated successfully.
+Stopped kubelet.service - kubelet: The Kubernetes Node Agent.
+kubelet.service: Consumed 1.213s CPU time, 36M memory peak.
+```
+
+Read the first two lines together, because they are the drill: **`systemctl start` exited 0 and the unit
+is `inactive`.** No error was reported and nothing started. And `Restart=always` is in that unit's file,
+so a crash would be retrying once a second — it is not retrying.
+
+**Your move.** You have two facts that do not fit a crash: an exit code of 0 from `start`, and a journal
+with no failure in it. Stop looking for the crash. Ask systemd why it is not running instead.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+```bash
+docker exec netlab-worker systemctl show kubelet -p ActiveState -p Result -p NRestarts -p ConditionResult
+```
+
+```
+Result=success
+NRestarts=0
+ActiveState=inactive
+ConditionResult=no
+```
+
+`Result=success` on a unit that is not running, `NRestarts=0`, and **`ConditionResult=no`**. Systemd did
+not try and fail. It evaluated a condition, the condition was false, and it **declined to start** — which
+it counts as a success, because declining is what it was asked to do.
+
+Which condition, and what it wants, is in the unit:
+
+```bash
+docker exec netlab-worker systemctl cat kubelet | grep Condition
+docker exec netlab-worker journalctl -u kubelet --since '-2min' --no-pager | grep -i condition
+```
+
+```
+ConditionPathExists=/var/lib/kubelet/config.yaml
+kubelet.service - kubelet: The Kubernetes Node Agent skipped, unmet condition check ConditionPathExists=/var/lib/kubelet/config.yaml
+```
+
+**"Skipped, unmet condition check"** — and note where that line is: in the journal, in the window you
+already looked at, just not among the last three records and not containing the word "error." A condition
+is checked *before* the process starts, so `Restart=` never came into it: a restart policy governs a
+process that ran and exited, and here nothing ran ([lesson 02b](02b-what-starts-the-kubelet.md)).
+
+This is deliberate on kind's part, and the file says so — `# NOTE: kind deviates from upstream here to
+avoid crashlooping`. Without the condition you would get a kubelet failing to parse a missing file once a
+second forever, which fills the journal and tells you nothing this one line does not.
+
+**Root cause:** `/var/lib/kubelet/config.yaml` is missing, so `ConditionPathExists` is unmet and the unit
+refuses to run rather than failing.
+**Fix** — restore the path the condition names, then a plain `start`:
+
+```bash
+docker exec netlab-worker sh -c 'mv /root/held.yaml /var/lib/kubelet/config.yaml'
+docker exec netlab-worker systemctl start kubelet
+sleep 5
+docker exec netlab-worker sh -c 'systemctl is-active kubelet; systemctl show kubelet -p ConditionResult'
+until [ "$(kubectl get node netlab-worker --no-headers | awk '{print $2}')" = "Ready" ]; do sleep 3; done
+kubectl get nodes
+```
+
+```
+active
+ConditionResult=yes
+```
+
+Notice that a `start` was enough, and that nothing had been retrying in the background waiting for the
+file. A condition is evaluated when the unit is asked to start, and only then — which is why the fix has
+two steps and why doing them in the wrong order looks like the fix not working.
+
+**The reasoning worth keeping:** four drills now end at a `NotReady` node, and this is the one where the
+node is not broken and the kubelet is not crashing. `Ready=Unknown` sent you to the kubelet, as in
+drill 9 — and then the branch is `systemctl show`: `ActiveState=failed` means it ran and died and the
+journal has the reason; **`inactive` with `ConditionResult=no` means it never ran and the journal has
+nothing to give you.** Going looking for a crash in the second case is how this one eats an hour.
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-6 13 "an unmet ConditionPathExists"
+```
+
+---
+
 ## When you can do these without the reveals
 
 You can operate a cluster below `kubectl` — which is the thing this act existed to give you, and the thing that separates knowing Kubernetes from being able to fix it. Notice what every drill had in common: **the fix was never in the manifest the ticket was about.** Almost all of them were solved by asking *which process should have done this, and did it* — one by asking *which of authentication and authorisation actually failed*, and the last three by asking *is this node broken, or has it merely stopped talking about itself*. Those three are worth learning as a set, because they arrive as one symptom and separate on two fields and one command: `Ready=Unknown` means nobody is reporting and the reporter is what you go and find; `Ready=False` means the kubelet is alive and naming its own failing subsystem, and `crictl ps` then tells you whether the runtime is answering. Drill 11 is the one to remember on a bad night — it removes observation and control while leaving execution untouched, so everything that reports is broken and everything that serves is fine.

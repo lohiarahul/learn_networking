@@ -128,7 +128,7 @@ each time. Phase 1 is therefore three lessons, not "a bit of Act IV".
 | **0b** | Harness rebuilt as `tools/harness/` — invariant registry, course graph, River made machine-checkable, self-applying size budgets, SARIF output, parity + mutation selftests | ✅ **shipped** |
 | **1** | Act IV: the runtime peel and the build side — three lessons | ✅ **3 of 3 shipped** |
 | **2** | Act XI: observability (Stage 7.8) — designed in detail in [`ACT-11-PLAN.md`](ACT-11-PLAN.md) | ✅ **shipped (8 of 8 lessons, both waves)** |
-| **3** | Thin spots: user namespaces / rootless, `nsenter`, `systemd` — designed in detail in [`PHASE-3-PLAN.md`](PHASE-3-PLAN.md) | 🔜 **designed, not built** |
+| **3** | Thin spots: user namespaces / rootless, `nsenter`, `systemd` — designed in detail in [`PHASE-3-PLAN.md`](PHASE-3-PLAN.md) | ✅ **shipped (3 of 3 lessons + the Act X insertion)** |
 | **4** | Route C — the platform ordering, published as a view | 🔜 |
 
 ### Phase 0 — shipped
@@ -366,30 +366,45 @@ neither reaches — **how do I know before someone tells me?** Full act shape re
 full, and `act-11-observability` is in `ACT_DIRS` in `tools/harness/model.py`, so the shape is enforced
 going forward rather than merely true today.
 
-### Phase 3 — thin spots
+### Phase 3 — thin spots (shipped)
 
-**Designed in full in [`PHASE-3-PLAN.md`](PHASE-3-PLAN.md)**, and the design sharpened the case
-considerably: these are not three coverage gaps but three mechanisms the course **already leans on and
-never built** — the §2.1 River shape, whose worst instance Phase 1 found as `runc`/`crictl` used 159
-times and never introduced.
+**Designed in full in [`PHASE-3-PLAN.md`](PHASE-3-PLAN.md), then built.** The design sharpened the case
+considerably before a word of lesson prose was written: these were not three coverage gaps but three
+mechanisms the course **already leaned on and had never built** — the §2.1 River shape, whose worst
+instance Phase 1 found as `runc`/`crictl` used 159 times and never introduced.
 
-The audit corrected this section's own figures. `nsenter` is used **45 times across 11 files and never
-once run** — a fact [`Toolbelt.md`](Toolbelt.md) states about itself in writing. User namespaces are not
-"6 hits" but effectively one clause, and there is a **live River violation in shipped prose**: Act X
-lesson 02 hands the reader `unshare -U` as "Act IV's mechanism", while Act IV names the user namespace
-once to say it is "the only one this course cares about" — about the network namespace, excluding it.
-That is the same phantom-citation defect Phase 1 found in Act V lesson 02. `systemd`'s introduction is
-**33 words at one line** of Act VI lesson 02, carrying ~30 later uses across Acts VI and X plus
-exam-prep, with no unit file ever read, no restart semantics, and no reference page for either
-`systemctl` or `journalctl`.
+The audit corrected the depth plan's own figures. `nsenter` was used **45 times across 11 files and never
+once run** — a fact [`Toolbelt.md`](Toolbelt.md) stated about itself in writing. User namespaces were not
+"6 hits" but effectively one clause, and there was a **live River violation in shipped prose**: Act X
+lesson 02 handed the reader `unshare -U` as "Act IV's mechanism", while Act IV named the user namespace
+once to say it was "the only one this course cares about" — about the network namespace, excluding it.
+That was the same phantom-citation defect Phase 1 found in Act V lesson 02; it is now fixed at the
+citation site. `systemd`'s introduction was **33 words at one line** of Act VI lesson 02, carrying ~30
+later uses across Acts VI and X plus exam-prep, with no unit file ever read, no restart semantics, and no
+reference page for either `systemctl` or `journalctl`.
 
-So the shape is three lessons inside existing acts plus one insertion, not a new act: user namespaces as
-Act IV `01c` (where the act's see/use frame is missing its third question, *who*), `nsenter` as Act IV
-`05b` (where lesson 05 already leaves the reader holding a container's PID and two namespace inodes),
-`systemd` as Act VI `02b`, and `hostUsers: false` inserted into Act X lesson 01's existing heading "Who
-you are, decided much too late". ≈13,000 words, **nothing new installed**, and it is the first phase to
-close a genuine exam gap — the CKA troubleshooting bullet is already marked ✅ covered on the strength of
-`journalctl -u kubelet`, a command the course never explained.
+**Shipped as three lessons inside existing acts plus one insertion, exactly as designed:** user
+namespaces as Act IV [`05c-who-am-i.md`](networking-fundamentals/act-4-one-pretends-many/05c-who-am-i.md)
+(placed after `05b` rather than `01b` — the write order surfaced that the payoff needs a container in
+front of the reader, which pre-Kubernetes Act IV cannot give until lesson 05); `nsenter` as Act IV
+[`05b-entering-what-you-did-not-name.md`](networking-fundamentals/act-4-one-pretends-many/05b-entering-what-you-did-not-name.md)
+(lesson 05 already leaves the reader holding a container's PID and two namespace inodes, and `05b`
+measures `ip netns list` printing nothing with **exit 0** on a machine full of containers before handing
+over the PID-addressed alternative); `systemd` as Act VI
+[`02b-what-starts-the-kubelet.md`](networking-fundamentals/act-6-control-plane/02b-what-starts-the-kubelet.md);
+and `hostUsers: false` inserted into Act X lesson 01's existing heading "Who you are, decided much too
+late", measured live on a `v1.37.0` cluster (`0 <allocated-uid> 65536` against the identity map's
+`0 0 4294967295`). Two lesson reviews (`learner-simulator` + `technical-accuracy-checker`) each ran twice
+— the first pass on `02b` found the same defect class Phase 1 and Act XI kept finding, an argument built
+from lessons the reader has not read yet, and the second confirmed the rewrite closed it. Ships with the
+phantom citation repaired at its source (`act-10/02-the-kernel-says-no.md`), the "five namespaces" framing
+corrected in three files, two new `reference/tools/` pages (`systemctl`, `journalctl` — resolved as
+`httpapi`/`local` respectively, by measuring `/proc/net/unix` and a file-only `journalctl --file` read
+rather than defaulting the roster's open §12.2 question), four new diagnose.md drills, and the exam
+accounting redone: `02b` sits on Route B's path (CKA's *troubleshoot clusters and nodes* bullet was
+marked ✅ covered on the strength of `journalctl -u kubelet`, a command the course had never explained,
+and `journalctl -n` closes a flag `kubectl-speed.md` drilled but no lesson had shown); `05b`/`05c` are
+optional-track. Final size ≈13,600 words against the ≈13,000 estimate.
 
 ### Phase 4 — Route C, as a view
 

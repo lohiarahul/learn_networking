@@ -20,14 +20,9 @@ Which means the ordinary path is not the one they take. **There must be a way to
 
 ### The one component that starts without being told
 
-The kubelet is not a Pod. It is a plain background service on the node, started at boot by the init system — `systemd`, on these nodes as on most Linux hosts — and holding no cluster state at all. `systemctl` is how you ask systemd about one of its services:
+The kubelet is not a Pod. It is a plain background service on the node, started at boot by the init system — `systemd`, on these nodes as on most Linux hosts — and holding no cluster state at all. That is the whole escape from the deadlock, and it is enough for this lesson; [the next one](02b-what-starts-the-kubelet.md) opens the file systemd starts it from, because the rest of this act ends up depending on what is in it.
 
-```bash
-docker exec netlab-control-plane systemctl is-active kubelet
-docker exec netlab-control-plane systemctl cat kubelet | grep -A3 ExecStart
-```
-
-And it takes a config file. One field in it breaks the deadlock:
+And the kubelet takes a config file. One field in it breaks the deadlock:
 
 ```bash
 docker exec netlab-control-plane grep -i staticpod /var/lib/kubelet/config.yaml
@@ -165,4 +160,4 @@ docker exec netlab-control-plane ls /etc/kubernetes/manifests/     # all four
 
 ---
 
-← Prev: **[The API server is a filesystem](01-the-api-server-is-a-filesystem.md)** · ↑ **[Act VI overview](README.md)** · Next: **[The reconciliation loop](03-the-reconciliation-loop.md)** →
+← Prev: **[The API server is a filesystem](01-the-api-server-is-a-filesystem.md)** · ↑ **[Act VI overview](README.md)** · Next: **[What starts the kubelet](02b-what-starts-the-kubelet.md)** →

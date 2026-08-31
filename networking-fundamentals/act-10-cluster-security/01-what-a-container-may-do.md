@@ -345,6 +345,57 @@ spec:
 
 Two levels, container wins where both are set, and one field that exists at only one of them. `fsGroup` is the odd one: it is not about the process at all, it is about **volumes** — the kubelet chowns the volume's contents to that gid and sets the setgid bit on its directories, so a non-root process can write to storage it does not own. It is the answer to "I set `runAsNonRoot` and now my PersistentVolumeClaim is unwritable," which is the most common consequence of doing the right thing here.
 
+Every field above picks a *number*. There is one more that changes what the number **means**, and it is the Kubernetes end of the mechanism [Act IV's `05c`](../act-4-one-pretends-many/05c-who-am-i.md) built by hand. Run the same Pod twice, differing in one line:
+
+```bash
+for h in true false; do
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata: {name: hostusers-$h}
+spec:
+  hostUsers: $h
+  restartPolicy: Never
+  containers:
+  - name: c
+    image: busybox:1.36
+    command: ["sh","-c","id -u; cat /proc/self/uid_map; grep CapEff /proc/self/status"]
+EOF
+done
+sleep 14
+for h in true false; do echo "== hostUsers: $h"; kubectl logs hostusers-$h; done
+```
+
+```
+== hostUsers: true
+0
+         0          0 4294967295
+CapEff:	00000000a80425fb
+
+== hostUsers: false
+0
+         0 2814902272      65536
+CapEff:	00000000a80425fb
+```
+
+**Same UID. Same fourteen capabilities. Different map.** `hostUsers: true` is the default and it is the identity map — this container's root is the node's root, which is the first measurement in this lesson restated as three integers. `hostUsers: false` puts the Pod in a user namespace, and the kubelet allocated it 65,536 host UIDs starting at 2,814,902,272 — a number nothing else on that node is, chosen by the kubelet and written down nowhere in your manifest. Yours will be a different number: the range is allocated per Pod, so re-running this gets you a new one.
+
+So the paradox this lesson opened with — it is root, and it is not root — stops being a paradox and becomes a field. The container is UID 0 in every way it can observe. On the node it is a UID with no name, no files, and no group, and `CAP_DAC_OVERRIDE` over a filesystem where nothing it can name owns anything is not worth much.
+
+Two honest limits. First, this is the newest thing in the lesson and its availability is a property of your cluster, not of Kubernetes — so ask the cluster rather than a version number:
+
+```bash
+kubectl get --raw /metrics | grep UserNamespacesSupport
+```
+
+```
+kubernetes_feature_enabled{name="UserNamespacesSupport",stage=""} 1
+```
+
+A `0`, or no line at all, means the field will be silently ignored and you will get the identity map back with no error. Check the map, not the manifest.
+
+Second, notice which problem it does *not* solve. The capability set did not change, so everything earlier in this lesson still applies: `hostUsers: false` and `drop: ["ALL"]` are answers to different questions, and the mechanism that refuses a *syscall* regardless of either is the next lesson's.
+
 ### The flag whose name explains nothing
 
 `allowPrivilegeEscalation` sounds like a summary of everything above, and is instead one specific, narrow kernel bit. Look at it directly:

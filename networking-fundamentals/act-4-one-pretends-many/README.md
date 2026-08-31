@@ -19,9 +19,11 @@ Work through these in order. Each one runs experiments in the lab container and 
 3. **[veth and bridge](02-veth-and-bridge.md)** — the virtual wire and the software switch.
 4. **[iptables and NAT](03-iptables-and-nat.md)** — rewriting addresses so a private host can reach the internet, and the nftables store both grammars actually write to.
 5. **[Overlay and VXLAN](04-overlay-vxlan.md)** — wrapping a packet in a packet so two private networks share one wire.
-6. **[Who does this for you](05-who-does-this-for-you.md)** — the OCI runtime spec, `runc`, and `containerd`: the same five namespaces and cgroup, built by a program instead of your fingers.
-7. **[The kubelet's side](06-the-kubelets-side.md)** — the Container Runtime Interface: why a Pod's sandbox is created before any container in it, proven by a network setup failing first.
-8. **[How a layer is made](07-how-a-layer-is-made.md)** — the build side of Act I 06b's overlayfs read: BuildKit, and a secret you can recover from a raw layer after the `RUN` that deleted it.
+6. **[Who does this for you](05-who-does-this-for-you.md)** — the OCI runtime spec, `runc`, and `containerd`: the five namespaces and cgroup a bundle asks for, built by a program instead of your fingers.
+7. **[Entering what you did not name](05b-entering-what-you-did-not-name.md)** — `ip netns list` is empty on a machine full of containers, and exits 0. What a name actually is, and the tool that needs a PID instead of one.
+8. **[Who am I](05c-who-am-i.md)** — the third question the act never posed. `/proc/self/uid_map`, an unprivileged user who becomes root, and a process holding all 41 capabilities that still cannot write to `/etc`.
+9. **[The kubelet's side](06-the-kubelets-side.md)** — the Container Runtime Interface: why a Pod's sandbox is created before any container in it, proven by a network setup failing first.
+10. **[How a layer is made](07-how-a-layer-is-made.md)** — the build side of Act I 06b's overlayfs read: BuildKit, and a secret you can recover from a raw layer after the `RUN` that deleted it.
 
 Every lesson ends by tearing down what it built, so you can work straight through in one container without tripping over the last experiment's leftovers.
 

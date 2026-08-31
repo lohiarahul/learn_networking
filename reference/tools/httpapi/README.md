@@ -2,9 +2,9 @@
 
 **What you see in `strace`:** a TLS or Unix-socket connection, then HTTP or gRPC
 
-Eleven tools. Every one of them talks to *another program* — a daemon, an API server, a registry — and
-that program answers with **what it intends**, not with what the kernel did. Acts V–XI exist largely
-because those two things diverge.
+Twenty-two tools. Every one of them talks to *another program* — a daemon, an API server, a registry, or
+the init system — and that program answers with **what it intends**, not with what the kernel did.
+Acts V–XI exist largely because those two things diverge.
 
 [`docker`](docker.md) · [`crictl`](crictl.md) ·
 [`kubectl`](kubectl.md) · [`kind`](kind.md) ·
@@ -12,9 +12,18 @@ because those two things diverge.
 [`helm`](helm.md) · [`cilium`](cilium.md) ·
 [`trivy`](trivy.md) · [`cosign`](cosign.md) ·
 [`crane`](crane.md) · `ctr` · `containerd` · `skopeo` · `buildctl` · `buildkitd` ·
-`prometheus` · `alertmanager` · `grafana` · `loki` · `logcli`
+`prometheus` · `alertmanager` · `grafana` · `loki` · `logcli` ·
+[`systemctl`](systemctl.md)
 
-Ten of those eleven-turned-twenty-one have no page of their own. `ctr`, `containerd`, `skopeo`,
+`systemctl` is the one whose transport is not HTTP or gRPC, and it is here anyway because the *shape*
+is identical: it opens a unix socket to a daemon — `/run/systemd/private`, PID 1's own, which
+`/proc/net/unix` shows live connections to — and gets back that daemon's **cached** definition of a
+unit. [Act VI 02b](../../../networking-fundamentals/act-6-control-plane/02b-what-starts-the-kubelet.md)
+measures that cache diverging from the file on disk, which is this interface's blind spot arriving on a
+single Linux host rather than across a cluster. Its sibling `journalctl` is deliberately **not** here;
+it is [`local`](../local/journalctl.md), for reasons that page gives.
+
+Ten of the rest have no page of their own. `ctr`, `containerd`, `skopeo`,
 `buildctl` and `buildkitd` are named here and taught where they are actually run —
 [Act IV](../../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md), which
 builds and runs a container by hand before ever installing Docker, then

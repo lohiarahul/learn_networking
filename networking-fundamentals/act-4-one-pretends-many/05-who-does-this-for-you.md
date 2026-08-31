@@ -78,8 +78,12 @@ jq '.linux.namespaces' bundle/config.json
 ]
 ```
 
-Names, not flags — and they are the same five words `unshare --help` uses. `config.json` is not a
+Names, not flags — and they are five of the words `unshare --help` uses. `config.json` is not a
 new vocabulary. It is the vocabulary you already own, serialised.
+
+Five is what this bundle asks for, not how many kinds the kernel has; `ls /proc/self/ns/` will show
+you more than five, and [lesson 05b](05b-entering-what-you-did-not-name.md) reads that listing
+against this array.
 
 ### Run it, and check the identity the way you already know how
 
@@ -175,4 +179,4 @@ chain, is the next layer up, and it has a name of its own: the **Container Runti
 
 ---
 
-← Prev: **[Overlay and VXLAN](04-overlay-vxlan.md)** · ↑ **[Act IV overview](README.md)** · Next: **[The kubelet's side](06-the-kubelets-side.md)** →
+← Prev: **[Overlay and VXLAN](04-overlay-vxlan.md)** · ↑ **[Act IV overview](README.md)** · Next: **[Entering what you did not name](05b-entering-what-you-did-not-name.md)** →

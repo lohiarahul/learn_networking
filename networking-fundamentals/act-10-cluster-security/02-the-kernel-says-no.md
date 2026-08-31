@@ -4,7 +4,7 @@ Fourteen capabilities against a kernel that exposes over three hundred syscalls.
 
 So the question from the end of lesson 01 stands: what stops a process from making a syscall when no capability is standing in front of it?
 
-> **Predict first —** three answers, committed before you run anything. **(a)** Does a default Kubernetes Pod have a syscall filter installed? **(b)** Does a default `docker run` container? **(c)** `unshare -U` creates a new **user namespace** — Act IV's mechanism, and the one an attacker reaches for first, because inside a fresh user namespace you are root and can then create the other namespace types. It needs **no capability at all**. Will it succeed in a default Pod? Get (a) and (b) the same way round and you have the standard mental model; they are not the same way round.
+> **Predict first —** three answers, committed before you run anything. **(a)** Does a default Kubernetes Pod have a syscall filter installed? **(b)** Does a default `docker run` container? **(c)** `unshare -U` creates a new **user namespace** — [Act IV lesson 05c](../act-4-one-pretends-many/05c-who-am-i.md)'s mechanism, and the one an attacker reaches for first, because inside a fresh user namespace you are root and can then create the other namespace types. It needs **no capability at all**. Will it succeed in a default Pod? Get (a) and (b) the same way round and you have the standard mental model; they are not the same way round.
 
 ### The filter that is not there
 

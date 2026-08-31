@@ -279,6 +279,11 @@
    "present": true,
    "version": "modprobe: can't change directory to '/lib/modules': No such file or directory"
   },
+  "journalctl": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
   "jq": {
    "path": "/usr/bin/jq",
    "present": true,
@@ -455,6 +460,11 @@
    "provider": "busybox",
    "version": ""
   },
+  "systemctl": {
+   "path": "",
+   "present": false,
+   "version": ""
+  },
   "tc": {
    "path": "/sbin/tc",
    "present": true,
@@ -507,5 +517,5 @@
    "version": ""
   }
  },
- "total": 83
+ "total": 85
 }

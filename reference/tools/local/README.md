@@ -2,14 +2,25 @@
 
 **What you see in `strace`:** ordinary file reads. No socket, no netlink, no probe.
 
-Six tools that are in a networking reference for one reason: **they reshape output another tool
-produced.** Saying so explicitly is the point of this page. A `local` tool cannot know anything about
-your machine's network, so it can never be the source of a networking answer — only the thing that
-makes another tool's answer readable.
+Seven tools that are here for one reason: **they read or reshape bytes another program already
+produced**, with no kernel call of their own. Saying so explicitly is the point of this page. A `local`
+tool can never tell you anything its input did not already contain — which for six of them means they
+cannot be the source of a networking answer at all, only the thing that makes another tool's answer
+readable.
 
 [`jq`](jq.md) · [`xxd`](xxd.md) ·
 [`etcdutl`](etcdutl.md) · [`kustomize`](kustomize.md) ·
-[`kube-bench`](kube-bench.md) · `umoci`
+[`kube-bench`](kube-bench.md) · [`journalctl`](journalctl.md) · `umoci`
+
+`journalctl` is the row that tests this page's own definition, and passes it. It looks like a daemon
+client — its sibling `systemctl` is one — and it is not: `journalctl --file <a copy of the journal>`
+returns the same field-filtered records with systemd never consulted, and a running `journalctl -f`
+holds no socket at all in `/proc/<pid>/fd/`. It reads a file `systemd-journald` wrote. So it is the one
+`local` tool that *is* a source of a diagnostic answer — not because it reaches into the machine, but
+because the bytes it was handed are the machine's own record of itself. Everything it cannot tell you is
+something the writer did not record, or has already discarded, which is exactly why
+[Act VI 02b](../../../networking-fundamentals/act-6-control-plane/02b-what-starts-the-kubelet.md) has
+the reader find out where the store lives before trusting an empty result.
 
 `umoci` is the one bare name: it flattens an OCI image layout into the bundle `runc` reads, with no
 page of its own, taught in [Act IV](../../../networking-fundamentals/act-4-one-pretends-many/05-who-does-this-for-you.md)

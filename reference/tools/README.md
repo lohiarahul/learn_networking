@@ -45,10 +45,12 @@ signature below was measured in the course's own lab image.
 | **`packet`** | `socket(AF_PACKET, …)` or `SOCK_RAW` | `tcpdump` · `tshark` · `scapy` · `arping` · `traceroute` · `mtr` · `nmap`&nbsp;‡ | Exactly what crossed one specific point on a link, byte for byte — a packet itself, not a kernel's opinion of one. *Not which process or rule put it there.* |
 | **`probe`** | `ptrace` · `bpf(2)` · `perf_event_open` | `strace` · `ltrace` · `bpftrace` · `bpftool` · `pwru` · `retis` · `falco` | Which kernel function actually ran, or dropped the packet — the only interface with no blind spot, because it instruments the kernel directly instead of asking it to self-report. *Needs a running target; nothing here works after the fact.* |
 | **`nsapi`** | `unshare` · `setns` · `clone` + bind mount | `ip netns`&nbsp;‖ · `unshare` · `nsenter` · `runc` | A door into a namespace that already exists, or a fresh one to make — the mechanism every container runtime is built on. *Moves you; reads nothing on its own.* |
-| **`httpapi`** | HTTPS/gRPC to a daemon or API server | `docker` · `crictl` · `kubectl` · `kind` · `kubeadm` · `etcdctl` · `helm` · `cilium` · `trivy` · `cosign` · `crane` · `ctr` · `containerd` · `skopeo` · `buildctl` · `buildkitd` · `prometheus` · `alertmanager` · `grafana` · `loki` · `logcli` | A control plane's own declared intent, from a system built to survive individual machines dying — the layer Acts V–XI exist to teach. *Intent, not a guarantee the kernel underneath agrees.* |
-| **`local`** | none — files or bytes you already have | `jq` · `xxd`/`base64` · `etcdutl` · `kustomize` · `kube-bench` · `umoci` | Reshapes or verifies bytes another tool already produced, with no kernel call of its own — the last mile between raw output and a readable answer. *Nothing about your machine that another tool didn't already tell it.* |
+| **`httpapi`** | HTTPS/gRPC to a daemon or API server, or a unix socket to a local one | `docker` · `crictl` · `kubectl` · `kind` · `kubeadm` · `etcdctl` · `helm` · `cilium` · `trivy` · `cosign` · `crane` · `ctr` · `containerd` · `skopeo` · `buildctl` · `buildkitd` · `prometheus` · `alertmanager` · `grafana` · `loki` · `logcli` · `systemctl`&nbsp;# | A control plane's own declared intent, from a system built to survive individual machines dying — the layer Acts V–XI exist to teach. *Intent, not a guarantee the kernel underneath agrees.* |
+| **`local`** | none — files or bytes you already have | `jq` · `xxd`/`base64` · `etcdutl` · `kustomize` · `kube-bench` · `umoci` · `journalctl`&nbsp;# | Reshapes or verifies bytes another tool already produced, with no kernel call of its own — the last mile between raw output and a readable answer. *Nothing about your machine that another tool didn't already tell it.* |
 
-`13 + 14 + 11 + 7 + 7 + 4 + 21 + 6 = 83` — every row on this page, each in exactly one interface.
+`13 + 14 + 11 + 7 + 7 + 4 + 22 + 7 = 85` — every row on this page, each in exactly one interface.
+
+**#** The two systemd tools were the hardest rows on this page to place, and the plan that added them ([`PHASE-3-PLAN.md`](../../PHASE-3-PLAN.md) §12.2) left the question open rather than defaulting it. They are one binary family and **two different interfaces**, which is why they are split: `systemctl` is a client of a daemon — measured by `/proc/net/unix`, which shows live connections to `/run/systemd/private`, PID 1's own socket — and it returns that daemon's *cached* definition, which [Act VI 02b](../../networking-fundamentals/act-6-control-plane/02b-what-starts-the-kubelet.md) demonstrates can diverge from the file on disk. That divergence **is** the `httpapi` blind spot, stated in this table's last column, so the row belongs there even though the transport is a unix socket rather than HTTPS. `journalctl` is not a client of anything: `journalctl --file <a copy of the journal>` returns the same `-u`-filtered records with systemd never consulted, and a running `journalctl -f` holds **no socket at all** in `/proc/<pid>/fd/`. It reads a file another program wrote, which is `local`'s definition. Both signatures were read from `/proc` rather than `strace`, because the lab's systemd host has no `strace` — a weaker instrument than this page's other rows use, and worth re-checking on a host that does.
 
 > ### The unit is the *invocation*, not the binary
 >
@@ -74,7 +76,7 @@ signature below was measured in the course's own lab image.
 ## What can catch a transient
 
 The single most useful compartment on this page, because the answer is short and nobody has it
-memorised. **24 of the 83 tools can stream events**; everything else hands you a snapshot, and
+memorised. **24 of the 85 tools can stream events**; everything else hands you a snapshot, and
 *"I looked and saw nothing"* is not evidence when the thing you are hunting lasted 40 ms.
 
 | Interface | Streams with |
@@ -196,8 +198,8 @@ tell you.
 | Tool | The one thing only it shows you | Speaks | In the course |
 |---|---|---|---|
 | [`ip netns`](nsapi/ip-netns.md) | Named network namespaces, created as bind mounts under `/run/netns` — which is why it cannot see Docker's | nsapi&nbsp;‖ · obj-verb | [namespaces](../../networking-fundamentals/act-4-one-pretends-many/01-namespaces.md) |
-| [`unshare`](nsapi/unshare.md) | A new namespace of any type, created *around a new process* — the mechanism `docker run` performs for you | nsapi · flags (`-m -u -i -n -p -U -C -T`) | [the kernel says no](../../networking-fundamentals/act-10-cluster-security/02-the-kernel-says-no.md) |
-| [`nsenter`](nsapi/nsenter.md) | Entry into an *existing* process's namespaces — the mechanism under `docker exec` and `kubectl exec`, and the way into a container with no shell of its own | nsapi · same flag letters as `unshare` | **roster only** *(named in prose, never run)* |
+| [`unshare`](nsapi/unshare.md) | A new namespace of any type, created *around a new process* — the mechanism `docker run` performs for you, and the only one an unprivileged user can perform themselves | nsapi · flags (`-m -u -i -n -p -U -C -T`) | [who am I](../../networking-fundamentals/act-4-one-pretends-many/05c-who-am-i.md) |
+| [`nsenter`](nsapi/nsenter.md) | Entry into an *existing* process's namespaces, addressed by a **PID rather than a name** — the only handle a container actually gives you, and the way into one with no tools of its own | nsapi · same flag letters as `unshare` | [entering what you did not name](../../networking-fundamentals/act-4-one-pretends-many/05b-entering-what-you-did-not-name.md) |
 | [`capsh`](procfs/capsh.md) | Which Linux capabilities a process actually holds, decoded from `/proc/<pid>/status`'s `CapEff` bitmask | procfs · flags | [what a container may do](../../networking-fundamentals/act-10-cluster-security/01-what-a-container-may-do.md) |
 | [`getpcaps`](procfs/getpcaps.md) | The capability set `capsh --print` decodes, but for a **running PID** and in one line — no need to start a process inside it | procfs · `getpcaps <pid>` | [Act X diagnose](../../networking-fundamentals/act-10-cluster-security/diagnose.md) |
 | [`apparmor_parser`](procfs/apparmor-parser.md) | Whether a profile loads, and in what mode — the difference between "enforcing" and "you thought it was enforcing" | procfs · flags | [the kernel says no](../../networking-fundamentals/act-10-cluster-security/02-the-kernel-says-no.md) |
@@ -223,6 +225,16 @@ tell you.
 | [`kustomize`](local/kustomize.md) | The overlay-resolved manifests `helm template` would give you, with no templating language at all | local · verb-obj | [shipping a set of objects](../../networking-fundamentals/act-7-workloads/08-shipping-a-set-of-objects.md) |
 | [`cilium`](httpapi/cilium.md) | An eBPF datapath's own view: policy verdicts, identities, and its BPF maps | httpapi · verb-obj | [encryption between Pods](../../networking-fundamentals/act-10-cluster-security/09-encryption-between-pods.md) |
 | [`wg`](netlink/wg.md) | The live tunnel state — peers, handshakes, keys — under Cilium's or anyone else's encryption | netlink · verb-obj | [encryption between Pods](../../networking-fundamentals/act-10-cluster-security/09-encryption-between-pods.md) |
+
+## The init system
+
+Two tools, one binary family, **two different interfaces** — see the **#** note under the interface
+table for how that was measured and why it matters.
+
+| Tool | The one thing only it shows you | Speaks | In the course |
+|---|---|---|---|
+| [`systemctl`](httpapi/systemctl.md) | What a service *is* rather than whether it is up: the unit file merged from its drop-in stack, the restart policy that decides whether a crash returns, and the cgroup the process was placed in | httpapi · verb-obj | [what starts the kubelet](../../networking-fundamentals/act-6-control-plane/02b-what-starts-the-kubelet.md) |
+| [`journalctl`](local/journalctl.md) | One unit's share of a **structured** log store, selected by field match rather than text search — and the store's own limits, which is why an empty result is a claim about the store | local · flags | [what starts the kubelet](../../networking-fundamentals/act-6-control-plane/02b-what-starts-the-kubelet.md) |
 
 ## Supply chain and runtime security
 

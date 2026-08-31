@@ -56,12 +56,38 @@ A namespace answers **what can this process see** (its own interfaces, routes, s
 
 </details>
 
-> **Question 7 —** `config.json`'s `linux.namespaces` array lists five namespace types. If you started a container with bare `runc` and then ran `docker ps`, would Docker's list include it — and what does your answer say about where a container's identity actually lives?
+> **Question 7 —** `config.json`'s `linux.namespaces` array lists five namespace types — which is not how many the kernel has. If you started a container with bare `runc` and then ran `docker ps`, would Docker's list include it — and what does your answer say about where a container's identity actually lives?
 
 <details>
 <summary>Answer</summary>
 
 No. `docker ps` reads Docker's own bookkeeping, not the kernel. A container `runc` starts directly is a real, live network namespace with a real inode and a real cgroup — the kernel holds it whether or not any tool is watching. Identity lives in the kernel object, not in any daemon's tracking of it.
+
+</details>
+
+> **Question 7b —** You are on a machine running a dozen containers. `ip netns list` prints nothing and exits `0`. Say what that empty output is a claim about, what `ip netns add` creates that no container runtime does, and which handle `nsenter` uses instead — including the one way *that* handle fails where a name would not.
+
+<details>
+<summary>Answer</summary>
+
+It is a claim about the contents of `/var/run/netns/`, and nothing more. `ip netns add` creates a **bind mount** of a namespace onto a file in that directory — that file *is* the name — and `runc`, `docker`, `containerd` and the kubelet create none, so `ip netns` is blind to every container on the box and reports that as an empty list, which is the correct way to list nothing.
+
+`nsenter -t <pid>` addresses the namespace through **a process that is in it**, read from `/proc/<pid>/ns/`, which the kernel maintains for every process whether or not anyone named anything. A container always has a PID, so the handle always exists.
+
+Where the PID fails: a container that is restarting has no *stable* process, so the PID can die between finding it and using it. The two handles fail in opposite directions — a name outlives the namespace (and can end up pointing at a reused PID, which will silently run your command somewhere else entirely), and a PID can vanish before you use it.
+
+</details>
+
+> **Question 7c —** A process reports `id -u` of 0, `/proc/<pid>/status` read from outside says `Uid: 1000`, and `CapEff` shows all 41 capabilities set — and it cannot create a file in `/etc`. Reconcile all four facts from one file, and say why `chown 5000:5000` on a file it *does* own fails with `EINVAL` rather than `EPERM`.
+
+<details>
+<summary>Answer</summary>
+
+`/proc/<pid>/uid_map`, reading `0 1000 1` — `<inside> <outside> <range>`. The process is in a user namespace where inside-0 is outside-1000. `id -u` reads the map and truthfully says 0; you reading `status` from outside truthfully see 1000. Nothing is lying; the two answers are about different namespaces.
+
+The capabilities are real and buy nothing here, because a capability is permission to *attempt* an operation and the operation is still checked against the map. `/etc` is owned by host UID 0, which is not in this process's map, so there is no privilege that reaches it. A plain container's map is `0 0 4294967295` — the identity map — which is why container root there *is* host root.
+
+`EINVAL` rather than `EPERM` because 5000 is not in the map at all: the kernel is not refusing a permitted-in-principle operation, it has no way to *express* that UID inside this namespace. Forbidden and unnameable are different answers, and only the second one cannot be argued with.
 
 </details>
 

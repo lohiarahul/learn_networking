@@ -143,7 +143,7 @@ and when you're building, you wield the modern one without ceremony.
 ## Stage 6 — Containers (one machine pretends to be many)
 
 **Fundamentals**
-- `ip netns`, `nsenter`, `unshare` — build and enter namespaces by hand (containers, demystified). *(`ip netns` is taught in Act IV and `unshare` in Act X; `nsenter` is named in prose and never run — [derive it yourself](reference/06-derive-it.md#ladder-1--derive-the-command).)*
+- `ip netns`, `nsenter`, `unshare`, `setpriv` — build and enter namespaces by hand, and change who is asking (containers, demystified). *(all four are taught in Act IV: `ip netns` in lesson 01, `nsenter` in 05b — against a container `ip netns` cannot see — and `unshare -U` with `setpriv` in 05c. [The derive-it ladder](reference/06-derive-it.md#ladder-1--derive-the-command) still reconstructs `nsenter` from first principles if you want the exercise.)*
 - `iptables` / `nft` — the NAT and filtering rules a container runtime writes for you. *(`iptables` is taught in Act IV; `nft` is roster only — zero lesson uses, despite being the modern replacement.)*
 - `bridge` — manage the virtual switch (`docker0` and friends).
 - `runc` / `crun` — the OCI runtime that actually starts a container.

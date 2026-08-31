@@ -40,7 +40,7 @@ namespaces and veths from scratch (the same commands you ran in lessons 1–3), 
 Every drill below carries a **target time**, and this is the one thing these drills do that the
 lessons deliberately do not. The course is built to make you understand; a certification is scored on
 whether you can act inside a budget, and those are different skills that look identical from the
-inside. So: Five rather than seven, because each of these drills has a narrower surface than an exam task — one machine, or two, and a handful of files.
+inside. So: Five rather than seven minutes on most of them, because each of these drills has a narrower surface than an exam task — one machine, or two, and a handful of files.
 
 Three rules, taken straight from [the exam-day pacing doctrine](../../exam-prep/exam-day.md):
 
@@ -756,17 +756,243 @@ tools/verify-drill.sh act-4 7 "what a later RUN can never do to an earlier layer
 
 ---
 
+## Drill 8 — "The runbook's first command says the namespace does not exist"
+
+**Target: 4 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"Container's up, app inside it is misbehaving, and I want to see its interfaces. Our
+> runbook says `ip netns exec <container> ip addr`. It tells me the namespace does not exist. So I
+> listed the namespaces on the box and got **nothing** — on a machine that is definitely running
+> containers. Is the container's networking gone, or is this box broken?"*
+
+**Reproduce it** (run; don't read):
+
+```bash
+apk add --no-cache runc skopeo umoci jq >/dev/null 2>&1
+mkdir -p /work && cd /work
+skopeo copy docker://alpine:latest oci:alpine-oci:latest >/dev/null 2>&1
+umoci unpack --image alpine-oci:latest bundle >/dev/null 2>&1
+jq '.process.terminal=false | .process.args=["/bin/sleep","600"]' bundle/config.json \
+  > /tmp/c.json && mv /tmp/c.json bundle/config.json
+rm -rf /var/run/netns
+runc run -d -b bundle --pid-file /work/pid.txt drillbox
+```
+
+**Confirm the symptom:**
+
+```bash
+runc list
+ip netns exec drillbox ip addr; echo "(exit=$?)"
+ip netns list; echo "(exit=$?)"
+```
+
+```
+ID          PID    STATUS     BUNDLE         CREATED
+drillbox    55     running    /work/bundle   2026-08-31T01:16:50Z
+
+Cannot open network namespace "drillbox": No such file or directory
+(exit=255)
+
+(exit=0)
+```
+
+Read the two exit codes against each other, because they are the whole drill. One command **fails
+loudly** on a name. The other **succeeds silently** on a list. And `runc list` says the container is
+running.
+
+**Your move.** Do not go looking for what deleted the namespace. Decide first whether anything is
+broken at all — you have a tool that proves a namespace's identity, and you have the container's PID.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+Nothing is broken. Prove the namespace exists before you touch anything:
+
+```bash
+PID=$(cat /work/pid.txt)
+readlink /proc/$PID/ns/net
+readlink /proc/self/ns/net
+ls -la /var/run/netns/
+```
+
+```
+net:[4026533147]
+net:[4026531833]
+ls: /var/run/netns/: No such file or directory
+```
+
+Two different inodes, so the container has its own network namespace, exactly as
+[lesson 05](05-who-does-this-for-you.md) built it. And `/var/run/netns/` — the directory `ip netns`
+reads — does not exist.
+
+**Root cause:** `ip netns` only ever sees namespaces that have a **name**, and a name is a bind mount
+under `/var/run/netns/` that `ip netns add` creates. No container runtime creates one, so `ip netns
+list` reports nothing and exits 0 — an empty list, correctly listed. The runbook was written against
+namespaces somebody had made by hand ([lesson 05b](05b-entering-what-you-did-not-name.md)).
+
+**Fix** — either give it the name the runbook expects:
+
+```bash
+PID=$(cat /work/pid.txt)
+mkdir -p /var/run/netns
+ln -sf /proc/$PID/ns/net /var/run/netns/drillbox
+ip netns list                                    # drillbox
+ip netns exec drillbox ip -o addr show           # lo, and only lo
+```
+
+or skip the name, which is what the runbook should say:
+
+```bash
+nsenter -t $PID -n ip -o addr show
+```
+
+Both return `lo 127.0.0.1/8` and nothing else — which is not a second fault. `runc` created an empty
+network namespace because `config.json` asked for one and nothing asked for a veth; the wiring in
+[lesson 02](02-veth-and-bridge.md) is what `docker run` adds on top.
+
+**Cleanup:**
+```bash
+runc delete -f drillbox 2>/dev/null; rm -f /var/run/netns/drillbox
+```
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 8 "ip netns only sees named namespaces"
+```
+
+*(The verifier checks that the runbook's own command works, so make the name even if `nsenter` is what
+you would reach for on a real node — it also checks the PID route, and that you left the container
+running.)*
+
+---
+
+## Drill 9 — "It has every capability there is and cannot create a file"
+
+**Target: 6 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"Our agent runs as root and writes `/etc/agent.log`. It is logging permission-denied on
+> that path. I checked the obvious thing — `ps` says the process is UID 1000, not root, so somebody
+> broke the unit. Except the agent's own startup line says `uid=0`, and the capability field in
+> `/proc` is the fullest I have ever seen. Three tools, three answers. Which one is lying?"*
+
+**Reproduce it** (run; don't read):
+
+```bash
+rm -f /tmp/agent.pid /tmp/agent.err /tmp/agent.log /etc/agent.log
+chmod 1777 /tmp
+setpriv --reuid=1000 --regid=1000 --clear-groups unshare -U --map-root-user sh -c '
+  echo $$ > /tmp/agent.pid
+  echo "starting as uid=$(id -u)" > /tmp/agent.log
+  while :; do (echo tick >> /etc/agent.log) 2>>/tmp/agent.err; sleep 3; done' &
+sleep 4
+```
+
+**Confirm the symptom:**
+
+```bash
+PID=$(cat /tmp/agent.pid)
+cat /tmp/agent.log
+tail -1 /tmp/agent.err
+grep -E '^(Uid|CapEff):' /proc/$PID/status
+```
+
+```
+starting as uid=0
+sh: can't create /etc/agent.log: Permission denied
+Uid:	1000	1000	1000	1000
+CapEff:	000001ffffffffff
+```
+
+**Three tools, three answers, and none of them is wrong.** The agent says it is root. `/proc` says it
+is 1000. `CapEff` says it holds every capability the kernel has — and it cannot create a file in a
+directory that is `drwxr-xr-x root root`.
+
+**Your move.** Do not change the agent and do not `chmod` anything yet. There is one file in `/proc`
+that reconciles all three readings, and Act IV taught you to read `/proc/<pid>/` for exactly this kind
+of disagreement.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+```bash
+PID=$(cat /tmp/agent.pid)
+cat /proc/$PID/uid_map
+```
+
+```
+         0       1000          1
+```
+
+`<inside> <outside> <range>`: **UID 0 inside this process's user namespace is UID 1000 on the host.**
+Every reading was true of a different vantage point. `id -u` reads the map and says 0. `/proc/<pid>/status`
+is being read by *you*, from outside, and reports the host UID. And the capabilities are real — they are
+just evaluated against that map, so they buy nothing over files owned by UIDs the map cannot name
+([lesson 05c](05c-who-am-i.md)).
+
+**Root cause:** the agent runs in a user namespace whose map is `0 1000 1`. It is root over one UID and
+nobody over every other, and `/etc` belongs to a UID it cannot name — so the refusal is ordinary file
+permission against host UID 1000, not a missing privilege.
+
+**Fix** — act on the UID the map *points at*, never the one the process reports:
+
+```bash
+install -o 1000 -g 1000 -m 644 /dev/null /etc/agent.log
+sleep 4
+wc -l < /etc/agent.log          # growing
+ls -ln /etc/agent.log           # 1000 1000
+```
+
+And the confirmation worth keeping, from the agent's own side of the map:
+
+```bash
+PID=$(cat /tmp/agent.pid)
+nsenter -t $PID -U --preserve-credentials sh -c 'ls -ln /etc/agent.log' 2>/dev/null
+```
+
+```
+-rw-r--r--    1 0        0                5 /etc/agent.log
+```
+
+`1000 1000` from outside, `0 0` from inside. **One file, one inode, two owners** — and the agent needed
+no new privilege, only a file whose owner it could name.
+
+Note which fix you did *not* apply: `chown 0 /etc/agent.log` would have made it unwritable again, because
+UID 0 outside is not in that map at all. Chasing the UID the process reports is the trap.
+
+**Cleanup:**
+```bash
+pkill -f 'while :; do' 2>/dev/null
+rm -f /tmp/agent.pid /tmp/agent.err /tmp/agent.log /etc/agent.log
+```
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 9 "the process is in a user namespace with a mapped uid"
+```
+
+---
+
 ## Where this leaves you
 
-Seven failures, seven primitives, one method: meet a bare symptom, decide *which* piece of hand-built
+Nine failures, nine primitives, one method: meet a bare symptom, decide *which* piece of hand-built
 plumbing — or hand-built container, or hand-written spec document — is missing, misconfigured, or simply
-misunderstood, and read the one file, rule, or raw byte that proves it. A private source escaping onto
+misunderstood — or, twice, decide that **nothing is broken and a tool is answering a narrower question
+than the ticket assumed** — and read the one file, rule, or raw byte that proves it. A private source escaping onto
 the wire because no `MASQUERADE` caught it. A bridge port left down so frames die at the switch. A
 published port that was never a DNAT rule at all. A link whose size nobody agreed on, which fails only
 for packets big enough to matter. A container with one line missing from the document that is its whole
 contract, silently short of the isolation everyone assumed it had. A daemon serving one client and
 silently refusing another, because the two were never talking to the same plugin. A "fix" that changed
-nothing, because no later step can rewrite a layer already shipped. Nobody told you which idea applied;
+nothing, because no later step can rewrite a layer already shipped. A namespace that was never missing,
+listed by a tool that only ever knew about the ones somebody had named by hand. A process holding all
+forty-one capabilities and unable to create a file, because the number it calls itself and the number
+the host bills it as are two ends of one three-integer map. Nobody told you which idea applied;
 you ranged across the whole act to find it. Every one of these is a bug you will meet again wearing a
 Kubernetes name — a node that can't egress, a Pod unreachable on its node, a Service that resolves but
 never answers, an overlay that delivers health checks and swallows real responses, a Pod stuck because

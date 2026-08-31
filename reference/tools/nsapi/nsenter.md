@@ -1,12 +1,12 @@
 # `nsenter` — "namespace enter" *(folklore — undocumented)*
 
-Entry into an *existing* process's namespaces — the mechanism under `docker exec` and `kubectl exec`, and the way into a container with no shell of its own
+Entry into an *existing* process's namespaces, addressed by a **PID rather than a name** — the only handle a container actually gives you, and the way into one with no tools of its own
 
 | | |
 |---|---|
 | **Speaks** | [`nsapi`](README.md) · same flag letters as `unshare` |
 | **Mode** | mutate |
-| **Taught in** | **roster only** — named by the roster, run by no lesson |
+| **Taught in** | [entering what you did not name](../../../networking-fundamentals/act-4-one-pretends-many/05b-entering-what-you-did-not-name.md) |
 | **In the lab** | ✅ `/usr/bin/nsenter` · nsenter from util-linux 2.41.3 |
 | **Blind spot** | `nsapi` cannot tell you what is *inside* a namespace. These move you between namespaces; they read nothing — a property of the [interface](README.md), not of this tool |
 | **Also here** | [the roster](../README.md) · [by question](../../04-by-question.md) |
