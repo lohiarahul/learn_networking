@@ -257,8 +257,10 @@ same shape.
 
 ### What does the client feel when a packet is dropped?
 
-You have two ways to refuse. They produce the same security outcome and completely different
-experiences, and the difference is the most common ten-minute misdiagnosis in networking.
+Every rule you have written so far refuses a packet the same way: `DROP`. It is worth asking what
+that word actually commits you to, because netfilter offers a second target that refuses just as
+completely — and nothing you have read so far tells you why anyone would want it. `DROP` already
+achieves the security outcome. Find out what else is being chosen.
 
 Start a listener in the `fw` container, on a port you will then close two different ways:
 
@@ -365,12 +367,17 @@ should be knocking at all.
 ### How does a packet get from one chain into another?
 
 One thing remains between you and reading anybody else's ruleset, and it is a control-flow question
-rather than a matching question. Look at what the last lesson found sitting at the top of the host's
-`FORWARD` chain: a jump to `DOCKER-USER`, then a jump to `DOCKER`. Those are not hooks. There are only
-five hooks and neither is one of them. They are **user-defined chains**, and a jump into one is
-closer to a subroutine call than to a verdict.
+rather than a matching question. Look again at what the last lesson found sitting at the top of the
+host's `FORWARD` chain: a jump to `DOCKER-USER`, then a jump to `DOCKER`.
 
-Build one and watch a packet walk through it. In the `fw` container:
+Those cannot be hooks. There are exactly five, they are fixed, and neither of these is one of them — so
+`-j DOCKER-USER` is a target that is not a verdict, which is a thing you have not met. And that raises
+a question with real consequences for every ruleset you will ever read: **if a packet jumps somewhere
+and is not decided there, what happens to it?** Two answers are possible. Either the jump is one-way and
+the packet's fate is settled inside, or the packet comes back and the chain it left carries on. Docker
+stakes its entire firewall integration on one of those being true.
+
+Build one and find out which. In the `fw` container:
 
 ```bash
 iptables -F INPUT

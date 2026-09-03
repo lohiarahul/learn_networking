@@ -143,9 +143,37 @@ tells netfilter to pick from the whole space at random instead of searching upwa
    -j MASQUERADE --random-fully
 ```
 
-You do not have to take that on trust as a Kubernetes fact later: kube-proxy grew a `--random-fully`
-flag for precisely this, on precisely this reasoning, and now you can read that flag as a sentence
-rather than a setting.
+Before you file that away as a fact about somebody else's cluster, go and look at the rule doing this
+job on the machine you are sitting on. In the peek shell:
+
+```bash
+iptables -t nat -S POSTROUTING | grep MASQUERADE
+```
+
+```
+-A POSTROUTING -o docker0 -m addrtype --src-type LOCAL -j MASQUERADE
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+```
+
+You will see a *pair* like that for every Docker network on the box — one keyed on the interface, one on
+the subnet — so if you built any networks by hand in
+[the Docker networks lesson](02b-docker-networks.md), expect a `br-<hash>` pair each. And if you have a
+`kind` cluster lying about, look for a line shaped like this among them:
+
+```
+-A POSTROUTING -s 172.19.0.2/32 -d 172.19.0.2/32 -p tcp -m tcp --dport 6443 -j MASQUERADE
+```
+
+Same source, same destination, one port. That is the hairpin rule you built by hand two sections ago,
+written by `kind` so that a node can reach the API server at the address everything else uses. You did
+not read that in documentation; you recognised it.
+
+**Now the point: no `--random-fully` anywhere.** Every container on this host is translated by a rule that searches
+upward from the port the client picked — so the one-second tail is not a story about large clusters, it
+is a property of the default configuration you have been using all act, waiting for enough connection
+churn to become visible. That is also why the flag exists as a flag: it is a behaviour change, so
+somebody has to ask for it. kube-proxy grew a `--random-fully` option for precisely this, on precisely
+this reasoning, and you can now read that option as a sentence rather than a setting.
 
 > **You understand this when you can** say which single header field SNAT has left to vary, derive the
 > per-destination ceiling from that, explain why connection *churn* consumes the space faster than

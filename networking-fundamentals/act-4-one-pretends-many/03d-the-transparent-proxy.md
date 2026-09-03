@@ -331,8 +331,11 @@ Not a toy version of one. The mechanism.
 An init container runs once, before the application container in a Pod starts, inside the **same network
 namespace** — and everything Act IV taught about namespaces says that "same network namespace" means
 same interfaces, same routing table, and same netfilter tables. It writes `REDIRECT` rules: outbound
-traffic to a sidecar's port, inbound traffic to another. Then it exits. The application container starts,
-dials `payments.default.svc` directly because that is what its code says, and every byte it sends goes
+traffic to a **sidecar**'s port, inbound traffic to another — a sidecar being simply a second container
+in that Pod, sharing the namespace, whose whole job is to be the proxy those rules point at. Then it exits. The application container starts,
+dials `payments.default.svc` directly (a cluster-internal name of the shape
+`<service>.<namespace>.svc` — Act V builds the resolver that answers it; here it is just a hostname
+the application was configured with) because that is what its code says, and every byte it sends goes
 through a proxy it does not know exists, which reads `SO_ORIGINAL_DST` to find out where the application
 meant to go.
 
