@@ -29,6 +29,10 @@ NAT — exactly what you built by hand.
   veth pair whose other end is a port on `docker0`. `docker exec … ip addr` is the same window into a
   namespace that `kubectl exec … ip addr` gives you into a Pod (lesson 1).
 
+  That's true for *this* container because it's plain `docker run`, no `--network` flag — the default
+  `bridge` mode. It stops being true the moment `--network host` or a custom network enters the
+  picture, which is exactly the wall [Docker networks →](02b-docker-networks.md) exists to name.
+
 ## Publishing a port is a DNAT rule
 
 *Concept:* `-p 8080:80` is not magic — it's the DNAT rule from lesson 3, rewriting a host-port knock to

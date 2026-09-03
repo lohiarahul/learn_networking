@@ -168,9 +168,9 @@ The binary is literally a translator — on this image `which iptables` resolves
 So every rule you wrote today went into a store you have not looked at yet.
 
 > **Predict first —** you write a `MASQUERADE` rule and a `DROP` rule with `iptables`, then dump the
-> ruleset with `nft`. Will your rules be there at all? And will the five fixed tables you have been
-> taught — `filter`, `nat`, `mangle` — still be the organising unit, or does the other grammar organise
-> the same rules some other way?
+> ruleset with `nft`. Will your rules be there at all? And will the tables you have been taught —
+> `filter` and `nat` — still be the organising unit, or does the other grammar organise the same rules
+> some other way?
 
 ```bash
 iptables -t nat -A POSTROUTING -s 10.20.0.0/24 -j MASQUERADE
@@ -248,8 +248,8 @@ Which is enough to set up the one question worth carrying out of this lesson. A 
 
 **Where you are now** — You can name the five netfilter hooks and predict which of them a given packet walks, prove it from the rule counters rather than from documentation, and read the two rules that make container networking work: the `MASQUERADE` that lets a private address out and the `DNAT` that lets a knock in. You can look at any `docker run` line and say which kernel object each flag produced. And you know why a firewall that reports itself green can be lying — including `iptables` itself, which is a front-end over nftables and cannot see a native table at all.
 
-Every one of these tricks, though, ends at the edge of this machine. Two containers on one host share a bridge; a container reaching the internet borrows the host's address on the way out. Now put the two private networks on two *different* hosts and neither trick is available: there is no shared switch to plug into, and the physical network in between would drop a `10.20.0.0/24` packet on sight. You could try NAT again and translate each private address into its host's — but then work out what the far side sees as the sender, and ask whether it could ever start a conversation in the other direction. So how do you make two software switches, on two machines, behave like one wire — without asking the network in between for permission?
+And that last finding is not somewhere to stop. *Read the table, not the tool* is a good conclusion and a terrible place to leave a reader, because you have now been shown twice that the tools people trust to describe a firewall can be wrong, and you have never written one. You know the hooks; you have not made a decision at one. So do the obvious thing next and find out what it takes: refuse everything by default, allow back only what you meant to allow, and see how far you get with rules that match on addresses and ports — which, until this moment, is the only kind of rule you have written.
 
 ---
 
-← Prev: **[veth and bridge](02-veth-and-bridge.md)** · ↑ **[Act IV overview](README.md)** · Next: **[Overlay and VXLAN](04-overlay-vxlan.md)** →
+← Prev: **[Docker networks](02b-docker-networks.md)** · ↑ **[Act IV overview](README.md)** · Next: **[The stateful firewall](03b-the-stateful-firewall.md)** →

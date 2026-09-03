@@ -135,12 +135,15 @@
       {
         "n": 6,
         "include": [
-          "act-4-one-pretends-many/02-*.md", "act-4-one-pretends-many/03-*.md",
+          "act-4-one-pretends-many/02-*.md", "act-4-one-pretends-many/02b-*.md",
+          "act-4-one-pretends-many/03-*.md", "act-4-one-pretends-many/03b-*.md",
+          "act-4-one-pretends-many/03c-*.md", "act-4-one-pretends-many/03d-*.md",
           "act-4-one-pretends-many/04-*.md", "act-4-one-pretends-many/06-*.md",
           "act-4-one-pretends-many/README.md", "act-4-one-pretends-many/test-yourself.md",
           "act-4-one-pretends-many/diagnose.md", "act-4-one-pretends-many/in-the-wild.md"
         ],
-        "drills": ["act-4/01.sh", "act-4/02.sh", "act-4/03.sh", "act-4/04.sh"]
+        "drills": ["act-4/01.sh", "act-4/02.sh", "act-4/03.sh", "act-4/04.sh",
+                   "act-4/10.sh", "act-4/11.sh", "act-4/12.sh"]
       },
       {"n": 7, "include": ["act-5-kubernetes/**", "the-whole-stack.md"], "drills": ["act-5/*"]},
       {"n": 8, "include": ["act-6-control-plane/**"], "drills": ["act-6/*"]},

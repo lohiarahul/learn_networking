@@ -34,6 +34,7 @@ A raw TCP/UDP endpoint you drive by hand — the smallest possible client or ser
 | `nc -z -v -w 2 <host> 443` | just test the port, with a timeout — the reachability one-liner |
 | `nc -u <host> 53` | UDP |
 | `nc -l -p 9000 > out.bin` | receive a file; the sender redirects in |
+| `nc -l 3128 > got.txt` then `curl --proxy http://localhost:3128 …` | stand in for a proxy you do not have, to read the *request line* a client sends one. `http://` gives `GET http://host/path HTTP/1.1` (absolute form), `https://` gives `CONNECT host:443 HTTP/1.1`. `nc` never answers, so `curl` exits 28 — the transcript is the point. Used in [the HTTP lesson](../../../networking-fundamentals/act-3-the-internet/04-http.md#who-chose-the-machine-in-the-middle) |
 
 ## As the course runs it
 

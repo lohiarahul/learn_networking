@@ -6,8 +6,8 @@
 [`tools/check_pedagogy.py`](tools/check_pedagogy.py) (**0 failures, 0 warnings** across the whole
 course before this work began — the bar anything here has to leave standing).*
 
-> **Status: Phases 0–4 shipped.** Read the phase table's Status column, not the
-> prose, for what exists.
+> **Status: Phases 0–5 shipped.** Read the phase table's Status
+> column, not the prose, for what exists.
 
 ## Why this document exists
 
@@ -131,6 +131,7 @@ each time. Phase 1 is therefore three lessons, not "a bit of Act IV".
 | **2** | Act XI: observability (Stage 7.8) — designed in detail in [`ACT-11-PLAN.md`](ACT-11-PLAN.md) | ✅ **shipped (8 of 8 lessons, both waves)** |
 | **3** | Thin spots: user namespaces / rootless, `nsenter`, `systemd` — designed in detail in [`PHASE-3-PLAN.md`](PHASE-3-PLAN.md) | ✅ **shipped (3 of 3 lessons + the Act X insertion)** |
 | **4** | Route C — the platform ordering, published as a view — designed in detail in [`PHASE-4-PLAN.md`](PHASE-4-PLAN.md) | ✅ **shipped** |
+| **5** | Act IV: netfilter as a subject — a stateful firewall, NAT's ceiling/hairpin/`mangle`/`raw`, transparent proxying, plus Act III's proxy section — designed in detail in [`PHASE-5-PLAN.md`](PHASE-5-PLAN.md) | ✅ **shipped** — 3 lessons + 1 extension, 3 drills; verified on the real kernel over two accuracy passes plus a Spirit/River pass, 21 corrections applied and drill 12 redesigned |
 
 ### Phase 0 — shipped
 

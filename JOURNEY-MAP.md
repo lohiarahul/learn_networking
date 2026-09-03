@@ -65,7 +65,7 @@ reconcile** in the cloud.
 > shortest path to a certificate, and it is not container-floor-first. All three are published, and
 > none pretends to be the other:
 >
-> - **Route A — this map.** Narrative order, all 437,039 words, nothing skipped.
+> - **Route A — this map.** Narrative order, all 458,002 words, nothing skipped.
 > - **Route B — [the exam path](exam-prep/the-exam-path.md).** The same material in exam order: nine
 >   steps, the 56% you need before CKA, the 52 of 83 drills that fall on that path, and an explicit
 >   optional track for the 14% neither curriculum examines.
@@ -270,6 +270,18 @@ is telling you about.
 - A **veth pair** is a virtual cable and a **bridge** is a virtual switch — exactly how containers on
   a host talk. **iptables/NAT** publishes a container's port (and is stateful *because of* conntrack —
   Stage 3 returns).
+- Then we stay at those five hooks long enough to do the three jobs people actually reach for them for,
+  because the anatomy on its own is not the skill. **A stateful firewall** — default-deny, and the
+  discovery that a rule matching addresses and ports *cannot* tell a reply from a knock, which is what
+  makes `--ctstate ESTABLISHED,RELATED` relief rather than syntax; `DROP` versus `REJECT` felt as a
+  client timing; and chain traversal (`-j` into a user chain, `RETURN`, terminal versus non-terminal),
+  which is what makes Stage 7's `KUBE-` tree readable. **NAT's real ceiling** — SNAT rewrites ports too,
+  and the arithmetic of the one field it has left to vary explains both port exhaustion and the
+  one-second latency tail; hairpin NAT; and the two tables that neither filter nor translate (`mangle`'s
+  mark joined to Stage 2's `ip rule`, and `raw`'s `NOTRACK` as the only way out of conntrack's ceiling).
+  **Transparent proxying** — intercepting a connection nobody addressed to you, and recovering the
+  destination your own rewrite destroyed, which is conntrack's third role and the whole mechanism a
+  service mesh runs on.
 - **Overlay networks** use **VXLAN** to make one virtual network span many hosts — and the **MTU**
   problem from Stage 2 comes back to bite, exactly as promised.
 - **Images and the OCI runtime** (union filesystems) explain what a container actually *is*.
@@ -277,7 +289,7 @@ is telling you about.
   network is namespaces plus a bridge, the overlay driver is VXLAN.
 
 **You can now:** build container networking by hand and explain every Docker network mode in terms of
-kernel primitives.
+kernel primitives — and write, debug and read a netfilter ruleset rather than only naming its hooks.
 **Which raises:** one host is a capacity ceiling and a single point of failure. How do we schedule and
 connect containers across a whole fleet — declaratively?
 

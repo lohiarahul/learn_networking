@@ -216,6 +216,142 @@ One more question to carry, and it is the reason this section exists. Kubernetes
 
 > **You understand this when you can** take one `curl -v` transcript, point at the single line an L4 proxy could route on and at the `>` and `<` lines an L7 proxy would need instead, and say which of the two could implement `/api` routing and which could not and why — then point at the `ALPN` line, name the protocol it settled on, and say why that decision could not have been made in HTTP itself.
 
+### Who chose the machine in the middle?
+
+The last section asked *how deep* a middlebox reads. There is another question to ask about it, and
+this one is not about the bytes at all.
+
+Go back to the job. You put something in front of two servers, and the clients "know nothing about any
+of this" — that was the whole premise. They dial one address, and the thing that answers is not the
+server. Now flip it. You are on a corporate laptop and every outbound request has to go through the
+company's inspection box, so you configure your client to send *everything* there — and the box knows
+the real destination only because your request told it. Same relay, same two connections, opposite
+arrangement.
+
+> **Predict first —** in the first arrangement the middlebox holds a short list of servers it was built
+> to sit in front of. In the second it has no list at all — it cannot have one, because tomorrow you
+> will visit a site nobody has heard of. Both of them read the same HTTP request you have been writing
+> by hand all lesson. So what must be *different* about that request in the second case, and which
+> single line of it carries the difference?
+
+Write your answer down, then check it:
+
+```
+   REVERSE proxy                            FORWARD proxy
+   ─────────────                            ─────────────
+   chosen by the DESTINATION                chosen by the CLIENT
+   client believes it IS the server         client knows it is not the server
+   knows its small set of backends          knows nothing until each request names one
+   GET /api/books HTTP/1.1                  GET http://example.com/books HTTP/1.1
+   Host: shop.example.com                   Host: example.com
+        └ path only; the proxy holds              └ the FULL URL, because the proxy
+          the backend list                          has no idea where you meant
+   defends the server from the internet     controls, caches or logs the client
+```
+
+The two are not different software — the same program is usually built to do either — they are
+different answers to *"who chose me?"*, and every other difference follows from that one. If you said
+the request line, you derived the whole distinction from a single constraint: a client talking to a
+reverse proxy sends a path, because the proxy already knows which servers exist. A client talking to a
+forward proxy sends an absolute URL, because the proxy does not.
+
+> **Predict first —** you have configured your client to send everything to a forward proxy, and now
+> you request `https://example.com`. The proxy is an L7 proxy: to do its job it terminates the
+> connection and reads the request. But the bytes it is being asked to read are inside the `s`. What
+> can it possibly do — and what would it have to be given to read them anyway?
+
+You can watch this happen for real, and you do not need a proxy to do it — you need something that
+listens like one. You built exactly that in [the TCP handshake lesson](01-tcp-handshake.md): `nc -l` is
+a socket that accepts a connection and prints whatever arrives. Point `curl` at it through `--proxy`
+and read the first line the client sends.
+
+```bash
+nc -l 3128 > /tmp/proxied.txt & sleep 0.3
+curl -sS -m 3 --proxy http://localhost:3128 http://example.com/books
+tr -d '\r' < /tmp/proxied.txt | head -3
+```
+
+```
+curl: (28) Operation timed out after 3002 milliseconds with 0 bytes received
+GET http://example.com/books HTTP/1.1
+Host: example.com
+User-Agent: curl/8.21.0
+```
+
+The absolute form, exactly as the table predicted — and `Host:` sent alongside it, because the client
+sends both. `curl` times out (exit 28, the shape you already know: nothing answered) because `nc` only
+listens and never replies. That does not matter. The client has already told you what it thinks it is
+talking to.
+
+Now change one character. `http` becomes `https`:
+
+```bash
+nc -l 3128 > /tmp/tunnelled.txt & sleep 0.3
+curl -sS -m 3 --proxy http://localhost:3128 https://example.com
+tr -d '\r' < /tmp/tunnelled.txt | head -4
+```
+
+```
+curl: (28) Connection timed out after 3003 milliseconds
+CONNECT example.com:443 HTTP/1.1
+Host: example.com:443
+User-Agent: curl/8.21.0
+Proxy-Connection: Keep-Alive
+```
+
+No path. No `GET`. No document request of any kind. The method is **`CONNECT`**, and the client's first
+request to the proxy is not a request for a document at all — it is `CONNECT example.com:443 HTTP/1.1`,
+meaning *"stop being an L7 proxy. Open a TCP connection to that host and port, tell me when it is up,
+and then relay bytes without reading them."* A real proxy answers `200 Connection established`, and
+from that instant it is an L4 relay for this one connection, by the client's explicit request.
+
+That is worth sitting with, because it is the first place in this course where the sealed lock is a
+constraint on *infrastructure* rather than a promise to a user — the sealed payload from earlier in
+this lesson, the thing the `s` changes, seen from the outside. The forward proxy did not choose to
+stop reading; it was told to, by a client that knew the proxy could not read those bytes anyway. And
+the alternative — the thing a corporate inspection box actually does instead — you can now describe
+precisely without having been shown it: it must decline the tunnel, terminate the TLS itself, and
+present the client a certificate for `example.com` that the client will believe. Hold on to what that
+requires. It is the next lesson's subject, and the reason that box has to be installed on the laptop
+rather than just plugged into the network.
+
+**Then the erasure, which is the part that bites in production.** A reverse proxy terminates the client's
+connection and opens its own. So ask the question this course always asks — what does the *backend's*
+`/proc/net/tcp` row say? Not the client's address. The proxy's. The backend has no mechanism whatsoever
+for learning who the real client was, because from where it sits, the proxy *is* the client, and that is
+not a bug to be configured away: it is what "two connections, not one relay" means.
+
+So the industry agreed on a convention. The proxy writes the address it saw into a header —
+`X-Forwarded-For: 203.0.113.9` — and the backend reads it. Notice what kind of thing that is. Compare it
+against `conntrack` from earlier in this act, which reverses a rewrite *the kernel actually recorded*:
+that is bookkeeping with a mechanism under it. `X-Forwarded-For` is a note in the margin. It is a header
+the proxy chooses to write and the backend chooses to believe. At L4, where there are no headers, the
+same admission is made by prepending a short fixed preamble to the stream before the real bytes start —
+the PROXY protocol, a line of ASCII in version 1 and a binary header in version 2 — which works
+precisely because both ends agreed to expect it.
+
+> **Check yourself —** Your backend reads `X-Forwarded-For` and uses it to rate-limit abusive clients.
+> What is the first thing an abusive client tries?
+
+<details>
+<summary>Answer</summary>
+
+Sending the header itself. `curl -H 'X-Forwarded-For: 1.2.3.4'` costs nothing, and the backend cannot
+tell a header its proxy wrote from a header the client wrote — they arrive in the same request, in the
+same format, with nothing to distinguish them. Which means the only version of this that works is one
+where the proxy **overwrites** the header rather than appending to it (or appends and the backend counts
+from the right-hand end, trusting only the hops it knows), and the backend refuses connections from
+anywhere except the proxy. The trust is not in the header. It is in the network path, and the header is
+only readable because that path was already trusted.
+
+</details>
+
+> **You understand this when you can** look at one request line and say whether the client thought it
+> was talking to a forward or a reverse proxy, explain why an `https://` URL through a forward proxy
+> begins with `CONNECT`, and say what a backend can and cannot know about its real client — naming
+> `X-Forwarded-For` as a convention rather than a mechanism, and what has to be true of the network for
+> it to mean anything.
+
 ### What will this ask of you in a cluster?
 
 Three things you now know how to look at, held as questions rather than conclusions.

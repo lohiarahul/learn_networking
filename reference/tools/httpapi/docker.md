@@ -52,3 +52,6 @@ The developer-facing view, and `docker network inspect` — Act IV's bridge and 
 | `docker run --rm nicolaka/netshoot cat /sys/fs/cgroup/memory.max` | `max` unlimited by default | Lesson 1b — cgroups |
 | `docker run --rm --memory 64m --memory-swap 64m nicolaka/netshoot cat /sys/fs/cgroup/memory.max` | `--memory` sets the limit; `--memory-swap` equal to it disables swap, so the limit is real. The file now reads `67108864` | Lesson 1b — cgroups |
 | `docker run -d -p 8080:80 --name pub nginx` | `-d` detached; `-p 8080:80` publishes host 8080 to container 80 — and *writes the DNAT rule you are about to read* | Lesson 3 — iptables and NAT |
+| `docker inspect -f '{{.HostConfig.NetworkMode}}' <c>` | which of the four network shapes this container actually got — `host`, `bridge`, `none`, or a custom network's name | Lesson 2b — Docker networks |
+| `docker network inspect bridge --format '{{json .Containers}}'` | every container actually plugged into `docker0`, right now — the ground truth `brif/` also shows, in JSON | Lesson 2b — Docker networks |
+| `docker network inspect <name> --format '{{.Id}}'` | a custom network's full ID — its first 12 hex characters, prefixed `br-`, are that network's real kernel bridge name | Lesson 2b — Docker networks |

@@ -978,9 +978,396 @@ tools/verify-drill.sh act-4 9 "the process is in a user namespace with a mapped 
 
 ---
 
+## Drill 10 — "Nothing is wrong with DNS, and nothing resolves"
+
+**Target: 6 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"We hardened the jump box last night — default-deny inbound, one hole for the web port,
+> textbook. This morning nothing on it works. `curl` says it cannot resolve anything, so the DNS team
+> got paged, and they have proved twice that the resolver is answering. Somebody also tried
+> `curl 127.0.0.1` to rule the network out entirely and that hangs too, which nobody can explain. The
+> firewall only blocks *inbound*. We are not touching outbound."*
+
+**Reproduce it** (run; don't read):
+
+```bash
+ip netns add fw
+ip link add veth-fh type veth peer name veth-fn
+ip link set veth-fn netns fw
+ip addr add 10.75.0.1/24 dev veth-fh && ip link set veth-fh up
+ip netns exec fw sh -c 'ip addr add 10.75.0.2/24 dev veth-fn; ip link set veth-fn up; ip link set lo up
+                        ip route add default via 10.75.0.1'
+ip netns exec fw sh -c 'python3 -m http.server 8080 --bind 127.0.0.1 >/tmp/fw-lo.log 2>&1 &'
+python3 -m http.server 8090 --bind 10.75.0.1 >/tmp/fw-peer.log 2>&1 &
+sleep 1
+ip netns exec fw iptables -P INPUT DROP
+ip netns exec fw iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+```
+
+**Confirm the symptom:**
+
+```bash
+ip netns exec fw curl -s -m 3 -o /dev/null -w 'loopback -> %{http_code}\n' http://127.0.0.1:8080 \
+  || echo 'loopback -> nothing came back'
+ip netns exec fw curl -s -m 3 -o /dev/null -w 'the peer -> %{http_code}\n' http://10.75.0.1:8090 \
+  || echo 'the peer -> nothing came back'
+ip netns exec fw iptables -L INPUT -n -v
+```
+
+Both hang. A web server on `127.0.0.1` inside this namespace, dialled from inside the same namespace,
+is unreachable — and the rule list is two lines long and says nothing about loopback either way. The
+ticket's own reasoning is the trap: *"the firewall only blocks inbound, we are not touching outbound."*
+Take that sentence apart before you touch anything, because it is true and it is also the cause.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+**Both symptoms are one cause, and the cause is a rule nobody wrote.**
+
+`INPUT` does not mean "from the internet." It means *the routing decision said this packet is for me* —
+and there are two enormous classes of packet that satisfy that and have nothing to do with anyone
+knocking at the door.
+
+The first is **every reply to everything this machine asks for.** The DNS query left on `OUTPUT`,
+untouched, exactly as the ticket says. The answer came *back*, arrived at `INPUT`, matched neither
+rule, fell off the end of the chain, and met the policy. `DROP`. The resolver is answering; the answer
+is being destroyed on this host, one hop from the process that asked for it. So `curl` fails at name
+resolution and every downstream conclusion — "it's DNS" — is drawn from a symptom two layers away from
+the fault.
+
+The second is **loopback.** `127.0.0.1` never touches a wire, but "not on the wire" is not "not in
+netfilter": a locally-delivered packet still walks `INPUT`. A default-deny `INPUT` policy with no
+loopback exemption severs every process on the box from every other process on the box.
+
+Read the counters and both are visible at once — the policy line's own `pkts` counter is where all this
+traffic went:
+
+```bash
+ip netns exec fw iptables -L INPUT -n -v --line-numbers
+ip netns exec fw conntrack -L 2>/dev/null | head -3
+```
+
+And that `conntrack -L` prints **nothing at all** — zero rows, which is not what you would predict and
+is worth more than the fix. Conntrack's hooks are registered *lazily, per network namespace*, the first
+time a rule in that namespace needs them. This namespace has a port-based `ACCEPT` and a `DROP` policy,
+neither of which ever asks a question about a flow, so nothing here has engaged the tracker at all.
+Run the same command again after you have fixed it and rows appear.
+
+So the diagnosis is worse than "the table was not being consulted." The table was not being *kept*.
+Nothing in this ruleset had ever expressed interest in state, so the kernel was not paying to record
+any — which is exactly why a port-based `ACCEPT` cannot be patched into a stateful rule by adding more
+ports.
+
+**Fix it** — the two rules that belong at the top of every default-deny ruleset, and note that neither
+one names a port:
+
+```bash
+ip netns exec fw iptables -I INPUT 1 -i lo -j ACCEPT
+ip netns exec fw iptables -I INPUT 2 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+ip netns exec fw curl -s -m 3 -o /dev/null -w 'loopback -> %{http_code}\n' http://127.0.0.1:8080
+ip netns exec fw curl -s -m 3 -o /dev/null -w 'the peer -> %{http_code}\n' http://10.75.0.1:8090
+```
+
+Both return `200`, and the door is still shut: the policy is untouched, and nothing unsolicited can
+get in. Note the fix you did **not** apply. `iptables -P INPUT ACCEPT` also makes both `curl`s work,
+and it deletes the firewall. So does `-A INPUT -j ACCEPT`. A drill you fix by removing the thing you
+were asked to keep is not fixed, which is why the verifier checks the policy is still `DROP` first.
+
+**Cleanup:**
+```bash
+pkill -f 'http[.]server 8090' 2>/dev/null
+pkill -f 'http[.]server 8080' 2>/dev/null
+ip netns del fw ; ip link del veth-fh 2>/dev/null
+rm -f /tmp/fw-lo.log /tmp/fw-peer.log
+```
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 10 "no conntrack rule"
+```
+
+---
+
+## Drill 11 — "The published port answers from everywhere except the machine next door"
+
+**Target: 7 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"We publish the API on `10.80.0.1:8080` and it works — monitoring hits it from outside
+> every thirty seconds and has never once alerted. But the batch worker, which sits on the same subnet
+> as the API, times out on that exact URL every time. Same address, same port, same second. The worker
+> team says our firewall is dropping them; we have no firewall rules at all. `tcpdump` on the API shows
+> the requests arriving, so it is not a routing problem either."*
+
+**Reproduce it** (run; don't read):
+
+```bash
+ip link add br1 type bridge && ip addr add 10.80.0.1/24 dev br1 && ip link set br1 up
+for ns in app cli; do
+  ip netns add $ns
+  ip link add v-$ns type veth peer name p-$ns
+  ip link set p-$ns master br1 && ip link set p-$ns up
+  ip link set v-$ns netns $ns
+done
+ip netns exec app sh -c 'ip addr add 10.80.0.10/24 dev v-app; ip link set v-app up; ip link set lo up
+                         ip route add default via 10.80.0.1'
+ip netns exec cli sh -c 'ip addr add 10.80.0.20/24 dev v-cli; ip link set v-cli up; ip link set lo up
+                         ip route add default via 10.80.0.1'
+ip netns exec app sh -c 'python3 -m http.server 80 >/tmp/hp.log 2>&1 &'
+sysctl -w net.ipv4.ip_forward=1 >/dev/null
+iptables -t nat -A PREROUTING -d 10.80.0.1 -p tcp --dport 8080 -j DNAT --to-destination 10.80.0.10:80
+sysctl -w net.bridge.bridge-nf-call-iptables=0 >/dev/null
+ip netns add ext
+ip link add v-ext type veth peer name p-ext
+ip link set v-ext netns ext
+ip addr add 10.81.0.1/24 dev p-ext && ip link set p-ext up
+ip netns exec ext sh -c 'ip addr add 10.81.0.20/24 dev v-ext; ip link set v-ext up; ip link set lo up
+                         ip route add default via 10.81.0.1'
+sleep 1
+```
+
+Two lines there are load-bearing rather than scenery. `ext` is a namespace on its *own* subnet, because
+the monitoring in the ticket hits this service from outside and a request originated on the translator
+itself never walks `PREROUTING` at all. And `bridge-nf-call-iptables=0` is what makes the bug visible:
+at its default of `1`, bridged replies go through conntrack, which un-NATs them for you and hides the
+whole problem. That setting is the **machine's**, not this lab's — the Cleanup block restores it.
+
+**Confirm the symptom:**
+
+```bash
+ip netns exec ext curl -s -m 3 -o /dev/null -w 'from outside the subnet -> %{http_code}\n' http://10.80.0.1:8080
+ip netns exec cli curl -s -m 3 -o /dev/null -w 'from the subnet -> %{http_code}\n' http://10.80.0.1:8080 \
+  || echo 'from the subnet -> nothing came back'
+```
+
+```
+from outside the subnet -> 200
+from the subnet -> 000
+from the subnet -> nothing came back
+```
+
+`200` from one, silence from the other, against the same address and port. And the ticket is telling
+the truth on every count: there is no firewall, the DNAT is firing for both, and the requests really do
+arrive. Confirm all three yourself before reading on — the counter on the DNAT rule, and a capture
+inside `app`:
+
+```bash
+iptables -t nat -L PREROUTING -n -v | grep 8080
+ip netns exec app timeout 4 tcpdump -n -i v-app -c 4 tcp port 80 &
+sleep 1 ; ip netns exec cli curl -s -m 3 -o /dev/null http://10.80.0.1:8080 ; sleep 3
+```
+
+Everything on the request side is healthy. Stop looking at the request.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+**The reply is being delivered perfectly, to a socket that cannot accept it.**
+
+`DNAT` rewrites the **destination**. Only the destination. So the request `cli` sent —
+`10.80.0.20 → 10.80.0.1:8080` — arrived at `app` as `10.80.0.20 → 10.80.0.10:80`, which is what your
+`tcpdump` showed: source `10.80.0.20`, unmodified, exactly as sent.
+
+Now be `app` for a moment. It has a reply to send to `10.80.0.20`. It looks that address up in its own
+routing table and finds it on a *directly connected* subnet — the bridge. So it does the correct thing
+and sends the reply straight across the bridge to `cli`, with a source address of `10.80.0.10:80`.
+It never goes near `10.80.0.1`, because why would it? Nothing in the packet it received mentioned
+`10.80.0.1`; that address was consumed by a rule two hops ago.
+
+And `cli` discards it. `cli` holds a socket for `10.80.0.1:8080` — a four-tuple, as Act I established —
+and a segment arriving from `10.80.0.10:80` matches no socket it owns. From `cli`'s point of view an
+unrelated machine sent it an unsolicited packet. The reply was flawless and unclaimed.
+
+Monitoring never saw this because it is *off* the subnet: its replies have to be routed, the route
+leads back through `10.80.0.1`, and the box that holds the conntrack row un-rewrites both ends on the
+way past. The bug needs the client and the server to be neighbours, which is why it only ever hits the
+one caller nobody tests from.
+
+**The shape has a name — a hairpin:** the packet enters and leaves by the same interface, and the
+translator is only on the forward path. The fix is to force the reply to come back through the box
+holding the translation, by rewriting the *source* as well:
+
+```bash
+iptables -t nat -A POSTROUTING -s 10.80.0.0/24 -d 10.80.0.0/24 -j MASQUERADE
+ip netns exec cli curl -s -m 3 -o /dev/null -w 'from the subnet -> %{http_code}\n' http://10.80.0.1:8080
+```
+
+`200`. Read that rule out loud — *masquerade traffic whose source and destination are both on this
+subnet* — and note it would be meaningless on any ordinary network. It is mandatory exactly when a
+translated address lives on the same segment as the clients dialling it.
+
+It also has the cost you would predict: `app`'s access log now says `10.80.0.1` for every internal
+client. You have traded the client's identity for reachability, which is the same trade as
+`X-Forwarded-For` one layer up.
+
+Note the fix you did **not** apply: telling the worker team to dial `10.80.0.10:80` directly. That
+makes the symptom go away and deletes the reason a published address exists — every caller now has to
+know which backend is behind it, and the next time that changes, every caller breaks.
+
+**Cleanup:**
+```bash
+iptables -t nat -D POSTROUTING -s 10.80.0.0/24 -d 10.80.0.0/24 -j MASQUERADE 2>/dev/null
+iptables -t nat -D PREROUTING -d 10.80.0.1 -p tcp --dport 8080 -j DNAT --to-destination 10.80.0.10:80 2>/dev/null
+sysctl -w net.bridge.bridge-nf-call-iptables=1 >/dev/null
+pkill -f 'http[.]server' 2>/dev/null
+for ns in app cli ext; do ip netns del $ns 2>/dev/null; done
+ip link del br1 2>/dev/null ; ip link del p-ext 2>/dev/null
+rm -f /tmp/hp.log
+```
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 11 "hairpin nat"
+```
+
+---
+
+## Drill 12 — "The proxy sees every connection and cannot say where any of them was going"
+
+**Target: 6 minutes**, clock starting when the symptom appears — see [the clock](#the-clock) above.
+
+> **Ticket:** *"The egress proxy sees every connection — the count is right, and the client addresses
+> in its log are correct. But it logs `destination: unavailable` for every single one, so it has nothing
+> to forward to and every request 502s. Nobody touched the proxy. The only change last night was moving
+> the sidecar's iptables setup out of the app's start script and into an init container."*
+
+**Reproduce it** (run; don't read):
+
+```bash
+ip netns add mesh
+ip link add v-mesh type veth peer name p-mesh
+ip link set v-mesh netns mesh
+ip addr add 10.95.0.1/24 dev p-mesh && ip link set p-mesh up
+ip netns exec mesh sh -c 'ip addr add 10.95.0.2/24 dev v-mesh; ip link set v-mesh up; ip link set lo up
+                          ip route add default via 10.95.0.1'
+cat > /tmp/proxy.py <<'PY'
+import socket, struct
+SO_ORIGINAL_DST = 80
+srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+srv.bind(("0.0.0.0", 3129)); srv.listen(8)
+print("proxy: up on 3129", flush=True)
+while True:
+    conn, peer = srv.accept()
+    try:
+        raw = conn.getsockopt(socket.SOL_IP, SO_ORIGINAL_DST, 16)
+        print("client", peer, "destination", (socket.inet_ntoa(raw[4:8]),
+              struct.unpack("!H", raw[2:4])[0]), flush=True)
+    except OSError as e:
+        print("client", peer, "destination: unavailable —", e, flush=True)
+    conn.close()
+PY
+ip netns exec mesh sh -c 'python3 /tmp/proxy.py >/tmp/proxy.log 2>&1 &'
+sleep 1
+```
+
+The app in this namespace has `HTTP_PROXY` set, so it dials the proxy's address itself rather than
+relying on interception — which is why the proxy sees every connection exactly as the ticket says:
+
+**Confirm the symptom:**
+
+```bash
+ip netns exec mesh curl -s -m 3 -o /dev/null http://10.95.0.2:3129/ ; sleep 1
+tail -2 /tmp/proxy.log
+```
+
+```
+proxy: up on 3129
+client ('10.95.0.2', 38528) destination: unavailable — [Errno 2] No such file or directory
+```
+
+The interception works — there is the client, at its real address, on a connection it addressed to
+somebody else entirely. The proxy holds the socket and cannot answer the only question it needs
+answered. The `REDIRECT` rule is present and firing. So the fault is not in the rule that captured the
+packet; it is somewhere in what the kernel was *willing to remember* about it.
+
+<details>
+<summary><b>The diagnosis</b> — open after you've tried</summary>
+
+**A `NOTRACK` rule in the `raw` table, and the destination it cost you was never in the socket.**
+
+Start from what `SO_ORIGINAL_DST` actually is. The proxy's socket is downstream of the rewrite:
+`REDIRECT` is a form of DNAT, the `nat` table runs before the packet is delivered to any socket, so by
+the time `accept()` returned, the address the client dialled had already been overwritten with the
+proxy's own. `getsockname()` will tell you the truth about the packet, and the truth about the packet
+is now a lie about the client's intent.
+
+The original destination survives in exactly one place: the **conntrack row** for the flow. It has to
+be there, or the kernel could not un-rewrite the replies. `SO_ORIGINAL_DST` is a socket option that
+reads it — Act III's table, doing a third job as an API.
+
+Which makes `ENOENT` — *no such file or directory* — the honest error, and a precise one. You did not
+ask a question the kernel refused to answer. You asked for a record, and there is no record. Go and
+look:
+
+```bash
+ip netns exec mesh iptables -t nat -S OUTPUT
+ip netns exec mesh conntrack -L -d 1.1.1.1 2>&1 | tail -1
+```
+
+```
+-P OUTPUT ACCEPT
+conntrack v1.4.9 (conntrack-tools): 0 flow entries have been shown.
+```
+
+**There is no `REDIRECT` rule in this namespace at all.** The init container that was supposed to write
+it never did. And that single absence explains the whole symptom, including the part that made it
+confusing: the connections still arrive, because the app was configured to dial the proxy directly and
+does not need interception to find it. So the proxy is *reachable* while not being *interposed*, and
+those two conditions look identical from a connection count.
+
+`SO_ORIGINAL_DST` reads the NAT translation conntrack recorded for the flow. No rule rewrote this
+flow's destination, so there was no translation, so there is no row, so there is nothing to read. The
+client's real intent was never destroyed and never saved — it was simply never *taken*, and the only
+place it now exists is inside the client's own request, which a transparent proxy does not read.
+
+**Fix it** — write the rule the init container owed you:
+
+```bash
+ip netns exec mesh iptables -t nat -A OUTPUT -p tcp -d 1.1.1.1 --dport 80 -j REDIRECT --to-port 3129
+ip netns exec mesh curl -s -m 3 -o /dev/null http://1.1.1.1/ ; sleep 1
+tail -1 /tmp/proxy.log
+```
+
+```
+client ('10.95.0.2', 59064) destination ('1.1.1.1', 80)
+```
+
+Note the fix you did **not** apply: pointing the app straight at `1.1.1.1` and taking the proxy out of
+the path. That also ends the `destination: unavailable` lines — by deleting the egress control the proxy
+existed to provide. The log goes quiet and the product is gone, which is the most dangerous class of fix
+there is.
+
+The transferable lesson is that "the proxy is receiving traffic" and "the proxy is intercepting traffic"
+are different claims, and only one of them can be checked from a connection count. A transparent proxy
+depends on a rule it does not own and cannot see, written by something that ran before it started.
+
+**Cleanup:**
+```bash
+ip netns exec mesh pkill -f 'proxy[.]py' 2>/dev/null
+ip netns del mesh 2>/dev/null ; ip link del p-mesh 2>/dev/null
+# nothing machine-wide was changed by this drill
+rm -f /tmp/proxy.py /tmp/proxy.log
+```
+
+</details>
+
+**Verify it:**
+
+```bash
+tools/verify-drill.sh act-4 12 "no redirect rule"
+```
+
+---
+
 ## Where this leaves you
 
-Nine failures, nine primitives, one method: meet a bare symptom, decide *which* piece of hand-built
+Twelve failures, twelve primitives, one method: meet a bare symptom, decide *which* piece of hand-built
 plumbing — or hand-built container, or hand-written spec document — is missing, misconfigured, or simply
 misunderstood — or, twice, decide that **nothing is broken and a tool is answering a narrower question
 than the ticket assumed** — and read the one file, rule, or raw byte that proves it. A private source escaping onto
@@ -992,13 +1379,20 @@ silently refusing another, because the two were never talking to the same plugin
 nothing, because no later step can rewrite a layer already shipped. A namespace that was never missing,
 listed by a tool that only ever knew about the ones somebody had named by hand. A process holding all
 forty-one capabilities and unable to create a file, because the number it calls itself and the number
-the host bills it as are two ends of one three-integer map. Nobody told you which idea applied;
+the host bills it as are two ends of one three-integer map. A default-deny policy that severed a host
+from itself and from every answer to every question it asked, because `for me` includes loopback and
+includes replies. A published port that worked from everywhere except its own subnet, where the reply
+was delivered flawlessly to a socket that could not claim it. And a proxy holding a connection it had
+successfully stolen and unable to say where it was going, because one line of conntrack tuning changed
+what the kernel *knew* rather than how much it could hold. Nobody told you which idea applied;
 you ranged across the whole act to find it. Every one of these is a bug you will meet again wearing a
 Kubernetes name — a node that can't egress, a Pod unreachable on its node, a Service that resolves but
 never answers, an overlay that delivers health checks and swallows real responses, a Pod stuck because
 its runtime config was wrong in one field, a kubelet that can't create a single sandbox because the
 container runtime it's calling never loaded the service it needed, an image whose layers say more than
-its last `docker history` line ever let on.
+its last `docker history` line ever let on, a NetworkPolicy that locked a Pod away from its own DNS, a
+Pod that cannot reach itself through its own Service, and a sidecar holding every connection in the Pod
+and unable to route one of them.
 
 ---
 

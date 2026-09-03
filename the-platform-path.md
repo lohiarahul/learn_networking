@@ -49,8 +49,8 @@ every harness run by `routes.reorder-covers-course` rather than asserted here.
 | **2** | **Act IV 01, 01b** — namespaces, cgroups | 4,055 | — | Isolation before any networking: the inode `/proc/self/ns/net` reads, and the cgroup leaf a container's memory ceiling lives in. This is the platform ordering's real headline — a container floor 84,773 words earlier than Route A delivers it. |
 | **3** | **Act IV 05, 05b, 05c, 07** — `runc`/`containerd`, `nsenter`, user namespaces, BuildKit | 7,525 | 5 | The runtime peel and the build side. Needs a namespace and a cgroup, which step 2 gave; needs no IP address at all. |
 | **4** | **Act II** | 26,662 | 4 | ARP, routing, MTU, DNS. Step 3 ended on a runtime and a filesystem with **no IP address at all** — a container that can build and run but cannot yet be reached. Everything from here on needs one. |
-| **5** | **Act III** | 21,227 | 4 | The handshake, TCP states, `conntrack`, HTTP, TLS. |
-| **6** | **Act IV 02, 03, 04, 06** + Act IV's `README`, `test-yourself.md`, `diagnose.md`, `in-the-wild.md` | 19,759 | 4 | veth, bridge, `iptables`/NAT, VXLAN, CRI — the half of Act IV that is networking, read after the networking it needs. Act IV's four support pages sit here because they span both halves of the act. |
+| **5** | **Act III** | 22,591 | 4 | The handshake, TCP states, `conntrack`, HTTP, TLS. |
+| **6** | **Act IV 02, 03, 04, 06** + Act IV's `README`, `test-yourself.md`, `diagnose.md`, `in-the-wild.md` | 39,358 | 7 | veth, bridge, `iptables`/NAT, VXLAN, CRI — the half of Act IV that is networking, read after the networking it needs. Act IV's four support pages sit here because they span both halves of the act. |
 | **7** | **Act V** + [`the-whole-stack.md`](networking-fundamentals/the-whole-stack.md) | 41,015 | 4 | Kubernetes, then the capstone trace — the same order Route A insists on, for the same reason. |
 | **8** | **Act VI** | 48,489 | 13 | The control plane: static pods, the kubelet's unit, PKI, reconciliation, `kubeadm`. |
 | **9** | **Act VII** | 54,882 | 12 | Workloads, scheduling, storage, config, Helm/Kustomize, CRDs, autoscaling. |
@@ -58,7 +58,7 @@ every harness run by `routes.reorder-covers-course` rather than asserted here.
 | **11** | **Act IX** | 31,258 | 6 | Identity, tokens, RBAC. |
 | **12** | **Act X** | 87,902 | 13 | Securing the platform: capabilities, seccomp, policy, supply chain. |
 | **13** | **Act XI** | 29,740 | 9 | Operating it: logs, metrics, cardinality, alerting, tracing. |
-| | **→ total** | **437,039** course words | **83** | |
+| | **→ total** | **458,002** course words | **86** | |
 
 **Steps 10–13 are Route A's order unchanged.** The proposal wanted security, supply chain and
 observability grouped at the end; they already are. Route C diverges from Route A in exactly two

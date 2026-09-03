@@ -109,6 +109,43 @@ The deleting layer contains a **whiteout marker** (`.wh.secret.txt`) — a note 
 
 </details>
 
+> **Question 10 —** You set `iptables -P INPUT DROP` on a working host and add one `ACCEPT` for the port you publish. Name the two entire classes of traffic you have just destroyed that have nothing to do with anyone knocking at your door — and then give the single rule that restores the larger of the two, without naming a port number in it.
+
+<details>
+<summary>Answer</summary>
+
+**Loopback** and **every reply to everything this host asks for**. `INPUT` means "the routing decision said this packet is for me," and both of those satisfy it: `127.0.0.1` never touches a wire but still traverses netfilter, so every process on the box is cut off from every other process; and the answer to a DNS query or an HTTP request arrives inbound, matches nothing, and dies at the policy — so the host fails at *name resolution*, two layers away from the actual fault.
+
+The rule that fixes the second is `-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT`. It names no port because it does not match on the packet at all: it asks the conntrack table whether this flow is one the kernel has already seen. That is precisely what "stateful" means — and the table it consults exists only because NAT needed a memory. (Loopback needs its own rule, `-i lo -j ACCEPT`, because the *first* packet of a local connection is `NEW`, not `ESTABLISHED`.)
+
+</details>
+
+> **Question 11 —** Two containers behind the same `MASQUERADE` both open a connection to `1.1.1.1:443`, and each kernel independently picks source port 41000. What does the host do about it, what is the hard ceiling on how many times it can do it, and why does a service that opens a fresh connection per request hit that ceiling far sooner than its concurrency number suggests?
+
+<details>
+<summary>Answer</summary>
+
+It **rewrites the source port** as well as the source address — it prefers to keep the original port, and reallocates only when the resulting tuple would collide with a row already in the table. So the second container's packets leave with a port number no process anywhere ever chose.
+
+The ceiling comes from counting the free fields in the demultiplexing key. Protocol, source address (pinned to the host — that is the point of NAT), destination address and destination port are all fixed, so the *only* field left to vary is the 16-bit source port: at most 65,535 simultaneous flows per NAT address per destination endpoint.
+
+Churn beats concurrency because a conntrack row outlives its connection — a `TIME_WAIT` row holds its port reservation for minutes after the conversation ends. So the real limit is "connections *started* in the last couple of minutes," not "connections open now." And when allocation collides under load, the losing insertion is a **dropped SYN**, which the client retransmits about a second later: the one-second latency tail with nothing in any application log.
+
+</details>
+
+> **Question 12 —** A `REDIRECT` rule hands your proxy a connection the client addressed to `example.com`. `getsockname()` on the accepted socket returns your own proxy's address. Where did the original destination go, why is that the only place it could be, and what single kernel setting would make it unrecoverable?
+
+<details>
+<summary>Answer</summary>
+
+It is in the **conntrack row** for the flow, and `getsockopt(SOL_IP, SO_ORIGINAL_DST)` reads it back out. It has to be there, because `REDIRECT` is a form of DNAT and a translation the kernel does not record is a translation it cannot reverse — the replies to this connection have to be un-rewritten on the way back, so the pre-rewrite destination is load-bearing state, not a courtesy.
+
+`getsockname()` cannot help because the `nat` table runs *before* the packet is delivered to any socket: everything a socket can tell you about itself is downstream of the rewrite. This is conntrack's third role — a NAT ledger, then a firewall oracle, and here an **API** queried from userspace.
+
+The setting that destroys it is `-j NOTRACK` in the **`raw`** table for that flow. `raw` runs before connection tracking, which is the only place a decision about tracking can be made; an untracked flow has no row, so `SO_ORIGINAL_DST` has nothing to read and fails with `Protocol not available`. It is also, incidentally, the whole mechanism a sidecar mesh runs on: `REDIRECT` rules written into a Pod's network namespace, plus one `getsockopt`.
+
+</details>
+
 ---
 
 ← Back to **[Act IV overview](README.md)** · Next: **[Diagnose it →](diagnose.md)** (apply it under fire), then **[Act V →](../act-5-kubernetes/README.md)**

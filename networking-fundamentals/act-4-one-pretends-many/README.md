@@ -6,7 +6,7 @@ That idea — *one machine pretending to be many* — was the seed of everything
 
 This act is about how Linux does exactly that. We start from the deepest idea in the course — everything is a file, and a process has a private view of the world — and we take it one step further: we make the *network* private too. A **network namespace** is the process-isolation idea applied to the networking subsystem, and like everything else it turns out to be a file. Its twin, **cgroups**, answers a question a namespace never asks at all.
 
-From there we build the plumbing by hand. We will create a virtual wire between two namespaces with a **veth pair**, plug several of them into a software switch with a **Linux bridge**, teach the kernel to rewrite addresses on the fly with **iptables and NAT** so a private container can reach the public internet — the `iptables` Act III named and deferred to here — and finally wrap a packet inside another packet with **VXLAN**, building a working tunnel between two namespaces so you can watch one private network ride inside another on a wire that has never heard of it.
+From there we build the plumbing by hand. We will create a virtual wire between two namespaces with a **veth pair**, plug several of them into a software switch with a **Linux bridge**, teach the kernel to rewrite addresses on the fly with **iptables and NAT** so a private container can reach the public internet — the `iptables` Act III named and deferred to here — then stay at those five hooks long enough to do the three jobs everyone actually reaches for them for: **a stateful firewall** that refuses everything by default, **NAT's real ceiling** and the tables that steer a packet rather than rewrite it, and **intercepting a connection that was never addressed to you** — and finally wrap a packet inside another packet with **VXLAN**, building a working tunnel between two namespaces so you can watch one private network ride inside another on a wire that has never heard of it.
 
 After this act you will be able to take one bare Linux box and, from memory and first principles, carve it into multiple isolated networks, wire them together, give them internet access, and explain every packet's path by pointing at the file or kernel hook responsible. You will have built, by hand, the thing Kubernetes builds for you on every node — and you'll recognize it when you see it.
 
@@ -17,13 +17,17 @@ Work through these in order. Each one runs experiments in the lab container and 
 1. **[Namespaces](01-namespaces.md)** — process isolation applied to the whole network stack.
 2. **[cgroups](01b-cgroups.md)** — the other half of a container: not what it can see, but how much it can use.
 3. **[veth and bridge](02-veth-and-bridge.md)** — the virtual wire and the software switch.
-4. **[iptables and NAT](03-iptables-and-nat.md)** — rewriting addresses so a private host can reach the internet, and the nftables store both grammars actually write to.
-5. **[Overlay and VXLAN](04-overlay-vxlan.md)** — wrapping a packet in a packet so two private networks share one wire.
-6. **[Who does this for you](05-who-does-this-for-you.md)** — the OCI runtime spec, `runc`, and `containerd`: the five namespaces and cgroup a bundle asks for, built by a program instead of your fingers.
-7. **[Entering what you did not name](05b-entering-what-you-did-not-name.md)** — `ip netns list` is empty on a machine full of containers, and exits 0. What a name actually is, and the tool that needs a PID instead of one.
-8. **[Who am I](05c-who-am-i.md)** — the third question the act never posed. `/proc/self/uid_map`, an unprivileged user who becomes root, and a process holding all 41 capabilities that still cannot write to `/etc`.
-9. **[The kubelet's side](06-the-kubelets-side.md)** — the Container Runtime Interface: why a Pod's sandbox is created before any container in it, proven by a network setup failing first.
-10. **[How a layer is made](07-how-a-layer-is-made.md)** — the build side of Act I 06b's overlayfs read: BuildKit, and a secret you can recover from a raw layer after the `RUN` that deleted it.
+4. **[Docker networks](02b-docker-networks.md)** — why `docker0/brif/` is often empty on a machine full of running containers, and the naming quirk that hides a `kind` cluster's own bridge even harder.
+5. **[iptables and NAT](03-iptables-and-nat.md)** — rewriting addresses so a private host can reach the internet, and the nftables store both grammars actually write to.
+6. **[The stateful firewall](03b-the-stateful-firewall.md)** — a default-deny policy breaks the machine that set it, and the one rule that fixes it matches on no port at all.
+7. **[When NAT runs out](03c-when-nat-runs-out.md)** — `MASQUERADE` is an allocation, not a function: its ceiling, its collisions, and the two tables that neither filter nor translate.
+8. **[The transparent proxy](03d-the-transparent-proxy.md)** — intercepting a connection that was never addressed to you, and recovering the destination your own rewrite destroyed.
+9. **[Overlay and VXLAN](04-overlay-vxlan.md)** — wrapping a packet in a packet so two private networks share one wire.
+10. **[Who does this for you](05-who-does-this-for-you.md)** — the OCI runtime spec, `runc`, and `containerd`: the five namespaces and cgroup a bundle asks for, built by a program instead of your fingers.
+11. **[Entering what you did not name](05b-entering-what-you-did-not-name.md)** — `ip netns list` is empty on a machine full of containers, and exits 0. What a name actually is, and the tool that needs a PID instead of one.
+12. **[Who am I](05c-who-am-i.md)** — the third question the act never posed. `/proc/self/uid_map`, an unprivileged user who becomes root, and a process holding all 41 capabilities that still cannot write to `/etc`.
+13. **[The kubelet's side](06-the-kubelets-side.md)** — the Container Runtime Interface: why a Pod's sandbox is created before any container in it, proven by a network setup failing first.
+14. **[How a layer is made](07-how-a-layer-is-made.md)** — the build side of Act I 06b's overlayfs read: BuildKit, and a secret you can recover from a raw layer after the `RUN` that deleted it.
 
 Every lesson ends by tearing down what it built, so you can work straight through in one container without tripping over the last experiment's leftovers.
 
