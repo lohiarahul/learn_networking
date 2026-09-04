@@ -18,6 +18,9 @@ else
   note "this lab's uplink is a userspace stack, so it rewrites the private source outside netfilter and"
   note "the namespace reaches 8.8.8.8 with or without your rule. The reachability check cannot"
   note "discriminate here and is skipped; the NAT-rule check below is the load-bearing one."
+  note "To get the real symptom, run THIS drill's lab without --network host:"
+  note "  docker run --rm -it --privileged --name lab nicolaka/netshoot"
+  note "A plain container has its own netns, so its own netfilter is genuinely in the path."
   ns_require "the namespace at least has a working default route" app 'ip route get 8.8.8.8 >/dev/null'
 fi
 # And at the right layer. Giving the namespace a routable address, or routing it some other way, also

@@ -64,25 +64,34 @@ notice that the second number is the one that predicts anything.
 > configured, forwarding is on — but every ping to the outside times out. The host itself reaches
 > `8.8.8.8` fine. Same kernel, same uplink. Why can the host get out and the namespace can't?"*
 
-> **⚠ On Docker Desktop this drill's symptom may not appear, for a reason worth more than the drill.**
-> The namespace will reach `8.8.8.8` *before* you add any `MASQUERADE` rule. Nothing is wrong with your
-> setup: a Docker Desktop container's uplink faces a **userspace network stack** in the VM rather than a
-> real L3 forwarder, so the private source address is rewritten outside netfilter entirely and the
-> missing rule costs nothing. `iptables -t nat -S POSTROUTING` will confirm there is no rule matching
-> your range, and the ping will work regardless — which is a good demonstration that **a NAT you cannot
-> see in the tables is still a NAT**.
->
-> Check which environment you have:
+> **⚠ Run this one drill in a lab *without* `--network host`.** It is the only drill on this page that
+> cares, and it cares a lot:
 >
 > ```bash
-> ip rule show | grep -q 'lookup 2' && echo "policy-routed uplink — probably Docker Desktop's VM"
+> docker run --rm -it --privileged --name lab nicolaka/netshoot     # note: no --network host
 > ```
 >
-> On a real Linux host the packet leaves with `10.50.0.2` as its source and the `tcpdump` below shows
-> it. On Docker Desktop, do the `tcpdump` anyway and read what the source has become — it is the same
-> lesson arriving as an answer rather than a question. The
-> [two-machines appendix](../act-6-control-plane/09-two-machines-from-nothing.md) is where this drill
-> reproduces properly, because those are real machines.
+> Inside a `--network host` lab on Docker Desktop **this drill's symptom does not appear at all** — the
+> namespace reaches `8.8.8.8` before you add any `MASQUERADE` rule, and you get a false pass, which is
+> worse than a failure. The reason is that the VM's uplink faces a **userspace network stack** rather
+> than a real L3 forwarder, so the private source address is rewritten outside netfilter entirely and
+> the missing rule costs nothing. A plain `--privileged` container has its own network namespace with
+> its own netfilter genuinely in the path, so the fault reproduces exactly: gateway reachable, host
+> reachable, namespace timing out, and `tcpdump` showing `10.50.0.2` on the wire.
+>
+> You can see which kind of uplink you are standing on:
+>
+> ```bash
+> ip rule show | grep -q 'lookup 2' && echo "policy-routed — a userspace uplink, wrong lab for this drill"
+> ```
+>
+> Keep the insight the other lab hands you, though, because it is real and it is not on the syllabus
+> anywhere: on Docker Desktop's VM a private address reaches the internet with **no `MASQUERADE` rule
+> in any table**. `iptables -t nat -S POSTROUTING` shows nothing for the range and the ping works
+> regardless — **a NAT you cannot see in the tables is still a NAT**, which is the same finding as
+> [Reading a ruleset you did not write](03b-reading-a-ruleset-you-did-not-write.md) arriving from a
+> completely different direction. [Act IV in the wild](in-the-wild.md#and-the-vms-own-uplink-is-not-a-real-network-either)
+> measures all three of that uplink's surprises.
 
 **Reproduce it** (run; don't read):
 
