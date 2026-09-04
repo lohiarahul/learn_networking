@@ -186,8 +186,8 @@ so it cannot drift from what is actually on the pages.
 | `02-addressing/arp.svg` | `act-2-two-machines/01-ethernet-and-arp.md` |
 | `02-addressing/ipv4-subnetting.svg` | `act-2-two-machines/02-ip-and-routing.md` |
 | `02-addressing/mac-addresses.svg` | `act-2-two-machines/01-ethernet-and-arp.md` |
-| `02-addressing/nat.svg` | `act-4-one-pretends-many/03-iptables-and-nat.md` |
-| `02-addressing/private-vs-public-ip.svg` | `act-4-one-pretends-many/03-iptables-and-nat.md` |
+| `02-addressing/nat.svg` | `act-4-one-pretends-many/03a-publishing-a-port.md` |
+| `02-addressing/private-vs-public-ip.svg` | `act-4-one-pretends-many/03a-publishing-a-port.md` |
 | `03-switching-layer2/collision-vs-broadcast-domains.svg` | `act-2-two-machines/01b-vlans-and-segmentation.md` |
 | `03-switching-layer2/switch-mac-tables.svg` | `act-4-one-pretends-many/02-veth-and-bridge.md` |
 | `03-switching-layer2/vlans.svg` | `act-2-two-machines/01b-vlans-and-segmentation.md` |

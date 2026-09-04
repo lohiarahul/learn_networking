@@ -136,8 +136,9 @@
         "n": 6,
         "include": [
           "act-4-one-pretends-many/02-*.md", "act-4-one-pretends-many/02b-*.md",
-          "act-4-one-pretends-many/03-*.md", "act-4-one-pretends-many/03b-*.md",
-          "act-4-one-pretends-many/03c-*.md", "act-4-one-pretends-many/03d-*.md",
+          "act-4-one-pretends-many/03-*.md", "act-4-one-pretends-many/03a-*.md",
+          "act-4-one-pretends-many/03b-*.md", "act-4-one-pretends-many/03c-*.md",
+          "act-4-one-pretends-many/03d-*.md", "act-4-one-pretends-many/03e-*.md",
           "act-4-one-pretends-many/04-*.md", "act-4-one-pretends-many/06-*.md",
           "act-4-one-pretends-many/README.md", "act-4-one-pretends-many/test-yourself.md",
           "act-4-one-pretends-many/diagnose.md", "act-4-one-pretends-many/in-the-wild.md"

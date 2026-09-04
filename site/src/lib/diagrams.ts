@@ -235,6 +235,10 @@ export const DIAGRAMS: Record<string, Diagram> = {
    * The source ASCII shows the full branching diagram, which is the right reference. A path can only
    * show one route through it, so this draws the forwarding case — the one Kubernetes cares about —
    * and the caption names the local-delivery variant rather than pretending the fork isn't there.
+   *
+   * Deliberately carries NO DNAT/SNAT annotation. Lesson 03 stops at "where may a packet be touched";
+   * naming the two edits here would hand over the answer to the question 03a is built to make the
+   * reader want. The NAT-annotated version of this same path is the ASCII figure in 03a itself.
    */
   'iptables-hooks': {
     kind: 'path',
@@ -247,18 +251,22 @@ export const DIAGRAMS: Record<string, Diagram> = {
       {
         via: 'before any routing decision',
         title: 'PREROUTING',
-        detail: ['nat table', 'DNAT rewrites the DESTINATION', '(this is where a ClusterIP dies)'],
+        detail: ['the first hook any', 'arriving packet reaches'],
       },
       {
-        via: 'now the destination is real',
+        via: 'the fork: whose packet is this?',
         title: 'routing decision',
-        detail: ['for me → INPUT', 'for someone else → FORWARD'],
+        detail: ['for me → INPUT', 'for someone else → FORWARD', 'born here → started at OUTPUT'],
       },
-      { via: '"for someone else"', title: 'FORWARD', detail: ['filter table', 'accept or drop'] },
+      {
+        via: '"for someone else"',
+        title: 'FORWARD',
+        detail: ['filter table', 'accept or drop', 'ip_forward=0 stops it here'],
+      },
       {
         via: 'the path is chosen; last chance to edit',
         title: 'POSTROUTING',
-        detail: ['nat table', 'SNAT rewrites the SOURCE', '(MASQUERADE lives here)'],
+        detail: ['the last hook before', 'the packet is on the wire'],
       },
       { via: 'out', title: 'packet leaves' },
     ],

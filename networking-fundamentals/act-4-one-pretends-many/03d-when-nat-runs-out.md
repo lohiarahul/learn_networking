@@ -201,7 +201,8 @@ ip netns exec app python3 -m http.server 80 >/tmp/hp.log 2>&1 &
 sysctl -w net.ipv4.ip_forward=1
 ```
 
-Now publish it, the way the last lesson taught — a DNAT rule and nothing more. The published address is
+Now publish it, the way [Publishing a port](03a-publishing-a-port.md) taught — a DNAT rule and nothing
+more. The published address is
 the bridge's own `10.80.0.1`, standing in for a host address:
 
 ```bash
@@ -266,8 +267,8 @@ ip netns exec cli curl -s -o /dev/null -m 3 -w 'from cli -> %{http_code}\n' http
   || echo 'from cli -> nothing came back'
 ```
 
-It hangs and gives up. And the DNAT did fire — check its counter, which is the habit the last lesson
-built:
+It hangs and gives up. And the DNAT did fire — check its counter, which is the habit
+[the five hooks](03-iptables-and-nat.md) built:
 
 ```bash
 iptables -t nat -L PREROUTING -n -v | grep 8080
@@ -512,4 +513,4 @@ client was actually trying to go.
 
 ---
 
-← Prev: **[The stateful firewall](03b-the-stateful-firewall.md)** · ↑ **[Act IV overview](README.md)** · Next: **[The transparent proxy](03d-the-transparent-proxy.md)** →
+← Prev: **[The stateful firewall](03c-the-stateful-firewall.md)** · ↑ **[Act IV overview](README.md)** · Next: **[The transparent proxy](03e-the-transparent-proxy.md)** →

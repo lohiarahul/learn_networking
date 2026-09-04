@@ -1,10 +1,11 @@
 # The stateful firewall
 
-**The wall** — The last lesson ended with a firewall lying to its owner. `ufw status` said `8080 DENY`
-while the port stood open to the internet, because `ufw` hung its rules on `INPUT` and the packet
-walked `FORWARD`. The lesson's own conclusion was *read the table, not the tool* — so read it, and
-write it. You now know the five hooks, you know which one a packet for this machine walks, and you know
-how to attach a rule to it. There is nothing left between you and a firewall you actually understand.
+**The wall** — The last lesson ended with a firewall lying to its owner, twice. Your own `DROP` on
+`INPUT` left a published port answering `200` to the whole network, because the packet walked `FORWARD`;
+then `iptables -S` reported `-P FORWARD ACCEPT` on a kernel that was about to drop. Both times the
+conclusion was *read the table, not the tool* — so read it, and now **write** one. You know the five
+hooks, you know which one a packet for this machine walks, and you know how to attach a rule to it.
+There is nothing left between you and a firewall you actually understand.
 
 So build the simplest useful one. This host should accept the port you meant to publish and nothing
 else. Two lines, and the first is the one that matters, because a firewall built out of `ACCEPT` rules
@@ -22,9 +23,10 @@ docker run --rm -it --privileged --name fw nicolaka/netshoot
 ```
 
 That container is a small Linux host with a private address, one interface, and internet access. The
-internet access, note, is the thing you read in the last lesson and nothing more: a `MASQUERADE` rule
-in the *host's* `POSTROUTING` chain is the only reason a `172.17.x.x` packet from in here ever gets a
-reply. This container has its own `filter` table, empty, with every policy at `ACCEPT`. Check that, and
+internet access, note, is the thing you *built by hand* in [Publishing a port](03a-publishing-a-port.md)
+and nothing more: a `MASQUERADE` rule in the *host's* `POSTROUTING` chain is the only reason a
+`172.17.x.x` packet from in here ever gets a reply — the same rule you wrote for `10.20.0.0/24`, one
+layer out. This container has its own `filter` table, empty, with every policy at `ACCEPT`. Check that, and
 confirm the machine works, before you break it:
 
 ```bash
@@ -154,9 +156,10 @@ iptables -D INPUT -p udp --sport 53 -j ACCEPT
 ```
 
 `-D` deletes, and it takes the rule *as you wrote it* rather than a number — spell the match and target
-out again and netfilter removes the rule that matches. (`-A` appends, which is all lesson 03 needed.
-You are about to need two more: `-I <chain> <n>` inserts at a position, and `-R <chain> <n>` replaces
-the rule at one. Order is the whole grammar of a ruleset, so the flags that manipulate it matter.)
+out again and netfilter removes the rule that matches. (`-A` appends and `-Z` zeroes counters, which is
+all the last three lessons needed. You are about to need two more: `-I <chain> <n>` inserts at a
+position, and `-R <chain> <n>` replaces the rule at one. Order is the whole grammar of a ruleset, so the
+flags that manipulate it matter.)
 
 ### Where is "I started this conversation" written down?
 
@@ -367,15 +370,26 @@ should be knocking at all.
 ### How does a packet get from one chain into another?
 
 One thing remains between you and reading anybody else's ruleset, and it is a control-flow question
-rather than a matching question. Look again at what the last lesson found sitting at the top of the
-host's `FORWARD` chain: a jump to `DOCKER-USER`, then a jump to `DOCKER`.
+rather than a matching question. Look again at the tree the last lesson found on the host's `FORWARD`
+chain, which contained no rules of its own at all — only jumps:
 
-Those cannot be hooks. There are exactly five, they are fixed, and neither of these is one of them — so
-`-j DOCKER-USER` is a target that is not a verdict, which is a thing you have not met. And that raises
-a question with real consequences for every ruleset you will ever read: **if a packet jumps somewhere
-and is not decided there, what happens to it?** Two answers are possible. Either the jump is one-way and
-the packet's fate is settled inside, or the packet comes back and the chain it left carries on. Docker
-stakes its entire firewall integration on one of those being true.
+```
+-A FORWARD -j DOCKER-USER
+-A FORWARD -j DOCKER-FORWARD
+-A DOCKER-FORWARD -j DOCKER-CT
+-A DOCKER-FORWARD -j DOCKER-INTERNAL
+-A DOCKER-FORWARD -j DOCKER-BRIDGE
+-A DOCKER-BRIDGE -o docker0 -j DOCKER
+```
+
+None of those can be hooks. There are exactly five, they are fixed, and not one of these names is among
+them — so `-j DOCKER-USER` is a target that is not a verdict, which is a thing you have not met. And it
+raises the question that page deliberately left you holding: **if a packet jumps somewhere and is not
+decided there, what happens to it?** Two answers are possible. Either the jump is one-way and the
+packet's fate is settled inside, or the packet comes back and the chain it left carries on at the next
+line. Docker stakes its entire firewall integration on one of those being true — and so does the fact
+that `DOCKER-FORWARD`'s three jumps are listed one after another, which only means anything under one
+of the two answers.
 
 Build one and find out which. In the `fw` container:
 
@@ -431,10 +445,14 @@ that order. So the traversal rule, stated once and for all:
   rule AFTER the jump that brought it in.
 ```
 
-That single picture is what makes every ruleset you will ever inherit readable. `DOCKER-USER` exists
-precisely because it is jumped to *first* and returns: it is a deliberately empty room Docker leaves at
-the top of `FORWARD` for you to put your own rules in, on the guarantee that Docker will keep rewriting
-everything below it and never touch that. And Act V's `KUBE-SERVICES → KUBE-SVC-XXXX → KUBE-SEP-YYYY`
+That single picture is what makes every ruleset you will ever inherit readable, and it retires the
+question the last lesson left open. `DOCKER-USER` works *because* a jump returns: it is a room Docker
+reserves at the top of `FORWARD` for your own rules, on the guarantee that Docker will keep rewriting
+everything below it and never touch that — a guarantee that would be worthless if a packet entering it
+and matching nothing could not come back out. (Reserved is not the same as empty: on Docker Desktop it
+already holds the VM's own uplink rules, as you saw.) It is also why `DOCKER-FORWARD` can list three
+jumps in a row and have that mean "try these in order." And Act V's
+`KUBE-SERVICES → KUBE-SVC-XXXX → KUBE-SEP-YYYY`
 is this diagram three levels deep, written by a program — a jump per Service, a jump per endpoint, and a
 `RETURN` for every packet that turned out to be none of kube-proxy's business.
 
@@ -487,9 +505,9 @@ two rules are `-i lo` and a conntrack match rather than anything about ports. Yo
 what a client and a port scanner each see. And you can read a jump into a user chain the way the kernel
 does, which is the only thing that was standing between you and any real ruleset.
 
-The firewall you built decides *whether* a packet passes. The `MASQUERADE` from the last lesson decides
-*what a packet's addresses become* — and it looked free, a single line handling every container on the
-box. It is not free, and the reason has nothing to do with speed. Two containers on your bridge both
+The firewall you built decides *whether* a packet passes. The `MASQUERADE` you wrote in
+[Publishing a port](03a-publishing-a-port.md) decides *what a packet's addresses become* — and it looked
+free, a single line handling every container on the box. It is not free, and the reason has nothing to do with speed. Two containers on your bridge both
 open a connection to the same server, and the kernel picks their source ports independently, so both
 could easily pick 41000. After translation both flows read `<host-ip>:41000 → <server>:443`. The reply
 to one is indistinguishable from the reply to the other. So what does the kernel do about that, what is
@@ -498,4 +516,4 @@ runs out?
 
 ---
 
-← Prev: **[iptables and NAT](03-iptables-and-nat.md)** · ↑ **[Act IV overview](README.md)** · Next: **[When NAT runs out](03c-when-nat-runs-out.md)** →
+← Prev: **[iptables and NAT](03-iptables-and-nat.md)** · ↑ **[Act IV overview](README.md)** · Next: **[When NAT runs out](03d-when-nat-runs-out.md)** →

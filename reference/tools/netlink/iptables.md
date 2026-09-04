@@ -72,12 +72,13 @@ The legacy rule syntax that most of the internet's documentation, and `kube-prox
 
 ## As the course runs it
 
-*5 commands this course actually runs, taken apart. The breakdowns are hand-written.*
+*6 commands this course actually runs, taken apart. The breakdowns are hand-written.*
 
 | Command | Syntax breakdown | Lesson |
 |---|---|---|
-| `iptables -t nat -L -n -v` | `-t nat` = which **table** (`nat` rewrites addresses, `filter` accepts/drops); `-L` = list; `-n` = numeric, no DNS; `-v` = verbose, which adds the packet and byte counters — the column that tells you whether a rule is actually being hit | Lesson 3 — iptables and NAT |
-| `iptables -t filter -L -n -v --line-numbers` | `--line-numbers` gives you the index you need to delete a rule by position | Lesson 3 — iptables and NAT |
-| `iptables -t nat -L POSTROUTING -n -v` | one **chain**: `POSTROUTING` is the last hook before a packet leaves, which is where source NAT has to happen | Lesson 3 — iptables and NAT |
-| `iptables -t nat -L DOCKER -n` | Docker's own chain, holding the `DNAT tcp dpt:8080 to:172.17.x.x:80` that `-p` created | Lesson 3 — iptables and NAT |
-| `iptables -L FORWARD -n --line-numbers` | the chain that decides whether traffic may be routed *through* this host — the rules that make container-to-outside work | Lesson 3 — iptables and NAT |
+| `iptables -S` | `-S` prints a table as the rules that would recreate it. On a fresh container it returns three `-P` policy lines and nothing else, which is the clean slate the whole netfilter floor is built on — you cannot learn a mechanism from a ruleset you did not write | Lesson 3 — iptables and NAT |
+| `iptables -t filter -L -n -v --line-numbers` | `-t filter` = which **table** (`filter` accepts/drops, `nat` rewrites addresses); `-L` = list; `-n` = numeric, no DNS; `-v` = verbose, adding the packet and byte counters — the column that tells you whether a rule is actually being hit; `--line-numbers` gives the index you need to delete or replace one by position | Lesson 3 — iptables and NAT |
+| `iptables -Z` | zero every counter, so the next reading means only what it claims. Without it you are reading a total that started accumulating before you were watching — which is what turns three no-op `ACCEPT` rules into an instrument that says which hook a packet actually walked | Lesson 3 — iptables and NAT |
+| `iptables -t nat -A POSTROUTING -s 10.20.0.0/24 -o eth0 -j MASQUERADE` | the one line that lets a private address reach the internet: source NAT at the last hook before the wire, with the outgoing interface's address filled in per packet rather than named in the rule | Lesson 3a — Publishing a port |
+| `iptables -t nat -A PREROUTING -p tcp --dport 8080 -j DNAT --to-destination 10.20.0.2:80` | `docker run -p 8080:80`, written by hand. It has to be written **twice** — the same rule in `OUTPUT` too — because a packet that arrived and a packet born here are two different events, which is exactly what `(2 references)` on Docker's own `nat` chain counts | Lesson 3a — Publishing a port |
+| `iptables -L FORWARD -n --line-numbers` | the chain that decides whether traffic may be routed *through* this host, and therefore the hook a published container port actually walks — a `DROP` on `INPUT` leaves it wide open. On a Docker host this chain holds no rules of its own, only jumps into a four-level tree | Lesson 3b — Reading a ruleset you did not write |

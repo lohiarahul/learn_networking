@@ -77,9 +77,9 @@ curriculum examines, to separate two halves of one idea the reader meets in one 
 | # | Unit | Words (target) | Status |
 |---|---|---|---|
 | 5.1 | Act III `04-http.md` — the proxy section extended: forward vs reverse, `CONNECT`, and who the backend thinks the client is | +1,145 (lesson now 5,130) | ✍️ drafted, unverified |
-| 5.2 | Act IV `03b-the-stateful-firewall.md` | 3,824 | ✍️ drafted, unverified |
-| 5.3 | Act IV `03c-when-nat-runs-out.md` | 3,232 | ✍️ drafted, unverified |
-| 5.4 | Act IV `03d-the-transparent-proxy.md` | 2,635 | ✍️ drafted, unverified |
+| 5.2 | Act IV `03c-the-stateful-firewall.md` | 3,824 | ✍️ drafted, unverified |
+| 5.3 | Act IV `03d-when-nat-runs-out.md` | 3,232 | ✍️ drafted, unverified |
+| 5.4 | Act IV `03e-the-transparent-proxy.md` | 2,635 | ✍️ drafted, unverified |
 
 **No new tools.** Every experiment below runs on `iptables`, `conntrack`, `ip rule`, `curl`, `nc`,
 `python3` and `sysctl` — all already taught, all already on the roster. That is a design constraint,
@@ -107,7 +107,7 @@ it?"*. Three beats, in the lesson's existing voice:
    that header itself?* Act V's `externalTrafficPolicy` and Act V 07b's `ipBlock` warning both pay it
    off; `the-whole-stack.md`'s existing XFF paragraph becomes recognition instead of first contact.
 
-### 5.2 — `03b-the-stateful-firewall.md`
+### 5.2 — `03c-the-stateful-firewall.md`
 
 **Lab:** `docker run --rm -it --privileged nicolaka/netshoot` — deliberately **without**
 `--network host`, and the lesson says why in a line: you are about to set a default-deny policy, so
@@ -143,7 +143,7 @@ reason that container has internet access at all is the `MASQUERADE` rule the re
   cloud control that makes you write the return rule by hand. What would have to be *missing* from it
   for that to be necessary?
 
-### 5.3 — `03c-when-nat-runs-out.md`
+### 5.3 — `03d-when-nat-runs-out.md`
 
 - **The wall.** `MASQUERADE` read like a free function. Two containers both picked source port 41000
   for the same destination; after translation both are `<host-ip>:41000 → <dst>:443`. So SNAT must
@@ -169,7 +169,7 @@ reason that container has internet access at all is the `MASQUERADE` rule the re
 - **Forward question:** everything so far rewrote headers. What do you do about traffic that was never
   addressed to you at all?
 
-### 5.4 — `03d-the-transparent-proxy.md`
+### 5.4 — `03e-the-transparent-proxy.md`
 
 - **The wall.** Act III's proxies all required the client to *address* them. You do not own these
   clients — they are containers someone else built, dialling `example.com` directly — and you must

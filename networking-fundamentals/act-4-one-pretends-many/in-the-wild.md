@@ -35,8 +35,9 @@ NAT — exactly what you built by hand.
 
 ## Publishing a port is a DNAT rule
 
-*Concept:* `-p 8080:80` is not magic — it's the DNAT rule from lesson 3, rewriting a host-port knock to
-the container's address, with conntrack carrying the reply home.
+*Concept:* `-p 8080:80` is not magic — it's the DNAT rule you wrote by hand in
+[Publishing a port](03a-publishing-a-port.md), rewriting a host-port knock to the container's address,
+with conntrack carrying the reply home.
 
 ```bash
 docker run -d -p 8080:80 --name pub nginx

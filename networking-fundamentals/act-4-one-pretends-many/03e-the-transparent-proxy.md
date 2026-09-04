@@ -211,7 +211,7 @@ every conclusion it draws about who is talking to it — rate limits, geography,
 conclusion about your proxy. You have met this erasure twice now, at two layers: as
 [`X-Forwarded-For` in Act III](../act-3-the-internet/04-http.md#who-chose-the-machine-in-the-middle),
 where a proxy writes a header and hopes, and as
-[hairpin masquerade in the last lesson](03c-when-nat-runs-out.md), where the kernel did it. It is the
+[hairpin masquerade in the last lesson](03d-when-nat-runs-out.md), where the kernel did it. It is the
 same erasure, and it is inherent to *"two connections, not one relay"*.
 
 Which is what the second mechanism exists to fix. **`TPROXY` does not rewrite the packet at all.** It
@@ -383,4 +383,4 @@ for permission?
 
 ---
 
-← Prev: **[When NAT runs out](03c-when-nat-runs-out.md)** · ↑ **[Act IV overview](README.md)** · Next: **[Overlay and VXLAN](04-overlay-vxlan.md)** →
+← Prev: **[When NAT runs out](03d-when-nat-runs-out.md)** · ↑ **[Act IV overview](README.md)** · Next: **[Overlay and VXLAN](04-overlay-vxlan.md)** →

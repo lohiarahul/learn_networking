@@ -65,7 +65,7 @@ reconcile** in the cloud.
 > shortest path to a certificate, and it is not container-floor-first. All three are published, and
 > none pretends to be the other:
 >
-> - **Route A — this map.** Narrative order, all 458,417 words, nothing skipped.
+> - **Route A — this map.** Narrative order, all 468,973 words, nothing skipped.
 > - **Route B — [the exam path](exam-prep/the-exam-path.md).** The same material in exam order: nine
 >   steps, the 56% you need before CKA, the 52 of 83 drills that fall on that path, and an explicit
 >   optional track for the 14% neither curriculum examines.

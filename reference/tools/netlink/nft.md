@@ -55,12 +55,14 @@ One tool and one grammar for IPv4, IPv6, ARP and bridge (the `inet` family), plu
 
 ## As the course runs it
 
-*5 commands this course actually runs, taken apart. The breakdowns are hand-written.*
+*7 commands this course actually runs, taken apart. The breakdowns are hand-written.*
 
 | Command | Syntax breakdown | Lesson |
 |---|---|---|
-| `nft list ruleset` | the whole store, every family and table at once. Run it after writing rules with `iptables` and your rules are in it — which is the point: since 1.8 `iptables` is a front-end and **this** is where it wrote them | Lesson 3 — iptables and NAT |
-| `nft add table inet other` | a table of your own, in the `inet` family so one table covers IPv4 and IPv6. This is what lets two programs share a hook without fighting over one global table — `kindnet` does exactly this | Lesson 3 — iptables and NAT |
-| `nft add chain inet other fw '{ type filter hook forward priority 0; policy accept; }'` | the hook and priority **declared**, not implied by which of five fixed tables you picked. Rule order stops being global and becomes `priority` | Lesson 3 — iptables and NAT |
-| `nft add rule inet other fw ip saddr 10.20.0.9 drop` | a native rule in a native table — and therefore one that `iptables-save` reports nothing about, which is the shadow this lesson ends on | Lesson 3 — iptables and NAT |
+| `nft list ruleset` | the whole store, every family and table at once. Run it after writing rules with `iptables` and your rules are in it — which is the point: since 1.8 `iptables` is a front-end and **this** is where it wrote them | Lesson 3b — Reading a ruleset you did not write |
+| `nft list tables` | the CLI↔table relationship, in one line: `iptables` writes into `table ip filter` and `ip6tables` into `table ip6 filter`, so "you maintain two rulesets" was never a style complaint about the command — it is the data model | Lesson 3b — Reading a ruleset you did not write |
+| `nft add chain inet mine fw '{ type filter hook forward priority 0; policy accept; }'` | the hook and priority **declared**, not implied by which of five fixed tables you picked — and `inet` means one table covers IPv4 and IPv6. Rule order stops being global and becomes `priority`, which is how two programs share a hook without fighting; `kindnet` does exactly this | Lesson 3b — Reading a ruleset you did not write |
+| `nft add rule inet mine fw ip saddr @blocked drop` | one rule fed by a **named set** (`nft add element inet mine blocked { … }`) instead of a rule per address. The policy changes without the rule being rewritten — `ipset` built in, and the difference between a firewall you edit and one you feed | Lesson 3b — Reading a ruleset you did not write |
+| `nft add rule inet mine fw tcp dport 'vmap { 23 : drop, 80 : accept, 443 : accept }'` | a **verdict map**: one hashed lookup returning what to do, where iptables needs one rule per port walked in order. This is the mechanism behind kube-proxy's nftables mode and the answer to Act V's iptables-walks-rules-linearly problem | Lesson 3b — Reading a ruleset you did not write |
+| `nft -f /tmp/r.nft` | a whole ruleset in **one transaction**, so a half-applied firewall stops being a reachable state. Load one containing `flush ruleset` and a `policy drop` chain, then run `iptables -S`: it reports `-P FORWARD ACCEPT` on a kernel that will drop | Lesson 3b — Reading a ruleset you did not write |
 | `nft list table inet kindnet-network-policies` | Act V cashes this in: the table `kind`'s CNI writes NetworkPolicy into, holding a `set` of Pod IPs and a `queue` verdict rather than any allow or drop rule | Lesson 7 — Network Policy |
