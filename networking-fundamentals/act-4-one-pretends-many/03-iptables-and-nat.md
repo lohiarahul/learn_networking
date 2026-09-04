@@ -79,7 +79,26 @@ ip netns exec ns1 ip link set veth-a-c up
 ip netns exec ns1 ip link set lo up
 ```
 
-Eleven lines, and every one of them is lesson 02's. Confirm the picture is the one you think it is, from both sides of the wall:
+Eleven lines, and ten of them are lesson 02's. The new one is `ip addr add 10.20.0.1/24 dev br0`, and it deserves a sentence, because last lesson the bridge held no address at all and `10.20.0.1` belonged to a namespace.
+
+**A bridge is two objects wearing one name.** There is a *switch*, which learns MACs and forwards frames between the ports in `brif/` and neither has nor wants an address — that is the whole of lesson 02. And there is an *interface* named `br0`, which the host's own IP stack can own like any other. `ip addr add ... dev br0` talks to the second one. It does not address the switch, and it does not address anything plugged into the switch; it gives **the host one port on that switch** — the port that leads into the host's routing table. Physical switch vendors call that port the SVI, or the management interface.
+
+Last lesson nobody needed it: three namespaces talking only to each other need a switch, not a host. This lesson `ns1` needs to reach something only the host can fetch, so the host has to be *on* the subnet — hence `10.20.0.1` on `br0` and `10.20.0.2` in `ns1`, two hosts on one segment, one of which happens to be running the switch.
+
+You can see both halves separately, and the second command is the one worth staring at:
+
+```bash
+ip -brief addr show br0        # the interface half: it holds 10.20.0.1/24
+ip -brief addr show veth-a     # a port: no IPv4 address, and it needs none
+ls /sys/class/net/br0/brif/    # what the switch half is made of
+ip route                       # how the host reaches the segment
+```
+
+`veth-a` is plugged into the switch and carries no address at all — only the link-local IPv6 the kernel gives every interface, the same noise lesson 02 taught you to ignore. Ports do not get addresses; they carry frames. And the route the `ip addr add` installed for free reads `10.20.0.0/24 dev br0`, not `dev veth-a`: when this host wants to reach anything on that segment it goes **out through the bridge**, exactly like every namespace on it. That is what "the host has one port on this switch" means, stated as a route.
+
+Putting an address on `veth-a` instead is worse than useless, in an instructive way: the host will happily accept the address and even answer at the IP level, but a bridge port has no working L2 identity of its own — every frame aimed at that port's own MAC is dropped by the bridge that owns it, so the reply can never be addressed. Try it later if you like; for now, an address on a bridge port is a trap, and an address on the bridge is a host on the segment.
+
+Confirm the picture is the one you think it is, from both sides of the wall:
 
 ```bash
 ip -brief addr show br0
