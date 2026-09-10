@@ -123,11 +123,34 @@ Now the grid those two axes make, tables stacked in the order they run:
    — read across `filter`'s own row and it stops at OUTPUT. Nothing in
    the filter table ever runs at PREROUTING or POSTROUTING.
 
-   Within ONE column, though, the order IS top to bottom as drawn:
-   raw → mangle → nat → filter → security, all at that single hook.
-   Exempt from tracking before you tag; tag before you translate;
-   translate before you decide — so a firewall judges the address the
-   packet is really going to, not the one it arrived with.
+   Within ONE column the order is fixed — but it is NOT simply top to
+   bottom as drawn, because `nat` runs in two different places:
+
+     PREROUTING    raw  →  mangle  →  nat
+     INPUT                 mangle  →  filter  →  nat
+     FORWARD               mangle  →  filter
+     OUTPUT        raw  →  mangle  →  nat  →  filter
+     POSTROUTING           mangle  →  nat
+
+   `raw` before `mangle` before `filter` never varies: exempt from
+   tracking before you tag, and tag before you decide. What moves is
+   `nat`, and its four chains are really two pairs — one pair edits a
+   packet's DESTINATION, the other edits its SOURCE:
+
+     destination edits — PREROUTING, OUTPUT — run BEFORE filter, so the
+       firewall judges the address the packet is really going to, not
+       the one written on it when it arrived.
+     source edits — INPUT, POSTROUTING — run AFTER filter, because
+       there is no point rewriting the sender of a packet that has
+       just been dropped.
+
+   So at OUTPUT nat comes first, and at INPUT it comes last. The verdict
+   is the dividing line, and the nat table sits on both sides of it.
+
+   (`security` runs at the end of INPUT, FORWARD and OUTPUT. Its exact
+   slot relative to `nat` differs between the two iptables backends —
+   which never matters, as the table is empty on virtually every
+   machine.)
 
    `iptables -L` with no -t shows you ONE ROW of this grid: filter.
 ```
