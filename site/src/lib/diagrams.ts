@@ -251,7 +251,7 @@ export const DIAGRAMS: Record<string, Diagram> = {
       {
         via: 'before any routing decision',
         title: 'PREROUTING',
-        detail: ['the first hook any', 'arriving packet reaches'],
+        detail: ['raw, mangle, nat — no filter', 'the first hook any', 'arriving packet reaches'],
       },
       {
         via: 'the fork: whose packet is this?',
@@ -261,12 +261,12 @@ export const DIAGRAMS: Record<string, Diagram> = {
       {
         via: '"for someone else"',
         title: 'FORWARD',
-        detail: ['filter table', 'accept or drop', 'ip_forward=0 stops it here'],
+        detail: ['mangle, filter, security', 'accept or drop happens HERE', 'ip_forward=0 stops it here'],
       },
       {
         via: 'the path is chosen; last chance to edit',
         title: 'POSTROUTING',
-        detail: ['the last hook before', 'the packet is on the wire'],
+        detail: ['mangle, nat — no filter', 'the last hook before', 'the packet is on the wire'],
       },
       { via: 'out', title: 'packet leaves' },
     ],

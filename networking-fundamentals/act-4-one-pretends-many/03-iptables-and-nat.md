@@ -77,7 +77,7 @@ Which fixes the cardinality, and all four numbers are worth holding at once:
 
 | Table | Its verb | Where it has chains, and why |
 |---|---|---|
-| **`filter`** | *decide* — accept or drop | The three post-fork hooks only. Filtering asks **whose** packet this is, and before the routing decision nobody knows yet. This is where a firewall lives, and it is the table `iptables` uses when you name none. |
+| **`filter`** | *decide* — accept or drop | `INPUT`, `FORWARD`, `OUTPUT` — and **neither `PREROUTING` nor `POSTROUTING`**. Filtering asks **whose** packet this is, so it cannot run at `PREROUTING`, where the routing decision has not answered that yet; and it does not need `POSTROUTING`, because by then the packet has already survived whichever of the three applied to it, and a second verdict would decide nothing new. This is where a firewall lives, and it is the table `iptables` uses when you name none. |
 | **`nat`** | *rewrite* — change an address | Both ends, plus the two local hooks — but **not `FORWARD`**. Rewriting is worth doing as a packet arrives or as it leaves; editing it midway through a transit it is already committed to would change nothing. |
 | **`mangle`** | *annotate* — alter or tag fields | **All five** — the only table with a chain at every hook, because marking a packet is useful anywhere. Built with properly in [When NAT runs out](03d-when-nat-runs-out.md). |
 | **`raw`** | *exempt* — act before conntrack | Only the two hooks where a packet **enters** netfilter. That is its entire identity: `raw` runs before connection tracking, so it is the only place to say something about a packet before the kernel starts keeping a record of it. Also [When NAT runs out](03d-when-nat-runs-out.md)'s business. |
@@ -101,8 +101,14 @@ Now the grid those two axes make, tables stacked in the order they run:
        17 of 25 cells filled; the 8 blanks are not accidents — each is a
        hook where that table's verb would have nothing to do
 
-   Read a COLUMN and you are looking at several tables at ONE hook. They
-   run top to bottom as drawn: raw → mangle → nat → filter → security.
+   This grid is NOT a timeline. Time runs left to right, along the hooks;
+   the rows are only five tables listed in a fixed order. So `filter`
+   being drawn below `nat` does not put it later than nat's POSTROUTING
+   — read across `filter`'s own row and it stops at OUTPUT. Nothing in
+   the filter table ever runs at PREROUTING or POSTROUTING.
+
+   Within ONE column, though, the order IS top to bottom as drawn:
+   raw → mangle → nat → filter → security, all at that single hook.
    Exempt from tracking before you tag; tag before you translate;
    translate before you decide — so a firewall judges the address the
    packet is really going to, not the one it arrived with.
