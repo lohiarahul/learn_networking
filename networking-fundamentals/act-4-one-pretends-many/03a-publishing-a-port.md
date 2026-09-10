@@ -100,6 +100,22 @@ Chain POSTROUTING (policy ACCEPT 0 packets, 0 bytes)
 
 DNS resolved, TCP connected, TLS-free HTTP came back with a 200 — from a namespace whose address the internet cannot route to. And the counter on your one rule is the receipt.
 
+Read that receipt carefully, because `3` is not the number of packets `ns1` sent. Two pings, a DNS lookup and an entire HTTP exchange is dozens of packets. Three is the number of *conversations*:
+
+```bash
+conntrack -L 2>/dev/null | grep 'src=10.20.0.2'
+```
+
+```
+icmp 1 src=10.20.0.2 dst=1.1.1.1 type=8 ...            ← both pings — one flow
+udp 17 src=10.20.0.2 dst=192.168.65.7 sport=54149 ...  ← the DNS query
+tcp  6 src=10.20.0.2 dst=172.66.147.243 ...            ← the HTTP connection
+```
+
+Three rows, three ticks. **The nat table is consulted once per flow, not once per packet.** The first packet of a conversation walks `POSTROUTING`, matches your rule, and the translation it is handed gets written into the conntrack row. Every packet after it is rewritten straight from that row, without the nat chain being read at all — which is the only way it *could* work. If each packet re-ran the chain, `MASQUERADE` would be free to choose a different source port every time, and the reply would arrive with nowhere to land. The rewrite is decided once; the row is what makes it stick.
+
+So a nat rule's counter counts conversations *started*, and reading it as packets is the usual route to concluding that a perfectly healthy NAT rule is barely firing. (`policy ACCEPT 0 packets` is zero for the reason the previous lesson gave: `MASQUERADE` terminates, so your packets left at rule 1 and the policy was never consulted.)
+
 ### Where the lie is written down
 
 Answer the prediction now, by reading the thing that remembers. You met this table an act ago and read it as a NAT ledger without having any NAT to look at:

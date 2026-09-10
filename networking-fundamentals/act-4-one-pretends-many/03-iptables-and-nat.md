@@ -480,7 +480,15 @@ Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
 1        0     0 ACCEPT     all  --  *      *       0.0.0.0/0            1.1.1.1
 ```
 
-`FORWARD`'s rule has **2 packets, 168 bytes**. `INPUT` and `OUTPUT` are untouched, for a reason you can now state precisely: those two packets were not for this machine and not from it. (If your `FORWARD` rule reads `0` too, forwarding is off — that is the `sysctl` line above, and the packets are being discarded before the hook rather than at it.)
+`FORWARD`'s rule has **2 packets, 168 bytes**. `INPUT` and `OUTPUT` are untouched, for a reason you can now state precisely: those two packets were not for this machine and not from it. **If your `FORWARD` rule reads `0`**, read its *policy* counter before anything else. Zero on both means no packet traversed the chain at all — the rule is not failing to match, the packet never arrived — and there are only two ways that happens here. Drop the `>/dev/null` and let `ping` tell you which:
+
+```bash
+echo "ip_forward = $(cat /proc/sys/net/ipv4/ip_forward)"
+ip netns exec ns1 ip route
+ip netns exec ns1 ping -c1 -W2 1.1.1.1 ; echo "exit=$?"
+```
+
+`exit=2` means the packet never left `ns1` — its default route is missing, so re-run the `ip route add default via 10.20.0.1` from earlier. `exit=1` means it left and died on this host with forwarding off — the `sysctl` line above. The exit code you just learned is doing the whole diagnosis.
 
 Note also that `FORWARD`'s *policy* counter reads zero while its rule reads two. Not a contradiction, once you know what the policy counter actually counts: **not packets that entered the chain, and not packets that matched nothing, but packets the policy itself had to dispose of.** `ACCEPT` is a *terminating* target, so your two packets left the chain at rule 1 and never reached the end — the policy was never consulted and counted nothing.
 
