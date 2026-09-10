@@ -1471,3 +1471,127 @@ a.kz-card:hover { border-color: var(--sl-color-text-accent); color: var(--sl-col
 :root[data-theme='dark'] .sl-markdown-content img[src*='/illustrations/'] {
   filter: brightness(0.82) saturate(0.9);
 }
+
+/* --- Mermaid popout ---------------------------------------------------------------------------
+   `useMaxWidth: true` fits each diagram to Starlight's content column, which is sized for a line of
+   prose. Widening the column would cost every page to fix a handful of blocks, so the diagrams stay
+   in the measure and get a full-viewport popout instead. Behaviour is in components/MermaidZoom.astro.
+
+   Gated on `scripting: enabled` for the same reason as the render-swap rules above: with no JS the
+   `pre` is the literal Mermaid source and advertising it as an "Enlarge diagram" button would be a
+   lie the reader cannot act on. */
+@media (scripting: enabled) {
+  .sl-markdown-content pre.mermaid[data-kz-zoom] {
+    position: relative;
+    cursor: zoom-in;
+  }
+
+  /* The hint has to be legible against the diagram surface without competing with the diagram, and it
+     must not intercept the click that the whole `pre` is listening for. */
+  .sl-markdown-content pre.mermaid[data-kz-zoom]::after {
+    content: 'Enlarge ⤢';
+    position: absolute;
+    inset-block-start: var(--s-2);
+    inset-inline-end: var(--s-2);
+    padding: 0.15rem 0.4rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: var(--r-sm);
+    background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-xs);
+    line-height: 1.4;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease-out;
+  }
+
+  .sl-markdown-content pre.mermaid[data-kz-zoom]:is(:hover, :focus-visible)::after {
+    opacity: 1;
+  }
+
+  /* Touch has no hover, so the affordance would never appear on a phone — where the diagrams are
+     smallest and the popout matters most. */
+  @media (hover: none) {
+    .sl-markdown-content pre.mermaid[data-kz-zoom]::after { opacity: 1; }
+  }
+}
+
+.kz-zoom[hidden] { display: none; }
+
+.kz-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--s-4);
+}
+
+.kz-zoom__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.kz-zoom__panel {
+  /* Carried explicitly: the label knockouts inside the cloned SVG paint this colour to vanish into the
+     diagram, and it is otherwise declared only under `.sl-markdown-content`. */
+  --kz-diagram-surface: var(--sl-color-gray-6);
+
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(96vw, 1500px);
+  height: min(90vh, 1050px);
+  padding: var(--s-6) var(--s-5) var(--s-5);
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--r-lg);
+  background: var(--kz-diagram-surface);
+  box-shadow: 0 1.5rem 3rem rgb(0 0 0 / 0.35);
+}
+
+.kz-zoom__stage {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: auto;
+}
+
+/* The clone arrives stripped of Mermaid's inline `max-width`, so its own viewBox scales it to whatever
+   box it is given — `100%`/`100%` plus the default `preserveAspectRatio` is what makes it fill the
+   panel without distorting. `!important` matches the rest of this section: Mermaid's inline styles
+   otherwise win. */
+.kz-zoom__stage > svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.kz-zoom__close {
+  position: absolute;
+  inset-block-start: var(--s-2);
+  inset-inline-end: var(--s-3);
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--sl-color-gray-2);
+  font-size: var(--sl-text-xs);
+  cursor: pointer;
+}
+
+.kz-zoom__close:is(:hover, :focus-visible) {
+  color: var(--sl-color-white);
+  border-color: var(--sl-color-gray-4);
+}
+
+/* Scrolling the article behind a modal is disorienting, and on iOS it scrolls the page instead of the
+   diagram. */
+:root.kz-zoom-open body { overflow: hidden; }

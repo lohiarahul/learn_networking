@@ -1,0 +1,114 @@
+---
+/**
+ * Click-to-enlarge for every rendered Mermaid diagram.
+ *
+ * Mermaid is configured with `useMaxWidth: true` (see astro.config.mjs), so a diagram is scaled to fit
+ * Starlight's content column — which is a reading measure, not a diagram measure. Wide flowcharts end
+ * up legible in the source and unreadable on the page. This adds a popout rather than widening the
+ * column, because the column width is right for prose and wrong for exactly these blocks.
+ *
+ * Three things make this fiddly, and each is why the obvious implementation does not work:
+ *
+ * 1. Mermaid renders on the *client*, after paint. There is no `<svg>` in the built HTML at all, so
+ *    binding on DOMContentLoaded finds nothing. The integration sets `data-processed` on each
+ *    `pre.mermaid` when its SVG lands, so that attribute is the real ready signal — hence the
+ *    MutationObserver, plus one sweep for any diagram already done before this script ran.
+ *
+ * 2. A theme switch makes astro-mermaid *remove* `data-processed` and re-render. The observer fires
+ *    again on the same elements, so marking has to be idempotent — `data-kz-zoom` is the latch.
+ *
+ * 3. global.css themes diagrams through unprefixed `.mermaid svg …` selectors. A clone lifted out of
+ *    the page therefore loses every colour unless its container also carries `.mermaid`, which is why
+ *    the stage below does. `--kz-diagram-surface` comes with it: the label knockouts paint that colour
+ *    to disappear into the diagram, and it is otherwise only defined under `.sl-markdown-content`.
+ */
+---
+
+<script>
+  const READY = 'pre.mermaid[data-processed]';
+  let overlay = null;
+  let opener = null;
+
+  function build() {
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.className = 'kz-zoom';
+    overlay.hidden = true;
+    overlay.innerHTML = `
+      <div class="kz-zoom__backdrop" data-kz-close></div>
+      <div class="kz-zoom__panel" role="dialog" aria-modal="true" aria-label="Enlarged diagram">
+        <button class="kz-zoom__close" type="button" data-kz-close aria-label="Close enlarged diagram">
+          Close <kbd>esc</kbd>
+        </button>
+        <div class="kz-zoom__stage mermaid"></div>
+      </div>`;
+    overlay.addEventListener('click', (event) => {
+      if (event.target instanceof Element && event.target.closest('[data-kz-close]')) close();
+    });
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function open(pre) {
+    const svg = pre.querySelector('svg');
+    if (!svg) return;
+    const el = build();
+    const stage = el.querySelector('.kz-zoom__stage');
+    const clone = svg.cloneNode(true);
+    /* Mermaid writes `max-width: <n>px` inline, which is the whole constraint being escaped here.
+       Sizing is handed to CSS so the SVG's own viewBox does the scaling. */
+    clone.removeAttribute('style');
+    clone.removeAttribute('width');
+    clone.removeAttribute('height');
+    stage.replaceChildren(clone);
+    opener = pre;
+    el.hidden = false;
+    document.documentElement.classList.add('kz-zoom-open');
+    el.querySelector('.kz-zoom__close')?.focus();
+  }
+
+  function close() {
+    if (!overlay || overlay.hidden) return;
+    overlay.hidden = true;
+    overlay.querySelector('.kz-zoom__stage')?.replaceChildren();
+    document.documentElement.classList.remove('kz-zoom-open');
+    opener?.focus();
+    opener = null;
+  }
+
+  function mark(pre) {
+    if (pre.dataset.kzZoom) return;
+    pre.dataset.kzZoom = 'ready';
+    pre.setAttribute('role', 'button');
+    pre.setAttribute('tabindex', '0');
+    pre.setAttribute('aria-label', 'Enlarge diagram');
+  }
+
+  document.querySelectorAll(READY).forEach(mark);
+
+  new MutationObserver((records) => {
+    for (const record of records) {
+      const target = record.target;
+      if (target instanceof Element && target.matches(READY)) mark(target);
+    }
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-processed'] });
+
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return;
+    const pre = event.target.closest(READY);
+    /* A Mermaid node can carry a real link, and dragging out a selection is not a click-to-zoom. */
+    if (!pre || event.target.closest('a')) return;
+    if (!window.getSelection()?.isCollapsed) return;
+    open(pre);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') return close();
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (!(event.target instanceof Element)) return;
+    const pre = event.target.closest(READY);
+    if (!pre) return;
+    event.preventDefault();
+    open(pre);
+  });
+</script>

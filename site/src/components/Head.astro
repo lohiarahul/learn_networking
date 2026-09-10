@@ -21,6 +21,9 @@ import Default from '@astrojs/starlight/components/Head.astro';
    browser reuses one fetch. Hardcoding `/fonts/…` here is the classic way to ship a preload the page
    never uses (wrong hash) and a warning in every console. */
 import aspekta400 from '../styles/fonts/Aspekta-400.woff2?url';
+/* Click-to-enlarge for Mermaid diagrams. Lives here because Head is the one component on every page;
+   it renders no markup of its own, only a hoisted module script. */
+import MermaidZoom from './MermaidZoom.astro';
 
 /** The card ids that `scripts/gen-og.mjs` writes. Anything else falls back to `default`. */
 const SECTION_CARDS = new Set([
@@ -68,3 +71,5 @@ const { title } = Astro.locals.starlightRoute.entry.data;
 <meta property="og:image:height" content="630" />
 <meta property="og:image:alt" content={`${title} — learn_networking`} />
 <meta name="twitter:image" content={ogImage} />
+
+<MermaidZoom />

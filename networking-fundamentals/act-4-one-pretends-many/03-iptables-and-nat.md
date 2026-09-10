@@ -317,7 +317,7 @@ Last lesson nobody needed that half: three namespaces talking only to each other
 
 ```mermaid
 flowchart TD
-  subgraph SEG["10.20.0.0/24 — ONE subnet, ONE Ethernet segment"]
+  subgraph SEG["ONE Ethernet segment — built by the wiring below.<br/>Both ends then independently CHOSE an address in 10.20.0.0/24"]
     subgraph HOST["the HOST network namespace"]
       IF["<b>br0</b> — the INTERFACE half<br/>10.20.0.1/24<br/>the host's own port on the switch"]
       SW["<b>br0</b> — the SWITCH half<br/>learns MACs · forwards frames<br/>holds no address, wants none"]
@@ -331,6 +331,8 @@ flowchart TD
     PA <-->|"one veth pair — one cable"| CA
   end
 ```
+
+**And where was that subnet "set"? Nowhere — which is the honest and more useful answer.** The *segment* is a real thing you built: `master br0` plus the veth pair is what lets frames reach, and you can enumerate it in `/sys/class/net/br0/brif/`. The *subnet* is not an object at all. No kernel entity is named `10.20.0.0/24`; there are only two routes, each derived privately by whichever machine ran its own `ip addr add`, which come out identical purely because both ends chose `/24`. **Nothing cross-checks them.** Give `ns1` `10.20.0.130/25` instead and it derives `10.20.0.128/25`, concludes `10.20.0.1` is not on its wire, and refuses to send — while the host, still holding a `/24`, goes on believing `.130` is a neighbour and ARPs for it. Same cable, one working direction. So "same subnet" names an *agreement between two independent configurations*, and the agreement is only ever enforced by the two sides having done the same arithmetic.
 
 Both addresses sit inside one box because **`.1` and `.2` are in the same `/24`, and that is deliberate.** Same subnet means same segment, and same segment means *no router is involved between them*. When the host sends to `10.20.0.2` the lookup runs three steps and none of them look for a gateway:
 
