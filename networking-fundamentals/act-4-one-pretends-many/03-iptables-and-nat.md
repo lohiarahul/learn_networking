@@ -450,12 +450,15 @@ Every rule carries two counters — packets and bytes matched — and `-v` print
 Set three, one per `filter` chain. Each is an `ACCEPT`, and each is deliberately a **no-op** — the policies are already `ACCEPT`, so these change the fate of nothing and exist purely to be counted:
 
 ```bash
+sysctl -qw net.ipv4.ip_forward=1        # you switched this off above; it must be back on
 iptables -A INPUT   -s 10.20.0.0/24 -j ACCEPT
 iptables -A FORWARD -s 10.20.0.0/24 -j ACCEPT
 iptables -A OUTPUT  -d 1.1.1.1      -j ACCEPT
 iptables -Z
 iptables -L -n -v --line-numbers
 ```
+
+That first line is not decoration. With forwarding off, every counter below stays `0` and the instrument reads as though nothing happened — so set it before measuring rather than wondering later.
 
 `-Z` zeroes every counter, which is what makes the next reading mean only what it claims to. Everything reads `0`.
 
@@ -475,9 +478,13 @@ Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
 1        0     0 ACCEPT     all  --  *      *       0.0.0.0/0            1.1.1.1
 ```
 
-`FORWARD`'s rule has **2 packets, 168 bytes**. `INPUT` and `OUTPUT` are untouched, for a reason you can now state precisely: those two packets were not for this machine and not from it.
+`FORWARD`'s rule has **2 packets, 168 bytes**. `INPUT` and `OUTPUT` are untouched, for a reason you can now state precisely: those two packets were not for this machine and not from it. (If your `FORWARD` rule reads `0` too, forwarding is off — that is the `sysctl` line above, and the packets are being discarded before the hook rather than at it.)
 
-Note also that `FORWARD`'s *policy* counter reads zero while its rule reads two. Not a contradiction — a policy only counts packets that reach the end of a chain with no rule having decided them, and yours decided them. (And nothing came *back*: two echo requests, no replies, because the reply is still undeliverable. That changes in one line, next lesson.)
+Note also that `FORWARD`'s *policy* counter reads zero while its rule reads two. Not a contradiction, once you know what the policy counter actually counts: **not packets that entered the chain, and not packets that matched nothing, but packets the policy itself had to dispose of.** `ACCEPT` is a *terminating* target, so your two packets left the chain at rule 1 and never reached the end — the policy was never consulted and counted nothing.
+
+The sharpest way to see that this is the real rule: swap the rule's target for `-j LOG`, which matches without deciding, and the same two packets are counted **twice** — once by the rule, then again by the policy that still has to dispose of them. A number can appear in both columns, which neither of the two tempting explanations allows.
+
+(And nothing came *back*: two echo requests, no replies, because the reply is still undeliverable. That changes in one line, next lesson.)
 
 Do not be thrown if a **policy** line elsewhere shows a stray packet you cannot account for; a container is never completely silent. It is the numbers on *your rules* that are the measurement, because you chose what they match. Now the other case:
 
