@@ -68,22 +68,45 @@ Rebuild the minimum from the last lesson — one bridge, one namespace, one cabl
 ```bash
 ip netns add ns1
 ip link add br0 type bridge
-ip addr add 10.20.0.1/24 dev br0
+ip addr add 10.20.0.1/24 dev br0        # the HOST's address on this segment
 ip link set br0 up
 ip link add veth-a type veth peer name veth-a-c
-ip link set veth-a master br0
+ip link set veth-a master br0           # veth-a is now a switch port: no address
 ip link set veth-a up
 ip link set veth-a-c netns ns1
-ip netns exec ns1 ip addr add 10.20.0.2/24 dev veth-a-c
+ip netns exec ns1 ip addr add 10.20.0.2/24 dev veth-a-c   # ns1's address
 ip netns exec ns1 ip link set veth-a-c up
 ip netns exec ns1 ip link set lo up
 ```
 
-Eleven lines, and ten of them are lesson 02's. The new one is `ip addr add 10.20.0.1/24 dev br0`, and it deserves a sentence, because last lesson the bridge held no address at all and `10.20.0.1` belonged to a namespace.
+Eleven lines, and ten of them are lesson 02's, with the same roles the [vocabulary table](02-veth-and-bridge.md#the-words-and-what-wears-them) there named: `veth-a-c` is the namespace end and holds `ns1`'s address, `veth-a` is a bridge port and holds none, `br0` is the switch. The eleventh line is new, and it is the one to slow down on: **`ip addr add 10.20.0.1/24 dev br0` claims the `.1` that lesson 02 pointedly left unclaimed.**
 
 **A bridge is two objects wearing one name.** There is a *switch*, which learns MACs and forwards frames between the ports in `brif/` and neither has nor wants an address — that is the whole of lesson 02. And there is an *interface* named `br0`, which the host's own IP stack can own like any other. `ip addr add ... dev br0` talks to the second one. It does not address the switch, and it does not address anything plugged into the switch; it gives **the host one port on that switch** — the port that leads into the host's routing table. Physical switch vendors call that port the SVI, or the management interface.
 
-Last lesson nobody needed it: three namespaces talking only to each other need a switch, not a host. This lesson `ns1` needs to reach something only the host can fetch, so the host has to be *on* the subnet — hence `10.20.0.1` on `br0` and `10.20.0.2` in `ns1`, two hosts on one segment, one of which happens to be running the switch.
+**Draw it** — the same picture as lesson 02, with one address added and the bridge's second half made visible:
+
+```mermaid
+flowchart TD
+  subgraph HOST["the HOST network namespace — this container"]
+    ETH["<b>eth0</b> · 172.17.0.2/16<br/>the uplink: the only way out"]
+    RT["the host's <b>routing table</b><br/>10.20.0.0/24 dev br0<br/>default via 172.17.0.1 dev eth0"]
+    IF["<b>br0</b> — the interface half<br/>10.20.0.1/24<br/>the host's own address on the segment"]
+    SW["<b>br0</b> — the switch half<br/>learns MACs · forwards frames"]
+    PA["<b>veth-a</b><br/>bridge port · no address"]
+    RT --- IF
+    IF --- SW
+    SW --- PA
+    RT --- ETH
+  end
+  subgraph NS1["ns1"]
+    CA["<b>veth-a-c</b> · 10.20.0.2/24<br/>namespace end<br/>one route: 10.20.0.0/24, and nothing else"]
+  end
+  PA <-->|"the veth pair — the only real cable here"| CA
+```
+
+Both `br0` boxes are one interface; splitting them is the whole point of the drawing. The switch half is what lesson 02 built and needs no address to do its job. The interface half is what the new line created, and it is the *only* reason the host's routing table has anything to say about `10.20.0.0/24` at all.
+
+Last lesson nobody needed that half: three namespaces talking only to each other need a switch, not a host. This lesson `ns1` needs to reach something only the host can fetch, so the host has to be *on* the subnet — hence `10.20.0.1` on `br0` and `10.20.0.2` in `ns1`, two hosts on one segment, one of which happens to be running the switch, and taking `.1` because that is the number every network reserves for whichever machine is supposed to be the way out.
 
 You can see both halves separately, and the second command is the one worth staring at:
 
@@ -96,7 +119,9 @@ ip route                       # how the host reaches the segment
 
 `veth-a` is plugged into the switch and carries no address at all — only the link-local IPv6 the kernel gives every interface, the same noise lesson 02 taught you to ignore. Ports do not get addresses; they carry frames. And the route the `ip addr add` installed for free reads `10.20.0.0/24 dev br0`, not `dev veth-a`: when this host wants to reach anything on that segment it goes **out through the bridge**, exactly like every namespace on it. That is what "the host has one port on this switch" means, stated as a route.
 
-Putting an address on `veth-a` instead is worse than useless, in an instructive way: the host will happily accept the address and even answer at the IP level, but a bridge port has no working L2 identity of its own — every frame aimed at that port's own MAC is dropped by the bridge that owns it, so the reply can never be addressed. Try it later if you like; for now, an address on a bridge port is a trap, and an address on the bridge is a host on the segment.
+If that feels inconsistent with the *first* half of lesson 02, it should — there you ran `ip addr add 10.10.0.1/24 dev veth0` and put an address on the host's end of the cable itself. Nothing about veth changed since. What changed is that there is now a switch in the middle, and `master br0` is the line that changed it. Before the bridge, the host's end of the cable *was* the host's presence on the wire, so it held the address. After the bridge, the host's presence on the wire is `br0`, and `veth-a` is demoted to plumbing between the two. **The address did not disappear; it moved to the object that now represents the host.**
+
+Nothing enforces this, which is the part worth remembering: enslaving an interface does not clear an address it already had, and `ip addr` will keep displaying it as though it were fine. It is simply not where the host lives any more, and reaching it becomes a matter of luck. Every real bridge on your machine follows the convention you just followed: `ip -brief addr show type bridge` finds `docker0` holding `172.17.0.1/16`, plus a `br-<hash>` holding an address for each Docker network you have ever created — and not one of the veth ends listed in their `brif/` directories holds an address at all.
 
 Confirm the picture is the one you think it is, from both sides of the wall:
 

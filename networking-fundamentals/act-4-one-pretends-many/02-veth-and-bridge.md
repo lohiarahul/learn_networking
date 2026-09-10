@@ -17,30 +17,42 @@ Four different things get made or read in this lesson, and the easiest way to ge
 
 Come back to this table once you've built both. If you can fill in the two blanks from memory, you've actually understood this lesson rather than skimmed it.
 
+### The words, and what wears them
+
+Seven words do all the work in this lesson, and the trap is that two of them name the *same object* at different moments. Read this once now and once more after you have built everything:
+
+| the word | what it is | where it lives |
+|---|---|---|
+| **the host** | the machine's own network namespace — the one your shell is in when it has not entered another | — |
+| **a namespace** (`ns1`) | a private, empty network stack: its own interfaces, its own routes, its own everything | `/var/run/netns/ns1` |
+| **a veth pair** | one cable. Always two ends, created together, permanently bonded | both ends start in the host |
+| **the namespace end** | the end you shove into `ns1`. **This one gets an address** — it is how `ns1` is present on the wire | inside `ns1` |
+| **the host-side end** | the end left behind. By itself, just another host interface | the host |
+| **a bridge** (`br0`) | a software Ethernet switch | the host, forever — a bridge never moves |
+| **a bridge port**, or *switch port* | what a host-side end **becomes** the moment you run `ip link set <that end> master br0`: it carries frames and holds no address | the host |
+
+The last two rows are one object photographed before and after a single command. `master br0` creates nothing — it changes what an existing interface is *for*. That is the whole reason "the host end of the cable" and "a port on the switch" can both be true of `veth-a`, and it is where most confusion about this lesson starts.
+
 ### veth pairs — the virtual wire between namespaces
 
 **The problem that made this necessary** — Once you can create an isolated network namespace, you immediately want to *un*-isolate it, just a little — to run one wire from this private machine to the outside so packets can flow. On real hardware you'd run an Ethernet cable between two NICs. But there is no second NIC, and there is no cable; there's just one kernel holding two namespaces that can't see each other. The kernel needed a software object that behaves like a cable: a thing with two ends, where whatever goes in one end comes out the other, and where the two ends can live in two different namespaces. That object is the **veth pair** (virtual Ethernet).
 
 **What it actually is** — A veth pair is two virtual network interfaces that are always created together and are permanently bonded: anything written to one end is immediately readable at the other, exactly like the two plugs of a patch cable. You create them as a pair, then move one end into your namespace and leave the other in the host. Now you have a wire: the host end and the namespace end, each can get its own IP, and a packet sent into one surfaces out the other with no routing, no switching, nothing in between — because they *are* the two ends of one cable.
 
-**Draw it** — one veth pair bridging the host namespace and a container namespace:
+**Draw it** — one veth pair bridging the host namespace and a container namespace. There is no switch in this picture yet, so the host's end of the cable *is* the host's presence on the wire, and it holds an address:
 
-<!-- figure -->
-
+```mermaid
+flowchart LR
+  subgraph HOST["the HOST network namespace"]
+    V0["<b>veth0</b><br/>10.10.0.1/24<br/>host-side end"]
+  end
+  subgraph NS1["the ns1 network namespace"]
+    V1["<b>veth1</b><br/>10.10.0.2/24<br/>namespace end"]
+  end
+  V0 <-->|"one veth pair — one cable, two ends<br/>each end's iflink holds the other's ifindex"| V1
 ```
-   HOST namespace                          ns1 namespace
-  ┌────────────────────┐                  ┌────────────────────┐
-  │                     │                  │                     │
-  │   veth0             │  ←── wire ──→     │            veth1    │
-  │   10.10.0.1/24  ●═══╪══════════════════╪═══●  10.10.0.2/24    │
-  │                     │   (the pair)     │                     │
-  └────────────────────┘                  └────────────────────┘
 
-  route in HOST:  10.10.0.0/24  dev veth0   ← created by `ip addr add`
-  route in ns1:   10.10.0.0/24  dev veth1   ← created by `ip addr add`
-
-  ping 10.10.0.1 from ns1  →  out veth1  →  in veth0  →  reply  →  back
-```
+Two facts to keep hold of while you build it. Each side gets a route it never asked for — `10.10.0.0/24 dev veth0` in the host, `10.10.0.0/24 dev veth1` in `ns1`, both installed by `ip addr add` rather than by any `ip route` command. And the trip is as short as it looks: `ping 10.10.0.1` from `ns1` goes out `veth1`, in at `veth0`, and the reply comes straight back. No switch, no routing decision, nothing in between.
 
 **The file** — Each end of a veth pair is its own interface, and an interface is a directory under `/sys`. `/sys/class/net/veth0/iflink` holds exactly one integer: the ifindex of whichever interface is bonded to the far end of this cable — the kernel's own record of the wiring, independent of any name. That's a true fact about a file that doesn't exist yet. The next block builds the pair and reads it for real, at the moment it's real.
 
@@ -109,24 +121,38 @@ Which makes the interesting question *what that binary has to be told*. It canno
 
 **What it actually is** — A Linux bridge is a software Ethernet switch that lives in the kernel. You create it, plug interfaces into it (each veth end becomes a "port"), and it does what every switch does: it learns which MAC address it last saw on which port, builds a forwarding table, and forwards each frame only to the port where its destination lives. Containers plugged into the same bridge talk to each other at Layer 2 — frame to frame — without the packet ever leaving the host or touching IP routing. `docker0` and `cni0` are exactly this: bridges with a bunch of container veths plugged in.
 
-**Draw it** — the minimal picture, two ports:
+**Draw it** — the picture you are about to build, with every role from the vocabulary table labelled. Three cables, six ends, one switch:
 
-<!-- figure -->
-
+```mermaid
+flowchart TD
+  subgraph HOST["the HOST network namespace"]
+    BR["<b>br0</b> — a software Ethernet switch<br/>learns MACs · forwards frames port to port<br/>holds no address at all in this lesson"]
+    PA["<b>veth-a</b><br/>bridge port"]
+    PB["<b>veth-b</b><br/>bridge port"]
+    PW["<b>veth-w</b><br/>bridge port"]
+    BR --- PA
+    BR --- PB
+    BR --- PW
+  end
+  subgraph NS1["ns1"]
+    CA["<b>veth-a-c</b><br/>10.20.0.11/24<br/>namespace end"]
+  end
+  subgraph NS2["ns2"]
+    CB["<b>veth-b-c</b><br/>10.20.0.12/24<br/>namespace end"]
+  end
+  subgraph NS3["ns3 — the witness"]
+    CW["<b>veth-w-c</b><br/>10.20.0.13/24<br/>nobody ever addresses this one"]
+  end
+  PA <--> CA
+  PB <--> CB
+  PW <--> CW
 ```
-            ┌──────────────── br0 (software switch) ───────────────┐
-            │   learns MACs, forwards frames port-to-port           │
-            └───●──────────────────────────●───────────────────────┘
-                │ veth-a (host end)         │ veth-b (host end)
-                │                           │
-        ┌───────╪────────┐          ┌───────╪────────┐
-        │ ns1   ●        │          │ ns2   ●        │
-        │ 10.20.0.1/24   │          │ 10.20.0.2/24   │
-        └────────────────┘          └────────────────┘
-              ping 10.20.0.2 from ns1 → veth-a → br0 → veth-b → ns2
-```
 
-The experiment below adds a third port to this picture that nobody ever addresses traffic to. That port is the whole point — it's how you'll actually *see* the bridge behave like a switch instead of just taking the word "switch" on faith.
+**The two kinds of line in that diagram are not the same thing, and telling them apart is most of this lesson.** The three long links are cables — real veth pairs, host-side end above and namespace end below, and a frame physically travels along them from one namespace to another. The three short links inside the host are not cables at all; they are **membership**. `ip link set veth-a master br0` moves no data and creates nothing: it tells the kernel that this interface's frames are now the switch's business. Delete a cable and a namespace goes deaf. Undo a membership with `ip link set veth-a nomaster` and the interface is still there, still up, still holding the same cable — it has simply stopped being a port.
+
+Notice too that no address in the host appears anywhere in that picture. All three addresses are inside namespaces, on namespace ends. `br0` has none, because a switch does not need one to switch — and `.1`, the number every network reserves for its gateway, is deliberately left unclaimed. Nothing here is a gateway yet.
+
+A ping from `ns1` to `ns2` therefore takes the long way through six objects: `10.20.0.12` leaves `veth-a-c`, arrives at `veth-a`, is handed to `br0`, goes out `veth-b`, arrives at `veth-b-c`, and lands in `ns2`. Two ports would have been enough for that ping. The third is in the diagram on purpose, and nobody will ever address traffic to it — it is how you'll actually *see* the bridge behave like a switch instead of taking the word "switch" on faith.
 
 **The file** — A bridge's members are a real file. Its learned MAC table is not:
 
@@ -169,9 +195,9 @@ ip link set veth-w-c netns ns3
 ip netns exec ns1 sysctl -qw net.ipv6.conf.veth-a-c.disable_ipv6=1
 ip netns exec ns2 sysctl -qw net.ipv6.conf.veth-b-c.disable_ipv6=1
 ip netns exec ns3 sysctl -qw net.ipv6.conf.veth-w-c.disable_ipv6=1
-ip netns exec ns1 ip addr add 10.20.0.1/24 dev veth-a-c
-ip netns exec ns2 ip addr add 10.20.0.2/24 dev veth-b-c
-ip netns exec ns3 ip addr add 10.20.0.3/24 dev veth-w-c
+ip netns exec ns1 ip addr add 10.20.0.11/24 dev veth-a-c
+ip netns exec ns2 ip addr add 10.20.0.12/24 dev veth-b-c
+ip netns exec ns3 ip addr add 10.20.0.13/24 dev veth-w-c
 ip netns exec ns1 ip link set veth-a-c up
 ip netns exec ns2 ip link set veth-b-c up
 ip netns exec ns3 ip link set veth-w-c up
@@ -199,11 +225,11 @@ Now answer the question from before you built anything — will `ns3`'s interfac
 ```bash
 ip netns exec ns3 tcpdump -i veth-w-c -n -c 1 arp or icmp &
 sleep 1
-ip netns exec ns1 ping -c1 10.20.0.2
+ip netns exec ns1 ping -c1 10.20.0.12
 wait
 ```
 
-It does. `ns3` sees the ARP request cross its interface anyway, because the bridge does not yet know which port holds `10.20.0.2`'s MAC address, so it does exactly what a hub always does: floods the frame out every port except the one it arrived on. For as long as it's ignorant, the switch behaves *no better than a dumb repeater* — the "smart" part hasn't happened yet.
+It does. `ns3` sees the ARP request cross its interface anyway, because the bridge does not yet know which port holds `10.20.0.12`'s MAC address, so it does exactly what a hub always does: floods the frame out every port except the one it arrived on. For as long as it's ignorant, the switch behaves *no better than a dumb repeater* — the "smart" part hasn't happened yet.
 
 ```bash
 bridge fdb show br br0 | grep -v permanent
@@ -214,7 +240,7 @@ Two new lines now — one for `veth-a`, one for `veth-b` — neither flagged `pe
 ```bash
 ip netns exec ns3 timeout 3 tcpdump -i veth-w-c -n arp or icmp &
 sleep 1
-ip netns exec ns1 ping -c2 10.20.0.2
+ip netns exec ns1 ping -c2 10.20.0.12
 sleep 3
 ```
 
