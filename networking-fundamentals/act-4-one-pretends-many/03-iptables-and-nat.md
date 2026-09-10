@@ -75,15 +75,30 @@ Which fixes the cardinality, and all four numbers are worth holding at once:
 
 **The five tables**, one verb each. The verb is the whole identity of a table, and it predicts which hooks that table bothers to have a chain at:
 
-| Table | Its verb | Where it has chains, and why |
-|---|---|---|
-| **`filter`** | *decide* — accept or drop | `INPUT`, `FORWARD`, `OUTPUT` — and **neither `PREROUTING` nor `POSTROUTING`**. Filtering asks **whose** packet this is, so it cannot run at `PREROUTING`, where the routing decision has not answered that yet; and it does not need `POSTROUTING`, because by then the packet has already survived whichever of the three applied to it, and a second verdict would decide nothing new. This is where a firewall lives, and it is the table `iptables` uses when you name none. |
-| **`nat`** | *rewrite* — change an address | Both ends, plus the two local hooks — but **not `FORWARD`**. Rewriting is worth doing as a packet arrives or as it leaves; editing it midway through a transit it is already committed to would change nothing. |
-| **`mangle`** | *annotate* — alter or tag fields | **All five** — the only table with a chain at every hook, because marking a packet is useful anywhere. Built with properly in [When NAT runs out](03d-when-nat-runs-out.md). |
-| **`raw`** | *exempt* — act before conntrack | Only the two hooks where a packet **enters** netfilter. That is its entire identity: `raw` runs before connection tracking, so it is the only place to say something about a packet before the kernel starts keeping a record of it. Also [When NAT runs out](03d-when-nat-runs-out.md)'s business. |
-| **`security`** | *label* — tag for a security model | The same three hooks as `filter`, and you will almost certainly never write in it: it belongs to an access-control system Act X meets properly. On most machines it is an empty table you see in a listing and nowhere else. |
+| Table | Its verb | Its chains — the hooks it has | # |
+|---|---|---|---|
+| **`filter`** | *decide* — accept or drop | `INPUT` · `FORWARD` · `OUTPUT` | 3 |
+| **`nat`** | *rewrite* — change an address | `PREROUTING` · `INPUT` · `OUTPUT` · `POSTROUTING` | 4 |
+| **`mangle`** | *annotate* — alter or tag fields | `PREROUTING` · `INPUT` · `FORWARD` · `OUTPUT` · `POSTROUTING` | 5 |
+| **`raw`** | *exempt* — act before conntrack | `PREROUTING` · `OUTPUT` | 2 |
+| **`security`** | *label* — tag for a security model | `INPUT` · `FORWARD` · `OUTPUT` | 3 |
 
-**This lesson lives entirely in `filter` and `nat`**, and those two carry almost every rule you will ever meet — including all of Docker's and all of Kubernetes'. `security` is named here only so that "five" is a closed set rather than a hand-wave.
+**3 + 4 + 5 + 2 + 3 = 17.** That is where the number comes from, and you can now add it up yourself rather than take it from me. The other **8** of the 25 do not exist, and each blank is its own verb refusing its own hook — no blank is arbitrary, and this accounts for all eight:
+
+| Missing chain | Why that hook makes no sense for that verb |
+|---|---|
+| `filter` at `PREROUTING` | Filtering asks **whose** packet this is, and the routing decision has not answered that yet. |
+| `filter` at `POSTROUTING` | The packet already survived whichever of `INPUT`/`FORWARD`/`OUTPUT` applied. A second verdict would decide nothing new. |
+| `nat` at `FORWARD` | An address edit is only useful as a packet **arrives** or **leaves**. Rewriting midway through a transit it is already committed to changes nothing about where it goes. |
+| `raw` at `INPUT` | `raw`'s whole identity is *before conntrack*, and conntrack runs immediately after `PREROUTING`. By `INPUT` the packet is already tracked, so there is nothing left to exempt. |
+| `raw` at `FORWARD` | Same reason — already tracked. |
+| `raw` at `POSTROUTING` | Same reason — already tracked, and about to leave. |
+| `security` at `PREROUTING` | Same as `filter`: no owner established yet, so there is nothing to label it against. |
+| `security` at `POSTROUTING` | Same as `filter`: the decision has already been made. |
+
+Two patterns fall out of that list, and they are worth more than the eight rows. **`mangle` is the only table with all five**, because tagging a packet is useful at any moment — it neither needs to know whose the packet is nor cares whether it has been tracked. And **`filter` and `security` have the identical three**, because they answer the same question (what may happen to this packet) and so are blocked by the same two facts.
+
+**This lesson lives entirely in `filter` and `nat`**, and those two carry almost every rule you will ever meet — including all of Docker's and all of Kubernetes'. `mangle` and `raw` are built with properly in [When NAT runs out](03d-when-nat-runs-out.md). `security` belongs to an access-control system Act X meets properly; on most machines it is an empty table you see in a listing and nowhere else, and it is named here only so that "five" is a closed set rather than a hand-wave.
 
 Now the grid those two axes make, tables stacked in the order they run:
 
@@ -98,8 +113,9 @@ Now the grid those two axes make, tables stacked in the order they run:
    security                     ●         ●         ●
 
    ● = a chain exists at this (table, hook) pair, and a rule can live there
-       17 of 25 cells filled; the 8 blanks are not accidents — each is a
-       hook where that table's verb would have nothing to do
+       17 of 25 cells filled — count the dots per row: 2, 5, 4, 3, 3
+       the 8 blanks are the eight named in the table above, each one a
+       verb refusing a hook where it would have nothing to do
 
    This grid is NOT a timeline. Time runs left to right, along the hooks;
    the rows are only five tables listed in a fixed order. So `filter`
