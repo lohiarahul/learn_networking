@@ -47,14 +47,14 @@ No Helm, no operator, until [in the wild](in-the-wild.md)'s closing recognition 
 
 ## The lessons — read in this order
 
-1. **[Nothing here remembers](01-nothing-here-remembers.md)** — where a log line actually lives, why the number in its filename is not a retention setting, and why deleting a Pod is enough to erase every word it ever wrote.
-2. **[Copying it off the node](02-copying-it-off-the-node.md)** — a hand-written log shipper, the symlink that breaks it if you mount the wrong directory, and Loki's one design decision: index the labels, not the line.
-3. **[A number a process keeps](03-a-number-a-process-keeps.md)** — the exposition format you have been reading unnamed since Act VI; why a counter surviving a restart is not the same trick as a gauge surviving one; and why `kubectl top` has never once asked etcd anything.
-4. **[The loop that scrapes](04-the-loop-that-scrapes.md)** — six lines of shell that are a real time-series database, the four things missing from them, and the wall Act VII already made you diagnose once, met again from a different client.
-5. **[The cost of one label](04b-the-cost-of-one-label.md)** — cardinality as multiplication, then as resident memory, and why the only cheap place to delete a label is before it is ever stored.
-6. **[An alert is a loop](05-an-alert-is-a-loop.md)** — a rule's three states, why absence is not zero, and why that single distinction is the most expensive thing in this act to learn during an incident.
-7. **[A panel is a query](05b-a-panel-is-a-query.md)** — the three parameters behind every dashboard, and why the same panel over two time ranges can honestly disagree about whether an outage happened.
-8. **[Which request was slow](06-which-request-was-slow.md)** — a trace is one HTTP header, propagated correctly or not, and the one signal in this act that genuinely cannot exist without changing the application.
+- **01 · [Nothing here remembers](01-nothing-here-remembers.md)** — where a log line actually lives, why the number in its filename is not a retention setting, and why deleting a Pod is enough to erase every word it ever wrote.
+- **02 · [Copying it off the node](02-copying-it-off-the-node.md)** — a hand-written log shipper, the symlink that breaks it if you mount the wrong directory, and Loki's one design decision: index the labels, not the line.
+- **03 · [A number a process keeps](03-a-number-a-process-keeps.md)** — the exposition format you have been reading unnamed since Act VI; why a counter surviving a restart is not the same trick as a gauge surviving one; and why `kubectl top` has never once asked etcd anything.
+- **04 · [The loop that scrapes](04-the-loop-that-scrapes.md)** — six lines of shell that are a real time-series database, the four things missing from them, and the wall Act VII already made you diagnose once, met again from a different client.
+- **04b · [The cost of one label](04b-the-cost-of-one-label.md)** — cardinality as multiplication, then as resident memory, and why the only cheap place to delete a label is before it is ever stored.
+- **05 · [An alert is a loop](05-an-alert-is-a-loop.md)** — a rule's three states, why absence is not zero, and why that single distinction is the most expensive thing in this act to learn during an incident.
+- **05b · [A panel is a query](05b-a-panel-is-a-query.md)** — the three parameters behind every dashboard, and why the same panel over two time ranges can honestly disagree about whether an outage happened.
+- **06 · [Which request was slow](06-which-request-was-slow.md)** — a trace is one HTTP header, propagated correctly or not, and the one signal in this act that genuinely cannot exist without changing the application.
 
 ## What breaks here
 

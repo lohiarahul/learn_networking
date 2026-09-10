@@ -68,7 +68,7 @@ The twins are always optional — the plain `ls` command above each one is the c
 
 Now read in order:
 
-1. **[What is a process?](01-what-is-a-process.md)** — what a process actually is: a directory in `/proc`, file descriptors as integers, and why the `ls` that lists your open files opens one itself.
-2. **[How processes communicate](02-how-processes-communicate.md)** — how processes use those descriptors to reach other processes and, eventually, other machines. The socket entry that the whole course is about.
+- **01 · [What is a process?](01-what-is-a-process.md)** — what a process actually is: a directory in `/proc`, file descriptors as integers, and why the `ls` that lists your open files opens one itself.
+- **02 · [How processes communicate](02-how-processes-communicate.md)** — how processes use those descriptors to reach other processes and, eventually, other machines. The socket entry that the whole course is about.
 
 Then open **[Act I — One machine talking to itself](../act-1-one-machine/README.md)** and begin.

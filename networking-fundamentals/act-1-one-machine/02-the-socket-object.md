@@ -48,7 +48,7 @@ flowchart LR
 
 fd-demo's socket was *just* `socket()` — never given an address, never connected. The kernel keeps a master list of TCP sockets, and you still have this one's inode sitting in `$INO`, so you can go and look:
 
-> **`/proc/net/tcp`** is the kernel's table of every TCP socket that has an address — listeners and connections, one per row. (You decode it by hand in lesson 5.)
+> **`/proc/net/tcp`** is the kernel's table of every TCP socket that has an address — listeners and connections, one per row. (You decode it by hand in lesson 05.)
 
 > **Predict first —** will fd-demo's socket be in that table, or not?
 

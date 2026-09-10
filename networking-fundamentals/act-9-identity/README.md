@@ -71,12 +71,12 @@ Beyond that: `python3` for unpacking tokens, and the `cryptography` package from
 
 ## The lessons — read in this order
 
-1. **[Who are you, and what may you do](01-authn-vs-authz.md)** — three requests, three different answers, and the one with no credential at all does not do what you expect.
-2. **[Not sending the password every time](02-tokens-and-sessions.md)** — why the first thing any login does is stop using the thing you logged in with, and the choice that decides everything afterwards.
-3. **[Taking the credential apart](03-jwt.md)** — nine hundred characters you have been treating as opaque, in two commands. Then try to promote yourself.
-4. **[Trusting a token you did not issue](04-verifying-a-token.md)** — check the signature on that credential by hand, against a key the cluster publishes to everyone it already trusts, and find the attacks that have nothing to do with breaking the mathematics.
-5. **[Delegation without handing over a password](05-oauth2-and-oidc.md)** — the problem OAuth2 actually solves, built by hand before you meet a real provider.
-6. **[Two ways to write down a permission](06-rbac-and-abac.md)** — the two models, kept deliberately vendor-neutral, so that Kubernetes RBAC and AWS IAM are both recognition rather than new material.
+- **01 · [Who are you, and what may you do](01-authn-vs-authz.md)** — three requests, three different answers, and the one with no credential at all does not do what you expect.
+- **02 · [Not sending the password every time](02-tokens-and-sessions.md)** — why the first thing any login does is stop using the thing you logged in with, and the choice that decides everything afterwards.
+- **03 · [Taking the credential apart](03-jwt.md)** — nine hundred characters you have been treating as opaque, in two commands. Then try to promote yourself.
+- **04 · [Trusting a token you did not issue](04-verifying-a-token.md)** — check the signature on that credential by hand, against a key the cluster publishes to everyone it already trusts, and find the attacks that have nothing to do with breaking the mathematics.
+- **05 · [Delegation without handing over a password](05-oauth2-and-oidc.md)** — the problem OAuth2 actually solves, built by hand before you meet a real provider.
+- **06 · [Two ways to write down a permission](06-rbac-and-abac.md)** — the two models, kept deliberately vendor-neutral, so that Kubernetes RBAC and AWS IAM are both recognition rather than new material.
 
 Then: **[test yourself](test-yourself.md)** · **[diagnose it](diagnose.md)** · **[in the wild](in-the-wild.md)**.
 

@@ -32,7 +32,7 @@ sequenceDiagram
 
 The server walks `LISTEN → SYN_RECV → ESTABLISHED`. **Here is the one fact to hold onto — the hinge of this whole lesson:**
 
-> The server's `accept()` — the call that hands your program a new connection (it returned `fd 4` back in lesson 3) — fires **only when the state reaches `ESTABLISHED`**, after that *third* message.
+> The server's `accept()` — the call that hands your program a new connection (it returned `fd 4` back in lesson 03) — fires **only when the state reaches `ESTABLISHED`**, after that *third* message.
 
 The first two messages (the SYN and the SYN-ACK) are handled entirely **inside the kernel**. Your program hears nothing until the handshake fully completes. Keep that in your pocket — the attack at the end is built on exactly this.
 
@@ -184,7 +184,7 @@ It prints its listening line, then:
 accept(3, NULL, NULL
 ```
 
-…and **hangs there** — `accept` is waiting for a connection to reach `ESTABLISHED` (exactly the blocking-on-`accept` you saw in lesson 3).
+…and **hangs there** — `accept` is waiting for a connection to reach `ESTABLISHED` (exactly the blocking-on-`accept` you saw in lesson 03).
 
 **Shell 2 — scan that port two ways.**
 
@@ -233,7 +233,7 @@ You can name the states a connection passes through — `LISTEN → SYN_RECV →
 
 > **You understand this when you can** put minihttp under `strace -e trace=accept`, run `nmap -sS -p 8080 127.0.0.1` and then `nmap -sT -p 8080 127.0.0.1`, and say before each one whether the `accept(3, NULL, NULL` line will still be hanging afterwards — and name the state the SYN scan's connection died in.
 
-And that completes the *evidence* this act runs on. Stop and notice the move you've made over and over: every time you wanted the truth, you opened a file in `/proc` — the fd table, the socket ledger `/proc/net/tcp`, the interface counters `/proc/net/dev`, a process's `State:`. You trusted those files over every tool. But you never asked the one question underneath all of them: **what *are* these files?** They sit on no disk, report a size of zero, and still answer you live and correct. There's one door left in Act I, and it's the one that finally names the idea you've been circling since lesson 1. That's the next file.
+And that completes the *evidence* this act runs on. Stop and notice the move you've made over and over: every time you wanted the truth, you opened a file in `/proc` — the fd table, the socket ledger `/proc/net/tcp`, the interface counters `/proc/net/dev`, a process's `State:`. You trusted those files over every tool. But you never asked the one question underneath all of them: **what *are* these files?** They sit on no disk, report a size of zero, and still answer you live and correct. There's one door left in Act I, and it's the one that finally names the idea you've been circling since lesson 01. That's the next file.
 
 ---
 

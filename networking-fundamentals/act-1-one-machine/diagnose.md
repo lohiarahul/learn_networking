@@ -97,9 +97,9 @@ LISTEN 0  5  127.0.0.1:8080  0.0.0.0:*  users:(("python3",pid=7,fd=3))
 The `Local Address` is **`127.0.0.1`**, not `0.0.0.0`. The server bound the *inside door only* — so a
 knock on the container's real address (`eth0`) finds nobody listening. Read it straight from the kernel
 if you like: `grep 1F90 /proc/net/tcp` shows `local_address` `0100007F:1F90` → `127.0.0.1:8080`
-(the little-endian flip from lesson 5), where a healthy bind would be `00000000:1F90` → `0.0.0.0:8080`.
+(the little-endian flip from lesson 05), where a healthy bind would be `00000000:1F90` → `0.0.0.0:8080`.
 
-**Root cause:** bound to loopback instead of all interfaces (lessons 4 and 5). **Fix:** bind `0.0.0.0`
+**Root cause:** bound to loopback instead of all interfaces (lessons 04 and 05). **Fix:** bind `0.0.0.0`
 (`--bind 0.0.0.0`, or minihttp's `INADDR_ANY`). **Why it's worth a whole drill:** this is the single
 most common Kubernetes Pod-networking bug — it passes every `kubectl exec … curl localhost` test and
 refuses every Service connection, because `kube-proxy` knocks on the *outside* door.
@@ -147,13 +147,13 @@ for _ in range(10): socket.create_connection(("127.0.0.1",8080)).close()'
 ```
 
 **Your move.** The server "handled" all ten — no errors. But the ticket says it's *holding onto*
-something. From lesson 1: which file shows you everything a process is holding? Find the leak, then
+something. From lesson 01: which file shows you everything a process is holding? Find the leak, then
 explain what's leaking and why.
 
 <details>
 <summary><b>The diagnosis</b> — open after you've tried</summary>
 
-**Lens 1 — count what the process holds** (lesson 1's fd table):
+**Lens 1 — count what the process holds** (lesson 01's fd table):
 
 ```
 pid=$(pgrep -nf svc.py)
@@ -163,7 +163,7 @@ ls /proc/$pid/fd | wc -l
 It sits well above the 4–5 a healthy server keeps — one extra descriptor for *every* caller. Send ten
 more connections and run it again: the count climbs by exactly ten. That's a leak, live.
 
-**Lens 2 — what state are those sockets in** (lesson 5b):
+**Lens 2 — what state are those sockets in** (lesson 05b):
 
 ```
 ss -tan state close-wait | grep :8080
@@ -180,11 +180,11 @@ but our application never called `close()`*. (With real `lsof` from `netlab`: `l
 same held sockets.)
 
 **Root cause:** the server `accept()`s each connection and **never `close()`s it** — it's exactly the
-`close(conn_fd)` line from minihttp's loop (lesson 3), deleted. Every caller permanently costs one row
-in the fd table (lesson 1). The graphs lie because the resource leaking is *descriptors*, not CPU or
+`close(conn_fd)` line from minihttp's loop (lesson 03), deleted. Every caller permanently costs one row
+in the fd table (lesson 01). The graphs lie because the resource leaking is *descriptors*, not CPU or
 memory.
 
-**Where it ends if you don't catch it** (lesson 3's ceiling):
+**Where it ends if you don't catch it** (lesson 03's ceiling):
 
 ```
 kill %1
@@ -249,14 +249,14 @@ grep -c -e accept -e accept4 /tmp/accepts.log    # and now?
 Both scans found the port. Only the **connect** scan (`-sT`) reached the application; the **SYN** scan
 (`-sS`) mapped your open port while `accept()` never fired and your logs stayed empty.
 
-**Root cause:** the application is woken only at `ESTABLISHED` — the hinge from lesson 5b. A SYN scan
+**Root cause:** the application is woken only at `ESTABLISHED` — the hinge from lesson 05b. A SYN scan
 sends the SYN, reads the SYN-ACK (which already proves the port is open), then sends `RST` instead of
 the final ACK, so the handshake never completes and `accept()` never returns. **Clean application logs
 are not proof you weren't scanned.** To see it, you have to drop to where the SYN *was* visible — the
 kernel (firewall logs, `conntrack`, and eBPF tools like Falco/Cilium, which is exactly why cluster
 security watches the kernel, not app logs).
 
-*(`-sS` needs the privileged lab for raw sockets — same as lesson 5b.)*
+*(`-sS` needs the privileged lab for raw sockets — same as lesson 05b.)*
 
 **Cleanup:** `kill %1` (and `pkill -f http.server` if it lingers)
 

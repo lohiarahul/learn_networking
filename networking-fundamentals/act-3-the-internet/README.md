@@ -22,12 +22,12 @@ After this act you will be able to take any HTTPS request that feels slow or bro
 
 Work through these in order. Each one runs experiments in the lab container and ends with a link to the next, so you never have to guess where to go.
 
-1. **[The three-way handshake](01-tcp-handshake.md)** — how two sides agree, from scratch, where to start counting.
-2. **[TCP states](02-tcp-states.md)** — the connection as a state machine you can read row by row, `TIME_WAIT` included.
-3. **[conntrack — the kernel's flow table](02b-conntrack.md)** — what a machine in the middle of someone else's conversation has to remember.
-4. **[TCP and reliability](03-tcp-reliability.md)** — the sliding window, and the two different limits on it: the receiver's ceiling and the network's.
-5. **[HTTP](04-http.md)** — structure imposed on the byte stream, why the protocol kept being replaced, and what a proxy in the middle can see.
-6. **[TLS](05-tls.md)** — the lock bolted onto the socket.
+- **01 · [The three-way handshake](01-tcp-handshake.md)** — how two sides agree, from scratch, where to start counting.
+- **02 · [TCP states](02-tcp-states.md)** — the connection as a state machine you can read row by row, `TIME_WAIT` included.
+- **02b · [conntrack — the kernel's flow table](02b-conntrack.md)** — what a machine in the middle of someone else's conversation has to remember.
+- **03 · [TCP and reliability](03-tcp-reliability.md)** — the sliding window, and the two different limits on it: the receiver's ceiling and the network's.
+- **04 · [HTTP](04-http.md)** — structure imposed on the byte stream, why the protocol kept being replaced, and what a proxy in the middle can see.
+- **05 · [TLS](05-tls.md)** — the lock bolted onto the socket.
 
 When you've finished all six, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills. When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — [the map](../../reference/03-the-map.md) ties every tool to the piece of kernel state it reads, and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
 

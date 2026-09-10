@@ -14,22 +14,22 @@ After this act you will be able to take one bare Linux box and, from memory and 
 
 Work through these in order. Each one runs experiments in the lab container and ends with a link to the next, so you never have to guess where to go.
 
-1. **[Namespaces](01-namespaces.md)** — process isolation applied to the whole network stack.
-2. **[cgroups](01b-cgroups.md)** — the other half of a container: not what it can see, but how much it can use.
-3. **[veth and bridge](02-veth-and-bridge.md)** — the virtual wire and the software switch.
-4. **[Docker networks](02b-docker-networks.md)** — why `docker0/brif/` is often empty on a machine full of running containers, and the naming quirk that hides a `kind` cluster's own bridge even harder.
-5. **[iptables — the five hooks](03-iptables-and-nat.md)** — a namespace whose packets reach the internet's doorstep and die there, and the five places in the kernel where you are allowed to do something about it.
-6. **[Publishing a port](03a-publishing-a-port.md)** — `MASQUERADE` outbound and `DNAT` inbound, built by hand: `docker run -p 8080:80` is two rules, and you will find out the hard way why it is two and not one.
-7. **[Reading a ruleset you did not write](03b-reading-a-ruleset-you-did-not-write.md)** — your own `DROP` leaves a published port wide open, Docker's `FORWARD` chain turns out to be a four-level tree, and `iptables` reports the opposite of what the kernel will do.
-8. **[The stateful firewall](03c-the-stateful-firewall.md)** — a default-deny policy breaks the machine that set it, and the one rule that fixes it matches on no port at all.
-9. **[When NAT runs out](03d-when-nat-runs-out.md)** — `MASQUERADE` is an allocation, not a function: its ceiling, its collisions, and the two tables that neither filter nor translate.
-10. **[The transparent proxy](03e-the-transparent-proxy.md)** — intercepting a connection that was never addressed to you, and recovering the destination your own rewrite destroyed.
-11. **[Overlay and VXLAN](04-overlay-vxlan.md)** — wrapping a packet in a packet so two private networks share one wire.
-12. **[Who does this for you](05-who-does-this-for-you.md)** — the OCI runtime spec, `runc`, and `containerd`: the five namespaces and cgroup a bundle asks for, built by a program instead of your fingers.
-13. **[Entering what you did not name](05b-entering-what-you-did-not-name.md)** — `ip netns list` is empty on a machine full of containers, and exits 0. What a name actually is, and the tool that needs a PID instead of one.
-14. **[Who am I](05c-who-am-i.md)** — the third question the act never posed. `/proc/self/uid_map`, an unprivileged user who becomes root, and a process holding all 41 capabilities that still cannot write to `/etc`.
-15. **[The kubelet's side](06-the-kubelets-side.md)** — the Container Runtime Interface: why a Pod's sandbox is created before any container in it, proven by a network setup failing first.
-16. **[How a layer is made](07-how-a-layer-is-made.md)** — the build side of Act I 06b's overlayfs read: BuildKit, and a secret you can recover from a raw layer after the `RUN` that deleted it.
+- **01 · [Namespaces](01-namespaces.md)** — process isolation applied to the whole network stack.
+- **01b · [cgroups](01b-cgroups.md)** — the other half of a container: not what it can see, but how much it can use.
+- **02 · [veth and bridge](02-veth-and-bridge.md)** — the virtual wire and the software switch.
+- **02b · [Docker networks](02b-docker-networks.md)** — why `docker0/brif/` is often empty on a machine full of running containers, and the naming quirk that hides a `kind` cluster's own bridge even harder.
+- **03 · [iptables — the five hooks](03-iptables-and-nat.md)** — a namespace whose packets reach the internet's doorstep and die there, and the five places in the kernel where you are allowed to do something about it.
+- **03a · [Publishing a port](03a-publishing-a-port.md)** — `MASQUERADE` outbound and `DNAT` inbound, built by hand: `docker run -p 8080:80` is two rules, and you will find out the hard way why it is two and not one.
+- **03b · [Reading a ruleset you did not write](03b-reading-a-ruleset-you-did-not-write.md)** — your own `DROP` leaves a published port wide open, Docker's `FORWARD` chain turns out to be a four-level tree, and `iptables` reports the opposite of what the kernel will do.
+- **03c · [The stateful firewall](03c-the-stateful-firewall.md)** — a default-deny policy breaks the machine that set it, and the one rule that fixes it matches on no port at all.
+- **03d · [When NAT runs out](03d-when-nat-runs-out.md)** — `MASQUERADE` is an allocation, not a function: its ceiling, its collisions, and the two tables that neither filter nor translate.
+- **03e · [The transparent proxy](03e-the-transparent-proxy.md)** — intercepting a connection that was never addressed to you, and recovering the destination your own rewrite destroyed.
+- **04 · [Overlay and VXLAN](04-overlay-vxlan.md)** — wrapping a packet in a packet so two private networks share one wire.
+- **05 · [Who does this for you](05-who-does-this-for-you.md)** — the OCI runtime spec, `runc`, and `containerd`: the five namespaces and cgroup a bundle asks for, built by a program instead of your fingers.
+- **05b · [Entering what you did not name](05b-entering-what-you-did-not-name.md)** — `ip netns list` is empty on a machine full of containers, and exits 0. What a name actually is, and the tool that needs a PID instead of one.
+- **05c · [Who am I](05c-who-am-i.md)** — the third question the act never posed. `/proc/self/uid_map`, an unprivileged user who becomes root, and a process holding all 41 capabilities that still cannot write to `/etc`.
+- **06 · [The kubelet's side](06-the-kubelets-side.md)** — the Container Runtime Interface: why a Pod's sandbox is created before any container in it, proven by a network setup failing first.
+- **07 · [How a layer is made](07-how-a-layer-is-made.md)** — the build side of Act I 06b's overlayfs read: BuildKit, and a secret you can recover from a raw layer after the `RUN` that deleted it.
 
 Every lesson ends by tearing down what it built, so you can work straight through in one container without tripping over the last experiment's leftovers.
 

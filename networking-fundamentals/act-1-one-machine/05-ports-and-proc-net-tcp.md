@@ -81,7 +81,7 @@ Three fields carried you. The row has seventeen, and you should be able to accou
 | 2 | `local_address` | `00000000:1F90` | local `IP:port`, hex, IP byte-reversed → `0.0.0.0:8080` |
 | 3 | `rem_address` | `00000000:0000` | the peer's `IP:port` — all zeros, because a listener has no peer |
 | 4 | `st` | `0A` | state code; `0A` = `LISTEN` (whole list next lesson) |
-| 5 | `tx_queue:rx_queue` | `00000000:00000000` | bytes queued to send : bytes waiting to be read — **the two socket buffers from lesson 2**, in hex |
+| 5 | `tx_queue:rx_queue` | `00000000:00000000` | bytes queued to send : bytes waiting to be read — **the two socket buffers from lesson 02**, in hex |
 | 6 | `tr:tm->when` | `00:00000000` | which retransmit/keepalive timer is armed (`00` = none) : ticks until it fires |
 | 7 | `retrnsmt` | `00000000` | retransmissions on this connection |
 | 8 | `uid` | `0` | the user that owns the socket — `0` is root |
@@ -97,7 +97,7 @@ An `ESTABLISHED` row has the identical seventeen fields; only the values change.
 
 ## Step 3 — follow the inode back to the program, by hand
 
-The row told you a socket is in state `LISTEN` on `0.0.0.0:8080`. It did **not** tell you *which program* owns it. That's the `inode`'s job: it's a join key, and the same number appears in the owning program's file-descriptor table (from lesson 1). Search every process for it:
+The row told you a socket is in state `LISTEN` on `0.0.0.0:8080`. It did **not** tell you *which program* owns it. That's the `inode`'s job: it's a join key, and the same number appears in the owning program's file-descriptor table (from lesson 01). Search every process for it:
 
 ```
 ls -la /proc/*/fd 2>/dev/null | grep 3209833

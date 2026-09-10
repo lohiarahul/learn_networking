@@ -37,14 +37,14 @@ Every mechanism this act teaches is visible either way: the VM's network has a r
 
 Work through these in order. Each one runs experiments in the lab container and ends with a link to the next, so you never have to guess where to go.
 
-1. **[The wire and the two names](01-ethernet-and-arp.md)** — Ethernet frames, MAC addresses, and ARP the translator between the two naming systems.
-2. **[VLANs and segmentation](01b-vlans-and-segmentation.md)** — slicing one physical wire into isolated broadcast domains with a 12-bit tag.
-3. **[IP and routing](02-ip-and-routing.md)** — the 32-bit address and the routing table's longest-prefix match.
-4. **[Routing protocols and BGP](02b-routing-and-bgp.md)** — who fills the routing table, and the trusting protocol that runs the whole internet.
-5. **[ICMP, UDP, and TTL](03-icmp-and-udp.md)** — the error channel, the bare-minimum transport, and the hop budget.
-6. **[MTU and fragmentation](03b-mtu-and-fragmentation.md)** — what happens when a packet is too big for the next wire.
-7. **[DHCP — how a host gets its address](03c-dhcp.md)** — the broadcast that hands a brand-new machine its whole network identity.
-8. **[DNS — the distributed naming database](04-dns.md)** — turning a human name into an address.
+- **01 · [The wire and the two names](01-ethernet-and-arp.md)** — Ethernet frames, MAC addresses, and ARP the translator between the two naming systems.
+- **01b · [VLANs and segmentation](01b-vlans-and-segmentation.md)** — slicing one physical wire into isolated broadcast domains with a 12-bit tag.
+- **02 · [IP and routing](02-ip-and-routing.md)** — the 32-bit address and the routing table's longest-prefix match.
+- **02b · [Routing protocols and BGP](02b-routing-and-bgp.md)** — who fills the routing table, and the trusting protocol that runs the whole internet.
+- **03 · [ICMP, UDP, and TTL](03-icmp-and-udp.md)** — the error channel, the bare-minimum transport, and the hop budget.
+- **03b · [MTU and fragmentation](03b-mtu-and-fragmentation.md)** — what happens when a packet is too big for the next wire.
+- **03c · [DHCP — how a host gets its address](03c-dhcp.md)** — the broadcast that hands a brand-new machine its whole network identity.
+- **04 · [DNS — the distributed naming database](04-dns.md)** — turning a human name into an address.
 
 When you've finished all eight, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills. When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — [the map](../../reference/03-the-map.md) ties every tool to the piece of kernel state it reads, and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
 

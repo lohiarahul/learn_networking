@@ -29,7 +29,7 @@ story), hands you only the symptom, and asks you to find the cause with the act'
 
 **Where:** inside the lab container with the host's real network attached —
 `docker run --rm -it --privileged --network host nicolaka/netshoot`. Each drill builds its **own**
-namespaces and veths from scratch (the same commands you ran in lessons 1–3), so run a drill's
+namespaces and veths from scratch (the same commands you ran in lessons 01–03), so run a drill's
 `Cleanup` line before starting the next one — and everything is wiped entirely on `exit`. The
 `--privileged` flag is what lets you create namespaces, move interfaces, and write NAT rules.
 
@@ -149,7 +149,7 @@ IP 10.50.0.2 > 8.8.8.8: ICMP echo request ...
 
 The packet leaves the host still carrying its **private source `10.50.0.2`** — an address the internet
 has never heard of and can never route a reply back to. The request goes; the reply has nowhere to
-come home to. Now read the table that was supposed to rewrite that source (lesson 3):
+come home to. Now read the table that was supposed to rewrite that source (lesson 03):
 
 ```bash
 iptables -t nat -L POSTROUTING -n -v
@@ -159,7 +159,7 @@ There is **no `MASQUERADE`/`SNAT`** rule matching `10.50.0.0/24`. Nothing swaps 
 source for the host's routable IP on the way out, so `conntrack` has no mapping to reverse and the reply
 never appears.
 
-**Root cause:** missing source NAT (lesson 3). Forwarding moves the packet, but without MASQUERADE the
+**Root cause:** missing source NAT (lesson 03). Forwarding moves the packet, but without MASQUERADE the
 private source leaks onto the public wire. **Fix:**
 
 ```bash
@@ -242,7 +242,7 @@ bridge link                    # veth-b listed, state disabled
 ```
 
 The reproduce block brought up `veth-a` but **never brought up `veth-b`**. A veth is a cable with two
-ends (lesson 2): the namespace end `veth-b-c` is up, but its partner `veth-b` — the port plugged into
+ends (lesson 02): the namespace end `veth-b-c` is up, but its partner `veth-b` — the port plugged into
 the bridge — is down. The bridge will not forward a frame out a port that isn't up, so ns1's ARP for
 `10.60.0.2` reaches the switch and dies there. The `fdb` confirms the bridge never learned ns2:
 
@@ -250,7 +250,7 @@ the bridge — is down. The bridge will not forward a frame out a port that isn'
 bridge fdb show br br0         # no entry pointing at veth-b
 ```
 
-**Root cause:** one end of the cable left `DOWN` (lesson 2). The misleading part is that the
+**Root cause:** one end of the cable left `DOWN` (lesson 02). The misleading part is that the
 namespace's *own* view looks perfectly healthy — the fault is a port on the host side. **Fix:**
 
 ```bash
@@ -324,7 +324,7 @@ ss -tlnp | grep 8080 || echo "nothing on the HOST is bound to 8080"
 
 The socket table the host can see is empty on 8080; the `python3` listener sits in the `app`
 namespace's *own* socket table. A container port becomes reachable from outside only when a **DNAT**
-rule rewrites the destination and sends the packet across (lesson 3) — exactly what `docker run -p
+rule rewrites the destination and sends the packet across (lesson 03) — exactly what `docker run -p
 8080:8080` installs. Read the NAT table and it isn't there:
 
 ```bash
@@ -341,7 +341,7 @@ curl -s -o /dev/null -w 'from the host -> %{http_code}\n' 10.70.0.1:8080     # n
 ```
 
 The reply finds its way back with no return rule, because `conntrack` recorded the rewrite when the
-first packet crossed (lesson 3) — the same reason a Kubernetes Service answers in both directions from
+first packet crossed (lesson 03) — the same reason a Kubernetes Service answers in both directions from
 a single DNAT rule.
 
 **Cleanup:**
@@ -426,7 +426,7 @@ The request leaves. It is counted as dropped on the far side. Nothing in between
 the black hole from [Act II's MTU lesson](../act-2-two-machines/03b-mtu-and-fragmentation.md), reproduced
 on plumbing you built yourself.
 
-**Root cause:** an MTU mismatch across one link (Act II's MTU, lesson 2's veth). **Fix** — make the path
+**Root cause:** an MTU mismatch across one link (Act II's MTU, lesson 02's veth). **Fix** — make the path
 agree. Either raise the small end:
 
 ```bash

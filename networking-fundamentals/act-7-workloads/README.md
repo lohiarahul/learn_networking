@@ -44,18 +44,18 @@ kubectl get pvc -A        # empty, unless a lesson explicitly told you to keep o
 
 ## The lessons — read in this order
 
-1. **[From a Pod to a Deployment](01-pod-to-deployment.md)** — you have used all three of these objects without being told why there are three.
-2. **[Rolling updates, and the promise nobody wrote down](02-rolling-updates.md)** — the percentages you never typed, why a rollback is not an undo log, and the one bad deploy that rolling updates cannot save you from.
-3. **[Who decides a container is working](03-probes.md)** — two probes with almost the same syntax. One of them is a load-balancer decision and the other is life or death, and the syntax will not tell you which.
-4. **[The claim made before there is a machine](04-scheduling.md)** — Act IV's unanswered question. Why a cluster can be full and idle at once, and every way to narrow where a Pod lands.
-5. **[Configuration, and where a secret actually ends up](05-configuration.md)** — why an env var cannot change under a running process but a file can, and the three places your password is sitting in plaintext.
-6. **[Three different promises called "survives"](06-storage.md)** — Act I's oldest unanswered question, and how much of the answer you cannot read off the manifest.
-7. **[When replicas are not interchangeable](07-the-other-workload-kinds.md)** — you built a StatefulSet by hand in Act V. Four workload kinds, each existing because one assumption about a replica is false.
-8. **[Shipping a set of objects](08-shipping-a-set-of-objects.md)** — two tools that disagree about what a manifest is, and the discovery that neither is a Kubernetes feature at all.
+- **01 · [From a Pod to a Deployment](01-pod-to-deployment.md)** — you have used all three of these objects without being told why there are three.
+- **02 · [Rolling updates, and the promise nobody wrote down](02-rolling-updates.md)** — the percentages you never typed, why a rollback is not an undo log, and the one bad deploy that rolling updates cannot save you from.
+- **03 · [Who decides a container is working](03-probes.md)** — two probes with almost the same syntax. One of them is a load-balancer decision and the other is life or death, and the syntax will not tell you which.
+- **04 · [The claim made before there is a machine](04-scheduling.md)** — Act IV's unanswered question. Why a cluster can be full and idle at once, and every way to narrow where a Pod lands.
+- **05 · [Configuration, and where a secret actually ends up](05-configuration.md)** — why an env var cannot change under a running process but a file can, and the three places your password is sitting in plaintext.
+- **06 · [Three different promises called "survives"](06-storage.md)** — Act I's oldest unanswered question, and how much of the answer you cannot read off the manifest.
+- **07 · [When replicas are not interchangeable](07-the-other-workload-kinds.md)** — you built a StatefulSet by hand in Act V. Four workload kinds, each existing because one assumption about a replica is false.
+- **08 · [Shipping a set of objects](08-shipping-a-set-of-objects.md)** — two tools that disagree about what a manifest is, and the discovery that neither is a Kubernetes feature at all.
 8b. **[GitOps, which you have already built](08b-gitops.md)** — the reconciliation loop with a git repo as desired state, in four lines. Self-heal turns out not to be healing, a deleted file turns out not to be a deletion, and the drift check reports `in sync` while an orphan runs.
 8c. **[When the chart is not yours](08c-when-the-chart-is-not-yours.md)** — the parts of somebody else's chart that are not templates. `crds/` is not templated, is never upgraded, and survives uninstall — which is where `--skip-crds` comes from, and why three of the four charts you will actually meet do not use it.
-9. **[Adding a kind](09-adding-a-kind.md)** — Act V told you what a CRD is and what happens when nobody watches one. This is where you prove it, and then write the watcher yourself in twenty-five lines of shell.
-10. **[Choosing the number](10-choosing-the-number.md)** — every replica count in this act was one you typed. What would it take for the cluster to pick it, and what would it have to measure to do that honestly?
+- **09 · [Adding a kind](09-adding-a-kind.md)** — Act V told you what a CRD is and what happens when nobody watches one. This is where you prove it, and then write the watcher yourself in twenty-five lines of shell.
+- **10 · [Choosing the number](10-choosing-the-number.md)** — every replica count in this act was one you typed. What would it take for the cluster to pick it, and what would it have to measure to do that honestly?
 
 Then three pages to consolidate, in this order:
 

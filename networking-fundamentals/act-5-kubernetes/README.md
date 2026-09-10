@@ -22,18 +22,18 @@ The setup, the two ways in (node-level via `docker exec`, Pod-level via a netsho
 
 Work through these in order. Each one runs experiments against the cluster and ends with a link to the next, so you never have to guess where to go. Start with the lab setup.
 
-1. **[The lab for Act V — a real cluster with kind](01-lab-with-kind.md)** — set this up first if you want to run the act, not just read it.
-2. **[The Pod — a shared network namespace](02-pod-networking.md)** — a Pod is the Act IV namespace, held open by the pause container.
-3. **[Services and kube-proxy — what answers to a ClusterIP?](03-services.md)** — go looking for the address, then find out what really answers to it.
-4. **[CoreDNS — /etc/hosts for the cluster](04-coredns.md)** — Act II naming, scaled to a cluster.
-5. **[Service shapes — when a load-balanced VIP is the wrong answer](04b-service-shapes.md)** — headless, SRV, session affinity, `ExternalName`, and who the packet appears to be from.
-6. **[CNI — the veth-pair installer](05-cni.md)** — the Act IV wiring, run by a binary instead of by hand.
-7. **[Ingress — the front door](06-ingress.md)** — the Act III TLS handshake terminated at the cluster edge. The one lesson that installs something.
-8. **[Gateway API — when routing outgrows annotations](06b-gateway-api.md)** — Ingress's successor: the same job split along the seams that actually exist, and a status you have to read.
-9. **[Network Policy — a filter table someone else has to enforce](07-network-policy.md)** — allow/deny on Pod identity, and finding the process that actually decides.
-10. **[The four shapes of a NetworkPolicy](07b-policy-shapes.md)** — the one hyphen that turns an AND into an OR, `ipBlock`, and the egress policy that breaks DNS.
-11. **[The debugging method — five questions in order](08-debugging.md)** — which file to read first when it breaks.
-12. **[The method in action — a worked failure](09-debugging-walkthrough.md)** — the debugging walk end to end.
+- **01 · [The lab for Act V — a real cluster with kind](01-lab-with-kind.md)** — set this up first if you want to run the act, not just read it.
+- **02 · [The Pod — a shared network namespace](02-pod-networking.md)** — a Pod is the Act IV namespace, held open by the pause container.
+- **03 · [Services and kube-proxy — what answers to a ClusterIP?](03-services.md)** — go looking for the address, then find out what really answers to it.
+- **04 · [CoreDNS — /etc/hosts for the cluster](04-coredns.md)** — Act II naming, scaled to a cluster.
+- **04b · [Service shapes — when a load-balanced VIP is the wrong answer](04b-service-shapes.md)** — headless, SRV, session affinity, `ExternalName`, and who the packet appears to be from.
+- **05 · [CNI — the veth-pair installer](05-cni.md)** — the Act IV wiring, run by a binary instead of by hand.
+- **06 · [Ingress — the front door](06-ingress.md)** — the Act III TLS handshake terminated at the cluster edge. The one lesson that installs something.
+- **06b · [Gateway API — when routing outgrows annotations](06b-gateway-api.md)** — Ingress's successor: the same job split along the seams that actually exist, and a status you have to read.
+- **07 · [Network Policy — a filter table someone else has to enforce](07-network-policy.md)** — allow/deny on Pod identity, and finding the process that actually decides.
+- **07b · [The four shapes of a NetworkPolicy](07b-policy-shapes.md)** — the one hyphen that turns an AND into an OR, `ipBlock`, and the egress policy that breaks DNS.
+- **08 · [The debugging method — five questions in order](08-debugging.md)** — which file to read first when it breaks.
+- **09 · [The method in action — a worked failure](09-debugging-walkthrough.md)** — the debugging walk end to end.
 
 When you've finished them all, do the recall exercise from memory (answers hidden): **[Test yourself →](test-yourself.md)**. Then prove you can *use* it under fire with the symptom-first **[Diagnose it →](diagnose.md)** on-call drills, which break a real cluster four ways and tell you nothing but the symptom. When you want to look something up rather than learn it, that is what [the instrument panel](../../reference/README.md) is for — [the map](../../reference/03-the-map.md) ties every tool to the piece of kernel state it reads, and [the grammar](../../reference/01-the-grammar.md) is the page that lets you work out a command nobody showed you.
 

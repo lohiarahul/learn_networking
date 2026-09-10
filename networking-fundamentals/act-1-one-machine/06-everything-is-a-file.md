@@ -71,12 +71,12 @@ ls -li /tmp/a.txt /tmp/b.txt
 
 Read what changed. Both names show the **same inode `399622`** — they are not two files, they are two names for *one* file. And the count in the middle went from `1` to **`2`**: that's the inode's *link count*, the number of names pointing at it. (This is why deleting a file is really called *unlinking* — you remove one name, and the kernel only frees the inode's bytes when the count hits zero. Hold that thought; it comes back with a vengeance in a few minutes.)
 
-So the real chain underneath a file has one more link than you may have pictured — and you already built most of it in lesson 1:
+So the real chain underneath a file has one more link than you may have pictured — and you already built most of it in lesson 01:
 
 ```mermaid
 flowchart LR
   n["name<br/>/tmp/a.txt"] --> ino
-  fd["fd 3<br/>(lesson 1)"] --> oft["open-file entry<br/>offset + flags"]
+  fd["fd 3<br/>(lesson 01)"] --> oft["open-file entry<br/>offset + flags"]
   oft --> ino["<b>inode</b><br/>the real file:<br/>owner, size,<br/>pointers to data"]
   ino --> data["the bytes<br/>on disk"]
 ```
@@ -121,7 +121,7 @@ ls -l /proc/self/fd/0
 lrwx------  1 root root 64 ... /proc/self/fd/0 -> /dev/null
 ```
 
-The leading **`l`** says symlink, and the `->` shows a target. So these `/proc/<pid>/fd/N` entries — the ones that read `socket:[3331228]` for a socket back in lesson 1 — are **symbolic links**. To understand why that's strange, you first need to know what an ordinary symlink really is. Build one and dissect it:
+The leading **`l`** says symlink, and the `->` shows a target. So these `/proc/<pid>/fd/N` entries — the ones that read `socket:[3331228]` for a socket back in lesson 01 — are **symbolic links**. To understand why that's strange, you first need to know what an ordinary symlink really is. Build one and dissect it:
 
 > **`ln -s <target> <name>`** makes a **symbolic link**: its own little file whose *entire contents are a path string*. **`readlink <name>`** prints that stored string.
 
@@ -200,13 +200,13 @@ flowchart TD
 
 Now the size-0 contradiction dissolves completely. When you `cat /etc/hostname`, the VFS calls **ext4's** read operation, which copies stored bytes off the disk — so the file has a real size. When you `cat /proc/net/dev`, the VFS calls **procfs's** read operation, which is *a function in the kernel* that, at that instant, walks the live list of network interfaces and formats their current byte counters into text. There's nothing to store — so the size is 0 — yet there's always an answer, because the answer is *computed on read*.
 
-That's why the `lo:` counters in lesson 4 climbed every time you re-`cat`-ed: you weren't re-reading a file, you were **re-running a function** that reports the live total. Same for `/proc/net/tcp`: each read re-walks the kernel's actual socket table, which is why it's never stale. Same for the magic symlinks: their `get_link` operation *computes* the target.
+That's why the `lo:` counters in lesson 04 climbed every time you re-`cat`-ed: you weren't re-reading a file, you were **re-running a function** that reports the live total. Same for `/proc/net/tcp`: each read re-walks the kernel's actual socket table, which is why it's never stale. Same for the magic symlinks: their `get_link` operation *computes* the target.
 
 Disk files store bytes; `/proc` runs code; the magic symlink runs code; a moment ago the socket let you `read`/`write` the network. **Your program cannot tell any of them apart, because the VFS makes them answer the same operations.** And *that indistinguishability is the whole point* — it's the abstraction itself.
 
-You now have the name this act has been withholding since lesson 1, and you earned every word of it: **everything is a file.** Not as a slogan painted on the wall, but as a precise statement about a data structure — *everything that implements the file operations is a file, whether or not any bytes exist behind it.*
+You now have the name this act has been withholding since lesson 01, and you earned every word of it: **everything is a file.** Not as a slogan painted on the wall, but as a precise statement about a data structure — *everything that implements the file operations is a file, whether or not any bytes exist behind it.*
 
-The socket was a file (lesson 1). The listening server, the loopback device's counters, the kernel's socket ledger, your own process's guts — files, all of them, because each one answers `read`. That is the sentence the rest of this course is built on, and it's yours now.
+The socket was a file (lesson 01). The listening server, the loopback device's counters, the kernel's socket ledger, your own process's guts — files, all of them, because each one answers `read`. That is the sentence the rest of this course is built on, and it's yours now.
 
 > **Check yourself —** Someone tells you a socket, a `/proc` file, and a file on disk are "all files." Name the one thing they genuinely share — and name what they do *not* share.
 
@@ -238,7 +238,7 @@ Everything you just proved concerned *one* `/proc`, answering about *one* machin
 
 Hold both. Act IV makes the first one real with your own hands; Act V runs the second at a scale where it stops being obvious.
 
-> **On your own machine —** there's a catch worth knowing: **macOS has no `/proc` at all** (it's a Linux/BSD-procfs feature, and macOS's kernel doesn't expose one). So every experiment in this lesson only works *inside the Linux lab container*, never in your Mac terminal. The closest native macOS equivalent is `lsof` (the fd-table reader from lesson 1) and `vmmap`/`fs_usage` — tools that ask the kernel directly, because there's no file to `cat`. See [Act I in the wild](in-the-wild.md) for what your Mac *does* expose.
+> **On your own machine —** there's a catch worth knowing: **macOS has no `/proc` at all** (it's a Linux/BSD-procfs feature, and macOS's kernel doesn't expose one). So every experiment in this lesson only works *inside the Linux lab container*, never in your Mac terminal. The closest native macOS equivalent is `lsof` (the fd-table reader from lesson 01) and `vmmap`/`fs_usage` — tools that ask the kernel directly, because there's no file to `cat`. See [Act I in the wild](in-the-wild.md) for what your Mac *does* expose.
 
 ## Where you are now
 

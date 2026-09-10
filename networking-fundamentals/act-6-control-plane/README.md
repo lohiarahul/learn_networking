@@ -22,19 +22,19 @@ A cluster missing its scheduler looks completely healthy until the moment someth
 
 ## The lessons — read in this order
 
-1. **[The API server is a filesystem](01-the-api-server-is-a-filesystem.md)** — go looking for a Pod on the node's disk, fail, find the tree it actually lives in, and then read the six stages a write walks to get there off the four different errors they refuse with.
-2. **[Static pods — where the control plane lives](02-static-pods.md)** — the API server is a Pod, so who starts it? The boot-order paradox, and the directory that breaks it.
-3. **[What starts the kubelet](02b-what-starts-the-kubelet.md)** — the one component that is not a Pod is a systemd unit, and every `restart`, `stop`, `daemon-reload` and `journalctl -u` this act uses is in that file. Read it, and find that `systemctl show` is a formatted read of Act IV's cgroup files.
-4. **[The reconciliation loop](03-the-reconciliation-loop.md)** — stop a controller and watch a Deployment stop defending itself. Three loops, no calls between them.
-5. **[The cluster's own PKI](04-the-clusters-own-pki.md)** — you have been authenticating with a file this whole time. Read what it claims about you, and find out what nothing can revoke.
-6. **[Losing the cluster, and getting it back](05-etcd-backup-and-restore.md)** — snapshot the store, delete a namespace for real, and put it back. Then work out what a restore does *not* undo.
-7. **[Upgrades, and what is allowed to be out of step](06-upgrades-and-version-skew.md)** — derive the skew rules from the fact that no component calls another, and find where a version is actually written down.
-8. **[Taking a node out of service](07-node-maintenance.md)** — cordon is one field; drain is a loop in your terminal. Then meet the one request the cluster is allowed to refuse.
-9. **[When the control plane breaks](08-when-the-control-plane-breaks.md)** — Act V's five questions, pointed down the dependency stack instead of the network stack. Break the API server on purpose and find out where the evidence went.
+- **01 · [The API server is a filesystem](01-the-api-server-is-a-filesystem.md)** — go looking for a Pod on the node's disk, fail, find the tree it actually lives in, and then read the six stages a write walks to get there off the four different errors they refuse with.
+- **02 · [Static pods — where the control plane lives](02-static-pods.md)** — the API server is a Pod, so who starts it? The boot-order paradox, and the directory that breaks it.
+- **02b · [What starts the kubelet](02b-what-starts-the-kubelet.md)** — the one component that is not a Pod is a systemd unit, and every `restart`, `stop`, `daemon-reload` and `journalctl -u` this act uses is in that file. Read it, and find that `systemctl show` is a formatted read of Act IV's cgroup files.
+- **03 · [The reconciliation loop](03-the-reconciliation-loop.md)** — stop a controller and watch a Deployment stop defending itself. Three loops, no calls between them.
+- **04 · [The cluster's own PKI](04-the-clusters-own-pki.md)** — you have been authenticating with a file this whole time. Read what it claims about you, and find out what nothing can revoke.
+- **05 · [Losing the cluster, and getting it back](05-etcd-backup-and-restore.md)** — snapshot the store, delete a namespace for real, and put it back. Then work out what a restore does *not* undo.
+- **06 · [Upgrades, and what is allowed to be out of step](06-upgrades-and-version-skew.md)** — derive the skew rules from the fact that no component calls another, and find where a version is actually written down.
+- **07 · [Taking a node out of service](07-node-maintenance.md)** — cordon is one field; drain is a loop in your terminal. Then meet the one request the cluster is allowed to refuse.
+- **08 · [When the control plane breaks](08-when-the-control-plane-breaks.md)** — Act V's five questions, pointed down the dependency stack instead of the network stack. Break the API server on purpose and find out where the evidence went.
 
 Then, once the nine above are done, one appendix that needs machines rather than containers:
 
-10. **[Two machines, from nothing](09-two-machines-from-nothing.md)** — `kind` did about a dozen things to those nodes before the first Pod ever ran, and never said what. Build a cluster by hand on two VMs, earning each prerequisite from the failure that happens without it, then run the in-place upgrade this lab cannot host. **It is also the one page in the course its author has not run**, and it says so at the top.
+- **09 · [Two machines, from nothing](09-two-machines-from-nothing.md)** — `kind` did about a dozen things to those nodes before the first Pod ever ran, and never said what. Build a cluster by hand on two VMs, earning each prerequisite from the failure that happens without it, then run the in-place upgrade this lab cannot host. **It is also the one page in the course its author has not run**, and it says so at the top.
 
 Then, when you have worked through all nine lessons and the appendix:
 

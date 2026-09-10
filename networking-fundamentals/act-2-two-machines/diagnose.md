@@ -149,7 +149,7 @@ that doesn't exist on the wire, so it leaves and is never heard from again. The 
 innocent; the translation underneath them (the ARP cache, from the first lesson) is poisoned.
 
 **Root cause:** a wrong static ARP entry for the gateway — exactly the *effect* an ARP-spoofing attacker
-produces (lesson 1's shadow), here done to ourselves. **Fix:** delete the bad entry and let the kernel
+produces (lesson 01's shadow), here done to ourselves. **Fix:** delete the bad entry and let the kernel
 re-ARP for the real MAC.
 
 </details>
@@ -211,11 +211,11 @@ ip route get 1.1.1.1
 
 `8.8.8.8` matches a `blackhole 8.8.8.0/24` route while `1.1.1.1` falls through to the default. Look at
 `ip route show`: both `0.0.0.0/0` (the default) *and* `8.8.8.0/24` match `8.8.8.8` — and the `/24` wins
-by **longest-prefix match** (lesson 2), because a more specific route always beats the default,
+by **longest-prefix match** (lesson 02), because a more specific route always beats the default,
 regardless of order. A single more-specific route silently swallowed one destination.
 
 **Root cause:** an overly specific route (here a `blackhole`; in the wild, a leaked or fat-fingered
-route, or a bad BGP announcement from lesson 2b) winning the longest-prefix match for that range.
+route, or a bad BGP announcement from lesson 02b) winning the longest-prefix match for that range.
 **Fix:** remove it and let the default take over again.
 
 </details>
@@ -274,7 +274,7 @@ cat /sys/class/net/eth0/mtu
 1300
 ```
 
-The link MTU is **1300**, not the usual 1500 (lesson 3b). A DF packet bigger than 1300 can't be
+The link MTU is **1300**, not the usual 1500 (lesson 03b). A DF packet bigger than 1300 can't be
 forwarded and can't be fragmented, so it's dropped — and if the ICMP "fragmentation needed" that would
 tell the sender to shrink is lost or blocked, the sender keeps firing oversized packets into a hole.
 That's the **MTU black hole**: the handshake's small packets succeed, so the connection *opens*, then
@@ -340,7 +340,7 @@ the order, and which source is winning?
 <summary><b>The diagnosis</b> — open after you've tried</summary>
 
 `dig` queries a DNS server directly. The application calls the **libc resolver**, which obeys
-`/etc/nsswitch.conf` — whose `hosts:` line reads `files dns` (lesson 4), so it checks `/etc/hosts`
+`/etc/nsswitch.conf` — whose `hosts:` line reads `files dns` (lesson 04), so it checks `/etc/hosts`
 *before* ever asking DNS:
 
 ```bash
@@ -352,7 +352,7 @@ A stale `/etc/hosts` entry is overriding the global database for the app, while 
 the file — sees the truth. Neither tool is lying; they consult different sources, and the local file
 wins for everything that goes through libc.
 
-**Root cause:** a leftover `/etc/hosts` override (lesson 4) — the same mechanism that makes a fake name
+**Root cause:** a leftover `/etc/hosts` override (lesson 04) — the same mechanism that makes a fake name
 resolve, used by accident. In a Pod this is the "name resolves to the wrong place" failure exactly.
 **Fix:** remove the stale line.
 

@@ -271,6 +271,25 @@ function slugFromFilename(name) {
   return name.replace(/\.md$/, '').replace(/^\d+[a-z]?-/, '');
 }
 
+/**
+ * `02-veth-and-bridge.md` -> `02`; `01b-cgroups.md` -> `01b`; `README.md` and the supporting pages
+ * -> null, because they are not lessons and have no number to carry.
+ *
+ * The lessons cite each other by this number several hundred times ("lesson 02's experiment"), and
+ * the number is *not* the page's position in the sidebar: an act's Overview takes the first row, and
+ * every lettered sub-lesson takes a row of its own, so `02-` is Act IV's fourth link. Prefixing the
+ * sidebar label with this is what lets a reader follow such a citation without counting rows or
+ * knowing that filenames exist — the URL still drops the prefix (see `slugFromFilename`).
+ */
+function lessonNumberFromFilename(name) {
+  if (name === 'README.md' || name in SUPPORTING_ORDER) return null;
+  const m = name.match(/^(\d+)([a-z])?-/);
+  return m ? `${m[1]}${m[2] ?? ''}` : null;
+}
+
+/** The lesson number as it sits in a sidebar row, ahead of the label. */
+const numberedLabel = (number, label) => (number ? `${number} · ${label}` : label);
+
 /** Markdown inline formatting -> plain text, for frontmatter values Starlight renders as text. */
 function plainText(md) {
   return md
@@ -329,6 +348,11 @@ function summarise(text, max = 158) {
 /**
  * A sidebar label from the page title. Titles here often read `Topic — a clause explaining it`;
  * that clause is a subtitle, so drop it when the whole thing is too long to sit in a sidebar.
+ *
+ * The threshold counts the title alone, not the lesson number prefixed to it afterwards: several
+ * titles with no em dash to cut sit in the sidebar at fifty-odd characters already, so this is a rule
+ * about dropping subtitles, not a hard width. Charging the number against it re-trimmed exactly one
+ * label ("CNI — the veth-pair installer" down to "CNI"), which is a worse row, not a narrower one.
  */
 function labelFromTitle(title) {
   let label = title.replace(/\s*\([^)]*\)\s*$/, '').trim();
@@ -437,6 +461,7 @@ async function buildRoutes() {
           ? `${act.slug}/index.md`
           : `${act.slug}/${slugFromFilename(name)}.md`,
         order: orderFromFilename(name),
+        number: lessonNumberFromFilename(name),
         // Inside an "Act I — ..." sidebar group, repeating the act's own long title is noise.
         label: name === 'README.md' && act.slug.startsWith('act-')
           ? 'Overview'
@@ -1186,7 +1211,7 @@ async function main() {
     const { title, description, body } = parsePage(raw, r.src);
     if (!title) throw new Error(`${r.src}: no H1 to use as the page title`);
 
-    const label = LABEL_OVERRIDES[r.src] ?? r.label ?? labelFromTitle(title);
+    const label = numberedLabel(r.number, LABEL_OVERRIDES[r.src] ?? r.label ?? labelFromTitle(title));
     const content = tagLessonNav(
       tagFigures(
         tagAnswers(tagCallouts(tagCodeFences(rewriteLinks(body, r.src, urlMap, unresolved)))),

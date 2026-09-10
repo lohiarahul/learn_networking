@@ -57,18 +57,18 @@ Several lessons edit the API server's static Pod manifest. That is a real contro
 
 ## The lessons — read in this order
 
-1. **[What a container is allowed to do](01-what-a-container-may-do.md)** — the flag you have typed since the orientation page, and the far more interesting question of what a container has without it.
-2. **[When the kernel says no](02-the-kernel-says-no.md)** — fourteen capabilities against three hundred syscalls, and what stands in front of the rest.
-3. **[A default that refuses](03-a-default-that-refuses.md)** — making the previous two lessons mandatory instead of optional, and finding out where that policy actually lives.
-4. **[Deciding before it exists](04-deciding-before-it-exists.md)** — a rule nobody built in.
-5. **[Policy as a product](05-policy-as-a-product.md)** — the two engines everybody actually runs, and writing rules in both.
-6. **[A Secret that is actually secret](06-a-secret-that-is-actually-secret.md)** — the one of Act VII's three locations that cluster configuration can close.
-7. **[The doors the cluster leaves open](07-the-doors-left-open.md)** — the API server's own flags, the kubelet's own port, and the token every Pod is handed whether or not it wants one.
-8. **[What you shipped](08-what-you-shipped.md)** — the decision made earliest, knowing least, about an artifact that will be running for two years.
+- **01 · [What a container is allowed to do](01-what-a-container-may-do.md)** — the flag you have typed since the orientation page, and the far more interesting question of what a container has without it.
+- **02 · [When the kernel says no](02-the-kernel-says-no.md)** — fourteen capabilities against three hundred syscalls, and what stands in front of the rest.
+- **03 · [A default that refuses](03-a-default-that-refuses.md)** — making the previous two lessons mandatory instead of optional, and finding out where that policy actually lives.
+- **04 · [Deciding before it exists](04-deciding-before-it-exists.md)** — a rule nobody built in.
+- **05 · [Policy as a product](05-policy-as-a-product.md)** — the two engines everybody actually runs, and writing rules in both.
+- **06 · [A Secret that is actually secret](06-a-secret-that-is-actually-secret.md)** — the one of Act VII's three locations that cluster configuration can close.
+- **07 · [The doors the cluster leaves open](07-the-doors-left-open.md)** — the API server's own flags, the kubelet's own port, and the token every Pod is handed whether or not it wants one.
+- **08 · [What you shipped](08-what-you-shipped.md)** — the decision made earliest, knowing least, about an artifact that will be running for two years.
 8b. **[Who says so](08b-who-says-so.md)** — the same artifact, once you need somebody else to take your word for it. Signing, and the cluster checking before a Pod is admitted.
-9. **[Encryption between Pods](09-encryption-between-pods.md)** — Act VIII's handshake, applied to traffic that never leaves the cluster.
-10. **[Seeing it happen](10-seeing-it-happen.md)** — the two controls that refuse nothing, and why a system needs them anyway.
-11. **[Secrets from outside the cluster](11-secrets-from-outside.md)** — how organisations actually do this, and why none of it is on an exam.
+- **09 · [Encryption between Pods](09-encryption-between-pods.md)** — Act VIII's handshake, applied to traffic that never leaves the cluster.
+- **10 · [Seeing it happen](10-seeing-it-happen.md)** — the two controls that refuse nothing, and why a system needs them anyway.
+- **11 · [Secrets from outside the cluster](11-secrets-from-outside.md)** — how organisations actually do this, and why none of it is on an exam.
 
 Then **[test yourself](test-yourself.md)**, the eleven **[on-call drills](diagnose.md)** — where every component is healthy, every command succeeds, and the control is not doing what somebody believes it is doing — and **[in the wild](in-the-wild.md)**.
 

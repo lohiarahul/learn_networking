@@ -80,7 +80,7 @@ addr.sin_port = htons(port);                // sin_port=htons(8080)→ the port
 
 - **`sin_family` = `AF_INET`** — the address family: IPv4 (vs. IPv6, or a Unix-domain socket). It tells the kernel how to read the rest of the struct.
 - **`sin_addr` = `0.0.0.0`** — the IP to bind, here `INADDR_ANY` ("every interface" — a dial we return to in the loopback lesson).
-- **`sin_port` = `htons(8080)`** — the port. `htons` ("host **to** network **short**") flips the two bytes into **network byte order** (big-endian), the order every machine agrees to use, so `8080` means the same thing on both ends regardless of the local CPU. (You meet byte order again in lesson 5, reading these numbers back out of a kernel file by hand.)
+- **`sin_port` = `htons(8080)`** — the port. `htons` ("host **to** network **short**") flips the two bytes into **network byte order** (big-endian), the order every machine agrees to use, so `8080` means the same thing on both ends regardless of the local CPU. (You meet byte order again in lesson 05, reading these numbers back out of a kernel file by hand.)
 
 The trailing **`16`** is just the struct's size in bytes (`sizeof(struct sockaddr_in)`), which `bind()` needs because C hands it a raw pointer with no length attached. So the whole "addr object" is four things: a family, an address, a port, and a length — and `bind()` staples it onto socket `3`. That single call is what moves the socket from "bare, no row in `/proc/net/tcp`" (where fd-demo's stayed) to "has an identity the whole machine can see."
 
@@ -143,7 +143,7 @@ grep State: /proc/$(pgrep -f minihttp | head -1)/status
 State:	S (sleeping)
 ```
 
-`S` is *interruptible sleep* — the process is parked, using **zero CPU**, waiting to be woken. This is the same freeze you saw under `strace`, where `accept(3, NULL, NULL` simply stopped with no return value. A server that spends its life "waiting for connections" is not burning a core in a `while` loop asking *anyone yet? anyone yet?* — it is asleep, and the kernel wakes it the instant a client's connection is fully set up — that setup is a three-step **handshake**, and we take it apart message by message in lesson 5b. (For the sub-millisecond it actually serves a request the state flips to `R`, running — usually too brief to catch.)
+`S` is *interruptible sleep* — the process is parked, using **zero CPU**, waiting to be woken. This is the same freeze you saw under `strace`, where `accept(3, NULL, NULL` simply stopped with no return value. A server that spends its life "waiting for connections" is not burning a core in a `while` loop asking *anyone yet? anyone yet?* — it is asleep, and the kernel wakes it the instant a client's connection is fully set up — that setup is a three-step **handshake**, and we take it apart message by message in lesson 05b. (For the sub-millisecond it actually serves a request the state flips to `R`, running — usually too brief to catch.)
 
 **Where do callers wait before `accept()` reaches them?** In the *backlog* — that's the `16` in `listen(listen_fd, 16)`. Connections whose handshake has already completed, but that minihttp hasn't `accept()`ed yet, line up in a kernel queue attached to fd 3, up to 16 deep. `accept()` pulls the next one off the front. If a 17th piles up before the loop comes back around, the queue is full and the kernel refuses the overflow.
 

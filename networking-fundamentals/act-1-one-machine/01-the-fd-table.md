@@ -160,7 +160,7 @@ fd-demo  13 root   4u  IPv4  3331228          TCP   *:*
 
 The same `3 → /etc/hostname` and `4 → socket`, now with a `TYPE` column the raw symlink never gave you: `REG` (a regular file) and `IPv4` (a TCP socket). fd-demo's socket still has *no address* — the bare, unplaced socket we examine next lesson — so there's no `host:port` for it (your `lsof` may word that address-less line slightly differently). **`lsof` is the `/proc/<pid>/fd` reader, automated.** Keep one reflex from the very start: if a tool ever disagrees with the file, the file wins — you can always drop back to `ls -l /proc/<pid>/fd`.
 
-> **Image note —** plain `nicolaka/netshoot` ships only a *busybox* `lsof` stub that ignores `-p`/`-i` and dumps everything; the `netlab` image you switched to installs the real one, so run this there. Its killer flag — `lsof -i :PORT`, *"who owns this port?"* — arrives in lesson 5.
+> **Image note —** plain `nicolaka/netshoot` ships only a *busybox* `lsof` stub that ignores `-p`/`-i` and dumps everything; the `netlab` image you switched to installs the real one, so run this there. Its killer flag — `lsof -i :PORT`, *"who owns this port?"* — arrives in lesson 05.
 
 ## Where you are now
 

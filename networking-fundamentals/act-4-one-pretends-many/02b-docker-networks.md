@@ -2,13 +2,13 @@
 
 **The wall** — Three containers are running on your machine right now. You've just spent an entire lesson building veth pairs and bridges by hand, so you go looking for them the way you'd look for anything else in this course: as a file. `ls /sys/class/net/docker0/brif/`. It comes back empty — or on Docker Desktop, there's no `/sys/class/net` to even ask, because your shell isn't in the namespace that has one.
 
-`/sys/class/net` always reflects *whoever's asking*. `docker` itself is just a client talking to the daemon over a socket — no kernel namespace required — so every `docker ...` command below still runs in your normal terminal, same as always. But `docker0` is kernel state sitting in the *root* network namespace (the VM's, on Docker Desktop), and your terminal was never in that namespace. To peek at it, open a **second terminal window or tab** — leave your first one alone — and start a shell that *is* in that namespace, the same trick [lesson 2](02-veth-and-bridge.md) used:
+`/sys/class/net` always reflects *whoever's asking*. `docker` itself is just a client talking to the daemon over a socket — no kernel namespace required — so every `docker ...` command below still runs in your normal terminal, same as always. But `docker0` is kernel state sitting in the *root* network namespace (the VM's, on Docker Desktop), and your terminal was never in that namespace. To peek at it, open a **second terminal window or tab** — leave your first one alone — and start a shell that *is* in that namespace, the same trick [lesson 02](02-veth-and-bridge.md) used:
 
 ```bash
 docker run --rm -it --privileged --network host nicolaka/netshoot
 ```
 
-Call that second window the **peek shell**. Lesson 2 ran everything inside one privileged shell start to finish; here you run two terminals side by side instead. Below, every `ls /sys/class/net/...` and `ip link` command runs in the peek shell (the second window); every `docker ...` command runs in your normal terminal (the first).
+Call that second window the **peek shell**. Lesson 02 ran everything inside one privileged shell start to finish; here you run two terminals side by side instead. Below, every `ls /sys/class/net/...` and `ip link` command runs in the peek shell (the second window); every `docker ...` command runs in your normal terminal (the first).
 
 Don't want two windows open? Skip the interactive peek shell entirely and run each check as its own throwaway container instead — same namespace visibility, no second window to manage:
 
@@ -35,7 +35,7 @@ That table is a claim, not a fact, until you've checked it against your own cont
 docker inspect -f '{{.HostConfig.NetworkMode}}' <container-name>   # your terminal — "host", "bridge", or a custom network's name
 ```
 
-> **Predict first —** `host` mode hands the container the existing host namespace outright, rather than building it a fresh one the way `bridge` mode does. Given that, and given what you know from [lesson 2](02-veth-and-bridge.md) about how a veth pair gets plugged into a bridge, what do you expect `/sys/class/net/docker0/brif/` to contain the moment you start a `--network host` container — one new entry, or none?
+> **Predict first —** `host` mode hands the container the existing host namespace outright, rather than building it a fresh one the way `bridge` mode does. Given that, and given what you know from [lesson 02](02-veth-and-bridge.md) about how a veth pair gets plugged into a bridge, what do you expect `/sys/class/net/docker0/brif/` to contain the moment you start a `--network host` container — one new entry, or none?
 
 ```bash
 docker run -d --network host --name hosttest nicolaka/netshoot sleep 60   # your terminal

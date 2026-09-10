@@ -11,7 +11,7 @@ you where.
 NAT — exactly what you built by hand.
 *(Container version: `ip netns add`, `ip link add … type veth`, `ip link add … type bridge`.)*
 
-- **List the networks Docker keeps** — `bridge` is the default one, and it *is* lesson 2's software
+- **List the networks Docker keeps** — `bridge` is the default one, and it *is* lesson 02's software
   switch:
 ```bash
   docker network ls
@@ -27,7 +27,7 @@ NAT — exactly what you built by hand.
   ```
   That `eth0` with a `172.17.x.x` address is the container's namespace interface — the far end of a
   veth pair whose other end is a port on `docker0`. `docker exec … ip addr` is the same window into a
-  namespace that `kubectl exec … ip addr` gives you into a Pod (lesson 1).
+  namespace that `kubectl exec … ip addr` gives you into a Pod (lesson 01).
 
   That's true for *this* container because it's plain `docker run`, no `--network` flag — the default
   `bridge` mode. It stops being true the moment `--network host` or a custom network enters the
@@ -57,12 +57,12 @@ into it; to touch the raw `ip`/`iptables`, you enter the VM:
 docker run -it --rm --privileged --pid=host justincormack/nsenter1
 ```
 
-That drops you into a root shell in the VM's own namespaces (it's `nsenter` into PID 1 — lesson 1's
+That drops you into a root shell in the VM's own namespaces (it's `nsenter` into PID 1 — lesson 01's
 inode trick, run against the VM's init). Now every Act IV command is real again:
 
 ```bash
 ip netns list                          # (Docker uses hidden namespaces; containers may not show here)
-ip link show docker0                    # the bridge from lesson 2, live
+ip link show docker0                    # the bridge from lesson 02, live
 iptables -t nat -L POSTROUTING -n       # the MASQUERADE that gives containers internet (drill 1)
 iptables -t nat -L PREROUTING  -n       # the DNAT rules your -p flags wrote (drill 3)
 ```
