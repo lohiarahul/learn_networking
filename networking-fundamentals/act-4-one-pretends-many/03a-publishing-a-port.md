@@ -121,6 +121,20 @@ tcp      6 59 CLOSE_WAIT src=10.20.0.2 dst=104.20.23.154 sport=52700 dport=80 sr
 
 (Your ports will differ, the TTL counts down as you watch, and the TCP row's state depends on how long ago the `curl` finished — Act III's state machine, still running. The addresses are the part that matters.)
 
+**If you get no TCP row, suspect the `grep` before the table.** That filter only matches rows for traffic that came *from* `ns1`. A `curl` run in the container instead of inside the namespace also leaves a row — but its source is `eth0`'s address, so the filter hides it and the table looks empty. Ask a question that cannot hide the answer:
+
+```bash
+ip netns exec ns1 curl -s -o /dev/null -m 8 -w 'from ns1: %{http_code}\n' http://example.com
+conntrack -L 2>/dev/null | grep tcp
+```
+
+```
+from ns1: 200
+tcp 6 59 CLOSE_WAIT src=10.20.0.2 dst=172.66.147.243 ...   ← the row you want
+```
+
+`src=172.17.0.x` instead means the `curl` is still not running inside `ns1`. `from ns1: 000` means it never opened a connection at all, so there is no row to find — and note that without `%{http_code}` the `-s -o /dev/null` would have hidden that failure completely. From inside `ns1` the thing that usually breaks first is DNS, which resolves through the container's `/etc/resolv.conf` to a resolver `ns1` can only reach *because* of the rule you just wrote.
+
 **Read the two halves of one of those rows, because the disagreement between them *is* the translation.** Take the TCP row. The first tuple is what `ns1` believes: `src=10.20.0.2 → dst=104.20.23.154:80`. The second is the reply the kernel expects to see coming back: `src=104.20.23.154:80 → dst=172.17.0.2`. Not `10.20.0.2`. **`172.17.0.2`** — this host's own `eth0` address, the one MASQUERADE substituted on the way out.
 
 That is the entire mechanism, and it is a row in a table. On the way out, POSTROUTING swaps the source and conntrack writes the pair down. On the way back, a packet arrives for `172.17.0.2:58160`, the kernel finds the row whose reply tuple matches, and rewrites the destination back to `10.20.0.2:58160` before the routing decision sends it down the bridge. `ns1` never sees any of it. Ask `ns1` what its address is and it will tell you `10.20.0.2`, and it will be right about its own interface and wrong about every packet it has ever sent.
