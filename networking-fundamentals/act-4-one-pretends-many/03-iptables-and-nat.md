@@ -279,7 +279,7 @@ iptables -t nat    -S FORWARD    ; echo "exit=$?"
 
 ```
 iptables: No chain/target/match by that name.
-exit=1
+exit=1                                       ← "the command failed"
 ```
 
 Both fail, and both failures are the verb column being enforced: there is nothing for `filter` to decide before the routing decision has established whose packet this is, and nothing for `nat` to usefully rewrite midway through a transit. Clean up the survivor before moving on:
@@ -313,6 +313,44 @@ Ten lines, and only the **third** is new. The other nine are lesson 02's, with t
 
 Last lesson nobody needed that half: three namespaces talking only to each other need a switch, not a host. Here `ns1` needs something only the host can fetch, so the host has to be *on* the subnet — hence `.1` on `br0` and `.2` in `ns1`, two hosts on one segment, one of which happens to be running the switch and takes `.1` because that is the number every network reserves for the way out.
 
+**Draw it** — the segment as it now stands, with both halves of `br0` drawn as the separate objects they are, and the one interface that deliberately holds no address:
+
+```mermaid
+flowchart TD
+  subgraph SEG["10.20.0.0/24 — ONE subnet, ONE Ethernet segment"]
+    subgraph HOST["the HOST network namespace"]
+      IF["<b>br0</b> — the INTERFACE half<br/>10.20.0.1/24<br/>the host's own port on the switch"]
+      SW["<b>br0</b> — the SWITCH half<br/>learns MACs · forwards frames<br/>holds no address, wants none"]
+      PA["<b>veth-a</b> — a bridge port<br/>no address"]
+      IF -.->|"the host's IP stack<br/>joins the segment here"| SW
+      SW --- PA
+    end
+    subgraph NS1["the ns1 network namespace"]
+      CA["<b>veth-a-c</b> — the namespace end<br/>10.20.0.2/24"]
+    end
+    PA <-->|"one veth pair — one cable"| CA
+  end
+```
+
+Both addresses sit inside one box because **`.1` and `.2` are in the same `/24`, and that is deliberate.** Same subnet means same segment, and same segment means *no router is involved between them*. When the host sends to `10.20.0.2` the lookup runs three steps and none of them look for a gateway:
+
+1. `10.20.0.2` matches `10.20.0.0/24 dev br0 scope link`. **`scope link` means "these addresses are on my wire"** — reachable directly, no help needed.
+2. So there is no next hop to resolve. The host ARPs for `10.20.0.2` itself and learns `veth-a-c`'s MAC.
+3. It stamps on the source the route already named — `src 10.20.0.1` — hands the frame to `br0`, and the switch half forwards it out the single port whose MAC matches.
+
+**And `10.20.0.0` is not an address anyone holds** — nobody typed it, and nothing answers to it. It is the *name of the subnet*, which the kernel derived by keeping the `/24`'s worth of network bits from the address you gave it and zeroing the rest:
+
+```
+  10.20.0.2       00001010 00010100 00000000 00000010
+  /24 netmask     11111111 11111111 11111111 00000000
+  AND        =    00001010 00010100 00000000 00000000    → 10.20.0.0
+                  └────── network: 24 bits ──────┘└host┘
+```
+
+The `.0` is nothing but *host bits all zero*, so it is not a special number to memorise — `ip addr add 10.20.0.130/25` would have derived `10.20.0.128/25` instead. This is also why `ns1` ends up with a route bearing the identical name: it ran `ip addr add 10.20.0.2/24`, masked its own address with the same prefix length, and arrived at the same subnet. **Two machines agree they are on one segment precisely when this arithmetic gives them the same answer.**
+
+A routing decision *was* made; it decided that no router was needed, which is exactly what `scope link` records. So if routing feels absent here, that is because the interesting case has not arrived yet: a packet whose destination is **not** in `10.20.0.0/24` cannot be answered by that route, and the host would have to pass it on to something else entirely.
+
 ```bash
 ip -brief addr show br0        # the interface half: it holds 10.20.0.1/24
 ip -brief addr show veth-a     # a port: no IPv4 address, and it needs none
@@ -332,8 +370,18 @@ ip netns exec ns1 ping -c1 -W2 1.1.1.1 ; echo "exit=$?"
 
 ```
 ping: connect: Network unreachable
-exit=2
+exit=2                          ← "I could not even try"
 ```
+
+`ping` spends its three exit codes carefully, and they are worth learning as words rather than numbers, because the number alone answers the question this drill is asking:
+
+| Code | In words | What it tells you |
+|---|---|---|
+| `0` | *a reply came back* | the whole round trip worked |
+| `1` | *I tried, and got silence* | packets **were sent**; nothing answered |
+| `2` | *I could not even try* | something stopped it **before** it was sent |
+
+So `exit=2` has already answered the "does the packet leave `ns1` at all?" half of the prediction, before you read a word of the error. (These are `ping`'s own convention, not a universal one — `iptables` used `1` above for nothing more specific than "the command failed".)
 
 **Instant, and it never left.** Not a timeout — nothing was sent. `ns1`'s routing table has one entry, for `10.20.0.0/24`, and `1.1.1.1` is not in it, so `ns1`'s kernel had nowhere to send the packet and refused before a byte hit the wire. That is [Act II's routing table](../act-2-two-machines/02-ip-and-routing.md) doing exactly what Act II said it does, now inside a namespace of its own. Fix it the way Act II taught:
 
@@ -344,10 +392,10 @@ ip netns exec ns1 ping -c2 -W2 1.1.1.1 ; echo "exit=$?"
 
 ```
 2 packets transmitted, 0 received, 100% packet loss, time 1024ms
-exit=1
+exit=1                          ← "I tried, and got silence"
 ```
 
-A **completely different failure**, and the change is the lesson in miniature. No error, no refusal — two seconds of nothing. The packet was accepted by `ns1`'s routing table, handed down the cable to `br0`, and then something happened to it that nobody reported to anybody.
+A **completely different failure**, and the change is the lesson in miniature. The exit code moved from *could not try* to *tried and heard nothing*, which is the single fact you bought with that route: the packets are now leaving. No error, no refusal — two seconds of nothing. The packet was accepted by `ns1`'s routing table, handed down the cable to `br0`, and then something happened to it that nobody reported to anybody.
 
 You have two suspects and no way to choose between them. Either this host is refusing to pass a packet not addressed to it, or it is passing it perfectly and the *reply* never came. **Those two produce identical output.** Go and look.
 
