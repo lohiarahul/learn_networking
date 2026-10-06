@@ -111,15 +111,18 @@ Which raises the question the rest of this section answers: if the chain is only
 Answer the prediction now, by reading the thing that remembers. You met this table an act ago and read it as a NAT ledger without having any NAT to look at:
 
 ```bash
+ip netns exec ns1 ping -c2 -W2 1.1.1.1 >/dev/null
+ip netns exec ns1 curl -s -o /dev/null -m 8 http://example.com
 conntrack -L 2>/dev/null | grep 10.20.0.2
 ```
 
 ```
+udp      17 29 src=10.20.0.2 dst=192.168.65.7 sport=35750 dport=53 src=192.168.65.7 dst=172.17.0.2 sport=53 dport=35750 mark=0 use=1
 icmp     1 29 src=10.20.0.2 dst=1.1.1.1 type=8 code=0 id=21 src=1.1.1.1 dst=172.17.0.2 type=0 code=0 id=21 mark=0 use=1
 tcp      6 59 CLOSE_WAIT src=10.20.0.2 dst=104.20.23.154 sport=52700 dport=80 src=104.20.23.154 dst=172.17.0.2 sport=80 dport=52700 [ASSURED] mark=0 use=1
 ```
 
-(Your ports will differ, the TTL counts down as you watch, and the TCP row's state depends on how long ago the `curl` finished — Act III's state machine, still running. The addresses are the part that matters.)
+**Why the fresh ping and `curl` first:** rows expire. That number after the protocol is the seconds each row has left — about 30 for an ICMP or DNS row, about two minutes for a finished TCP connection — so traffic from a few paragraphs ago has usually been forgotten by the time you read this far. The `udp` row is the `curl`'s DNS lookup, a conversation in its own right. (Your ports and resolver address will differ, and the TCP row's state depends on how long ago the `curl` finished — Act III's state machine, still running. The addresses are the part that matters.)
 
 **If you get no TCP row, suspect the `grep` before the table.** That filter only matches rows for traffic that came *from* `ns1`. A `curl` run in the container instead of inside the namespace also leaves a row — but its source is `eth0`'s address, so the filter hides it and the table looks empty. Ask a question that cannot hide the answer:
 
@@ -171,14 +174,14 @@ from inside ns1: 200
 It serves, and right now exactly one machine on earth can reach it. Get this container's own address, which is the one an outsider would dial. Run this in **your normal terminal**, not in the container — `docker inspect` talks to the daemon over a socket, as [the Docker networks lesson](02b-docker-networks.md) established, so it needs no namespace of its own:
 
 ```bash
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw
+GW=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw) ; echo "GW=$GW"
 ```
 
-Call that `$GW` — it will be something like `172.17.0.2`. Confirm the door is shut before you open it, from a throwaway container standing in for "somewhere else on the network":
+That saves it in a shell variable, `$GW` — something like `172.17.0.2` — so the commands below can use it as written. Keep using this same terminal for the outside dials. Confirm the door is shut before you open it, from a throwaway container standing in for "somewhere else on the network":
 
 ```bash
 docker run --rm nicolaka/netshoot \
-  curl -s -o /dev/null -m 4 -w 'outside -> :8080 = %{http_code}\n' http://<GW>:8080 ; echo "exit=$?"
+  curl -s -o /dev/null -m 4 -w 'outside -> :8080 = %{http_code}\n' http://$GW:8080 ; echo "exit=$?"
 ```
 
 ```
@@ -198,7 +201,7 @@ From the outside container:
 
 ```bash
 docker run --rm nicolaka/netshoot \
-  curl -s -o /dev/null -m 4 -w 'outside -> :8080 = %{http_code}\n' http://<GW>:8080
+  curl -s -o /dev/null -m 4 -w 'outside -> :8080 = %{http_code}\n' http://$GW:8080
 ```
 
 ```
@@ -219,10 +222,11 @@ tcp 6 113 TIME_WAIT src=172.17.0.3 dst=172.17.0.2 sport=37338 dport=8080 src=10.
 
 Same table, same two-tuple trick, opposite field. **DNAT and SNAT are one mechanism seen from two ends**, and the row is where they meet.
 
-Now the second dial, from `gw`'s own shell:
+Now the second dial, from `gw`'s own shell. `$GW` only exists in your normal terminal, so set it again here, from `gw`'s own `eth0`:
 
 ```bash
-curl -s -o /dev/null -m 4 -w 'from gw itself -> :8080 = %{http_code}\n' http://<GW>:8080 ; echo "exit=$?"
+GW=$(ip -4 -o addr show eth0 | awk '{print $4}' | cut -d/ -f1) ; echo "GW=$GW"
+curl -s -o /dev/null -m 4 -w 'from gw itself -> :8080 = %{http_code}\n' http://$GW:8080 ; echo "exit=$?"
 ```
 
 ```
@@ -242,7 +246,7 @@ The `PREROUTING` rule shows the outsider's packets. Nothing else in the table ha
 
 ```bash
 iptables -t nat -A OUTPUT -p tcp --dport 8080 -j DNAT --to-destination 10.20.0.2:80
-curl -s -o /dev/null -m 4 -w 'from gw itself -> :8080 = %{http_code}\n' http://<GW>:8080
+curl -s -o /dev/null -m 4 -w 'from gw itself -> :8080 = %{http_code}\n' http://$GW:8080
 ```
 
 ```
@@ -285,8 +289,10 @@ Three things, and none of them new to you. `docker0` is a bridge — lesson 02's
 ```
 Chain DOCKER (2 references)
  pkts bytes target     prot opt in     out     source               destination
-    0     0 DNAT       tcp  --  *      !docker0  0.0.0.0/0            0.0.0.0/0            tcp dpt:8080 to:172.17.0.2:80
+    0     0 DNAT       tcp  --  !docker0 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8080 to:172.17.0.2:80
 ```
+
+(`--network host` put that listing in the namespace where the Docker daemon writes rules for **every** container on the machine, not just this one. So if anything else you run publishes a port — a Compose project, a database — it has its own DNAT line here too; yours is the one with `dpt:8080`. On Docker 28 and later the `in` column reads `*` rather than `!docker0`.)
 
 **`(2 references)`.** You know what those two are, because you wrote them: `PREROUTING` for packets that arrive, `OUTPUT` for packets born here. Docker did not find a cleverer way — it hit the same fork you hit, needed the same rule twice, and rather than duplicating the rule it put the rule in a *named* chain and jumped to that chain from both hooks. That is what the reference count counts. Confirm it:
 

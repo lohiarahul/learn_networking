@@ -94,6 +94,13 @@ the original port, because doing so is free and keeps things debuggable; when th
 collide with a row already in the table, it allocates a different one. The second container's packets
 went out with a port number no process on either machine ever chose.
 
+Remove the two containers now. They hold the names `c1` and `c2`, and re-running the `docker run --name c1`
+line later fails with "name already in use" if they are left behind. In your **normal terminal**:
+
+```bash
+docker rm -f c1 c2
+```
+
 That is the mechanism. Now the ceiling, which you can derive rather than look up.
 
 ### How many connections can one address translate?
@@ -110,37 +117,57 @@ Count the fields and ask which of them are actually free to vary:
 ```
 
 **One NAT address, talking to one destination address on one port, can carry at most 65,535
-simultaneous flows** — and that is the theoretical best case. Two things make the real number smaller.
+simultaneous flows.** That is the best case. Two separate problems make the real number smaller:
 
-The first you already know, and it is the one that turns a capacity limit into a *rate* limit: Act III
-had you watch a conntrack row outlive its connection, ticking down a TTL. A `TIME_WAIT` row holds its
-port reservation for a couple of minutes after the conversation ended. So the number that matters is not
-"how many connections at once" but "how many connections *started* in the last two minutes", and a
-service that opens a fresh connection per request rather than reusing one burns through the space
-dozens of times faster than its concurrency suggests. Check the arithmetic on your own machine:
+- **Problem 1, capacity:** a finished connection keeps its source port reserved for about two minutes.
+- **Problem 2, collision:** two new connections can pick the same free source port at the same instant,
+  and one of them loses.
+
+Each is explained in full below, with the command that shows it.
+
+#### Problem 1 — a finished connection keeps its port reserved (capacity)
+
+- When a connection closes, its conntrack row does **not** disappear. The row moves to `TIME_WAIT` and
+  stays in the table for about two minutes. You watched a row tick down like this in Act III.
+- While the row exists, its source port counts as **in use**. No new flow to the same destination can
+  take that port.
+- So the limit is not "how many connections are open at once". It is **"how many connections were
+  started in the last two minutes"**.
+- A service that opens a fresh connection for every request, instead of reusing one, uses up ports far
+  faster than its number of simultaneous users suggests.
+
+Check the numbers on your own machine. In the peek shell:
 
 ```bash
-conntrack -C
-sysctl net.netfilter.nf_conntrack_max
-sysctl net.ipv4.ip_local_port_range
+conntrack -C                              # how many rows the table holds right now
+sysctl net.netfilter.nf_conntrack_max     # the most rows it may ever hold
+sysctl net.ipv4.ip_local_port_range       # the source ports this namespace gives its own connections
 ```
 
-Do not be thrown if that last number disagrees with the `32768 60999` you read in the firewall lesson —
-this shell is in the *host's* network namespace and that one was inside a container, and the ephemeral
-range is per-namespace like almost everything else in this act. Two different machines, in every sense
-that matters to netfilter.
+The first number should be far below the second. If it is close, new connections start being dropped.
+The third is a range, and the width of that range is a rough measure of how many distinct source ports
+one namespace has to work with. Do not be thrown if it disagrees with the `32768 60999` you read in the
+firewall lesson: this shell is in the **host's** network namespace and that one was inside a container,
+and the ephemeral range is per-namespace like almost everything else in this act.
 
-The second is subtler, and it is a *collision* problem rather than a capacity one. Netfilter has to find
-a free port, and historically it looked for one by starting at the port the client chose and searching
-from there. Two packets being translated at the same instant can both find the same "free" port and both
-try to insert it, and one insertion loses. A lost insertion is a **dropped SYN**, and Act III taught you
-exactly what a client does with one of those: it waits, and retransmits, typically after one second.
-That is the shape of the complaint — *"a small percentage of our requests take exactly one second
-longer than the rest, and there is nothing in any application log"* — and its fix is a single flag that
-tells netfilter to pick from the whole space at random instead of searching upward from a guess:
+#### Problem 2 — two connections pick the same port at the same moment (collision)
+
+- This is **not** about running out of ports. There can be thousands of free ones.
+- To translate a new connection, netfilter has to choose a free source port. Historically it started at
+  the port the client used and searched upward from there.
+- Two new connections being translated at the same instant can both find the **same** port free, and
+  both try to claim it. One claim succeeds. The other fails.
+- The connection that failed has its first packet, the SYN, **dropped**.
+- Act III taught you what a client does when its SYN is dropped: it waits and sends it again, typically
+  after one second.
+- What you would see: *"a small percentage of our requests take exactly one second longer than the rest,
+  and there is nothing in any application log."*
+- The fix is one flag on the rule. It tells netfilter to pick a port at random from the whole range,
+  instead of searching upward from a guess, so two simultaneous connections rarely choose the same one.
+  A full rule with the flag looks like this (read it, do not add it yet):
 
 ```
-   -j MASQUERADE --random-fully
+iptables -t nat -A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE --random-fully
 ```
 
 Before you file that away as a fact about somebody else's cluster, go and look at the rule doing this
@@ -336,7 +363,7 @@ in, hence the `pkill`, bracketed so the pattern cannot match the shell running i
 ### What is the third table for?
 
 You have used two of netfilter's tables. `filter` decides whether a packet lives. `nat` decides what its
-addresses become. There is a third, and its verb is neither: `mangle` **annotates**.
+addresses become. The next one you need has a verb that is neither: `mangle` **annotates**.
 
 The annotation that matters is a **mark** — a 32-bit integer the kernel attaches to a packet as it moves
 through the stack. It is not a header field. It does not appear on the wire, no other machine will ever
@@ -448,9 +475,9 @@ conntrack -L -d 1.1.1.1 2>&1 | tail -1
 ```
 
 The connection succeeds and leaves no row. `NOTRACK` is not a filter and not a rewrite; it is an
-instruction to the tracker to look away — so `raw`'s verb, the fourth and last, is **exempts**. Four
-tables, four verbs, and you have now used every one of them: `filter` decides, `nat` rewrites, `mangle`
-annotates, `raw` exempts.
+instruction to the tracker to look away — so `raw`'s verb is **exempts**. That is
+four of the five tables used — `filter` decides, `nat` rewrites, `mangle` annotates, `raw` exempts — and
+the fifth, `security`, only has work to do on a machine running SELinux.
 
 Now the price, which is exactly the two things the table was paying for. That flow can no longer be
 NATted — there is nowhere to write the mapping. And it can no longer match `--ctstate ESTABLISHED`,

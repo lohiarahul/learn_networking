@@ -31,12 +31,12 @@ ip netns exec ns1 python3 -m http.server 80 --bind 0.0.0.0 >/tmp/ns1.log 2>&1 &
 sleep 1
 ```
 
-Get the address from your **normal terminal** and confirm the port is open:
+Get the address from your **normal terminal**, saved in a shell variable so the dials below can use it as written — keep using this same terminal for them:
 
 ```bash
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw
+GW=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw) ; echo "GW=$GW"
 docker run --rm nicolaka/netshoot \
-  curl -s -o /dev/null -m 4 -w 'outside -> :8080 = %{http_code}\n' http://<GW>:8080
+  curl -s -o /dev/null -m 4 -w 'outside -> :8080 = %{http_code}\n' http://$GW:8080
 ```
 
 ```
@@ -62,7 +62,7 @@ The rule is there, it is unambiguous, and it says `DROP`. Dial it:
 
 ```bash
 docker run --rm nicolaka/netshoot \
-  curl -s -o /dev/null -m 4 -w 'outside -> :8080 = %{http_code}\n' http://<GW>:8080
+  curl -s -o /dev/null -m 4 -w 'outside -> :8080 = %{http_code}\n' http://$GW:8080
 ```
 
 ```
@@ -79,7 +79,7 @@ iptables -Z
 ```
 
 ```bash
-docker run --rm nicolaka/netshoot curl -s -o /dev/null -m 4 http://<GW>:8080
+docker run --rm nicolaka/netshoot curl -s -o /dev/null -m 4 http://$GW:8080
 ```
 
 ```bash
@@ -218,7 +218,7 @@ table ip filter {
 
 **Rule order becomes `priority`.** In iptables, order is a global property of a chain, which means two programs writing to the same chain are in a fight. In nftables, each chain declares a priority at its hook, and the kernel walks them in that order. That is how two independent programs share a hook without a merge conflict, and it is why the modern answer to "Docker keeps overwriting my rules" is a separate table rather than a better position in `FORWARD`.
 
-It also pays off a debt. [The five hooks](03-iptables-and-nat.md) told you that when several tables have a chain at the same hook the order is `raw` → `mangle` → `nat` → `filter`, and said you could read that out of the kernel rather than memorise it. This is the command. Put a rule in four different tables at the same hook and ask the store what it made:
+It also pays off a debt. [The five hooks](03-iptables-and-nat.md) told you that when several tables have a chain at the same hook the order is fixed — at `PREROUTING`, `raw` → `mangle` → `nat` — and said you could read that out of the kernel rather than memorise it. This is the command. Put a rule in four different tables at the same hook and ask the store what it made:
 
 ```bash
 iptables -t raw    -A PREROUTING -d 10.99.0.1 -j ACCEPT

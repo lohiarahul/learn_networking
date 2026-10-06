@@ -6,19 +6,16 @@ This lesson pays the first two and walks you up to the wall the third is behind.
 
 ### The structure: two axes, and a chain where they cross
 
-`iptables` is not a firewall. It is a way of attaching rules to **fixed points in the kernel's packet path**, and a firewall is one of the things you can build with it. Three words carry the whole model, and each answers a different question:
+`iptables` is not a firewall. It is a way of attaching rules to **fixed points in the kernel's packet path**, and a firewall is one of the things you can build with it. Four words carry the whole model:
 
 - A **hook** answers ***when*** — at which point in a packet's journey the kernel stops to consult your rules. There are **five**, they are kernel-owned, and you cannot add one.
 - A **table** answers ***what kind of edit*** the rules there are allowed to make — decide the packet's fate, rewrite its addresses, tag it. There are **five**, also fixed.
 - A **chain** is ***the actual list of rules*** sitting at **one (table, hook) crossing**. A rule lives in a chain, so a rule's full address is a table *and* a hook — never just one of them.
+- A **policy** is a chain's ***default verdict*** — what happens to a packet that reaches the end of that chain with no rule having decided it. Exactly **one per built-in chain**, always. `iptables` prints it as a `-P` line.
 
 Tables and hooks are **two independent axes, not a hierarchy**, and that is the single most useful thing to know about this tool. `filter`'s `INPUT` and `nat`'s `INPUT` are two different lists that happen to share a name: walked at the same moment, holding different rules, keeping separate counters.
 
-One more term, because it shows up in output before anything else does:
-
-- A **policy** is a chain's ***default verdict*** — what happens to a packet that reaches the end of that chain with no rule having decided it. Exactly **one per built-in chain**, always. `iptables` prints it as a `-P` line.
-
-Which fixes the cardinality, and all four numbers are worth holding at once:
+All four numbers are worth holding at once:
 
 <!-- figure -->
 
@@ -27,18 +24,7 @@ Which fixes the cardinality, and all four numbers are worth holding at once:
                              17 of them actually exist as chains
                               1 policy per chain, no more, no less
                               0 rules on a machine nobody has configured
-
-   So a machine at rest prints 17 `-P` lines across all five tables and
-   nothing else. Every other line you ever see is one somebody wrote.
 ```
-
-**The five hooks**, in the order a packet meets them:
-
-- **PREROUTING** — the packet just arrived, *before* the kernel decides where it goes.
-- **INPUT** — the routing decision said "this is for me, locally."
-- **FORWARD** — the routing decision said "this is passing through me to somewhere else."
-- **OUTPUT** — a packet originating from a local process, heading out.
-- **POSTROUTING** — about to leave the machine, *after* the routing decision.
 
 **Draw it** — the five hooks, and the routing decision that chooses between the middle three:
 
@@ -73,91 +59,97 @@ Which fixes the cardinality, and all four numbers are worth holding at once:
                         PREROUTING → routing → INPUT
 ```
 
-**The five tables**, one verb each. The verb is the whole identity of a table, and it predicts which hooks that table bothers to have a chain at:
+**The five tables**, one verb each — and the verb predicts which hooks a table bothers to have a chain at:
 
-| Table | Its verb | Its chains — the hooks it has | # |
-|---|---|---|---|
-| **`filter`** | *decide* — accept or drop | `INPUT` · `FORWARD` · `OUTPUT` | 3 |
-| **`nat`** | *rewrite* — change an address | `PREROUTING` · `INPUT` · `OUTPUT` · `POSTROUTING` | 4 |
-| **`mangle`** | *annotate* — alter or tag fields | `PREROUTING` · `INPUT` · `FORWARD` · `OUTPUT` · `POSTROUTING` | 5 |
-| **`raw`** | *exempt* — act before conntrack | `PREROUTING` · `OUTPUT` | 2 |
-| **`security`** | *label* — tag for a security model | `INPUT` · `FORWARD` · `OUTPUT` | 3 |
+| Table | Its verb | A real job it does | Its chains | # |
+|---|---|---|---|---|
+| **`filter`** | *decide* — accept or drop | a server that admits SSH and silently drops everything else | `INPUT` · `FORWARD` · `OUTPUT` | 3 |
+| **`nat`** | *rewrite* — change an address | your home router letting ten devices share one public IP | `PREROUTING` · `INPUT` · `OUTPUT` · `POSTROUTING` | 4 |
+| **`mangle`** | *annotate* — tag or tweak a packet | tagging video-call packets so the machine handles them specially | all five | 5 |
+| **`raw`** | *exempt* — act before conntrack | a busy DNS server asking the kernel not to keep a ledger row per query | `PREROUTING` · `OUTPUT` | 2 |
+| **`security`** | *label* — for SELinux | only the web server's process may receive port-80 packets | `INPUT` · `FORWARD` · `OUTPUT` | 3 |
 
-**3 + 4 + 5 + 2 + 3 = 17.** That is where the number comes from, and you can now add it up yourself rather than take it from me. The other **8** of the 25 do not exist, and each blank is its own verb refusing its own hook — no blank is arbitrary, and this accounts for all eight:
+`filter` and `nat` explain themselves. The other three lean on machinery outside `iptables`:
 
-| Missing chain | Why that hook makes no sense for that verb |
+- **`raw`** tells the connection tracker — Act III's `nf_conntrack` — to skip a packet, so it gets no ledger row. Why would a busy DNS server want that, and why can `raw` only sit at the two hooks where packets *enter*? [When NAT runs out](03d-when-nat-runs-out.md) has you hit the wall that answers both.
+- **`security`** stamps a label that **SELinux** reads — a Linux access-control system that labels every process and file and allows only the pairings its policy lists. That is how an SELinux machine lets only the web server read port-80 traffic, even against another program running as root. It runs just after `filter`, because labelling a packet that is about to be dropped is wasted work.
+- **`mangle`** also tags, so tell it apart from `security` by **who reads the tag**. A `security` label is read by SELinux alone and never changes where a packet goes. A `mangle` mark is read by the kernel itself — which part, and what it does with it, is 03d's question.
+
+**3 + 4 + 5 + 2 + 3 = 17.** The other **8** crossings are each a verb with nothing to do at that hook:
+
+| Missing chains | Why that verb has nothing to do there |
 |---|---|
-| `filter` at `PREROUTING` | Filtering asks **whose** packet this is, and the routing decision has not answered that yet. |
-| `filter` at `POSTROUTING` | The packet already survived whichever of `INPUT`/`FORWARD`/`OUTPUT` applied. A second verdict would decide nothing new. |
-| `nat` at `FORWARD` | An address edit is only useful as a packet **arrives** or **leaves**. Rewriting midway through a transit it is already committed to changes nothing about where it goes. |
-| `raw` at `INPUT` | `raw`'s whole identity is *before conntrack*, and conntrack runs immediately after `PREROUTING`. By `INPUT` the packet is already tracked, so there is nothing left to exempt. |
-| `raw` at `FORWARD` | Same reason — already tracked. |
-| `raw` at `POSTROUTING` | Same reason — already tracked, and about to leave. |
-| `security` at `PREROUTING` | Same as `filter`: no owner established yet, so there is nothing to label it against. |
-| `security` at `POSTROUTING` | Same as `filter`: the decision has already been made. |
+| `filter`, `security` at `PREROUTING` | The routing decision has not said whose packet this is, so there is no owner to judge or label against. |
+| `filter`, `security` at `POSTROUTING` | The verdict was already given at whichever of `INPUT`/`FORWARD`/`OUTPUT` applied. |
+| `nat` at `FORWARD` | An address edit only matters as a packet **arrives** or **leaves**; mid-transit it changes nothing about where it goes. |
+| `raw` at `INPUT`, `FORWARD`, `POSTROUTING` | Conntrack runs straight after `PREROUTING`/`OUTPUT`, so by now the packet is tracked and there is nothing left to exempt. |
 
-Two patterns fall out of that list, and they are worth more than the eight rows. **`mangle` is the only table with all five**, because tagging a packet is useful at any moment — it neither needs to know whose the packet is nor cares whether it has been tracked. And **`filter` and `security` have the identical three**, because they answer the same question (what may happen to this packet) and so are blocked by the same two facts.
+Only `mangle` has no blanks: a tag is useful at any moment.
 
-**This lesson lives entirely in `filter` and `nat`**, and those two carry almost every rule you will ever meet — including all of Docker's and all of Kubernetes'. `mangle` and `raw` are built with properly in [When NAT runs out](03d-when-nat-runs-out.md). `security` belongs to an access-control system Act X meets properly; on most machines it is an empty table you see in a listing and nowhere else, and it is named here only so that "five" is a closed set rather than a hand-wave.
+**Draw it** — all seventeen chains in the order a packet walks them. Each cluster is one hook; the tables inside it run top to bottom:
 
-Now the grid those two axes make, tables stacked in the order they run:
+```mermaid
+flowchart LR
+  ARRIVE(["packet arrives"]) --> PRE
 
-<!-- figure -->
+  subgraph PRE["PREROUTING"]
+    direction TB
+    PRE_raw["raw"]
+    PRE_mangle["mangle"]
+    PRE_nat["nat"]
+    PRE_raw --> PRE_mangle --> PRE_nat
+  end
 
-```
-                 PREROUTING   INPUT   FORWARD   OUTPUT   POSTROUTING
-   raw               ●                              ●
-   mangle            ●          ●         ●         ●          ●
-   nat               ●          ●                   ●          ●
-   filter                       ●         ●         ●
-   security                     ●         ●         ●
+  PRE --> DECIDE{"routing decision:<br/>whose packet is this?"}
+  DECIDE -->|"mine"| INg
+  DECIDE -->|"someone else's"| FWDg
 
-   ● = a chain exists at this (table, hook) pair, and a rule can live there
-       17 of 25 cells filled — count the dots per row: 2, 5, 4, 3, 3
-       the 8 blanks are the eight named in the table above, each one a
-       verb refusing a hook where it would have nothing to do
+  subgraph INg["INPUT"]
+    direction TB
+    IN_mangle["mangle"]
+    IN_filter["filter"]
+    IN_sec["security"]
+    IN_nat["nat"]
+    IN_mangle --> IN_filter --> IN_sec --> IN_nat
+  end
+  INg --> LOCALIN(["local process"])
 
-   This grid is NOT a timeline. Time runs left to right, along the hooks;
-   the rows are only five tables listed in a fixed order. So `filter`
-   being drawn below `nat` does not put it later than nat's POSTROUTING
-   — read across `filter`'s own row and it stops at OUTPUT. Nothing in
-   the filter table ever runs at PREROUTING or POSTROUTING.
+  subgraph FWDg["FORWARD"]
+    direction TB
+    FWD_mangle["mangle"]
+    FWD_filter["filter"]
+    FWD_sec["security"]
+    FWD_mangle --> FWD_filter --> FWD_sec
+  end
+  FWDg --> POST
 
-   Within ONE column the order is fixed — but it is NOT simply top to
-   bottom as drawn, because `nat` runs in two different places:
+  LOCALOUT(["local process"]) --> OUTg
 
-     PREROUTING    raw  →  mangle  →  nat
-     INPUT                 mangle  →  filter  →  nat
-     FORWARD               mangle  →  filter
-     OUTPUT        raw  →  mangle  →  nat  →  filter
-     POSTROUTING           mangle  →  nat
+  subgraph OUTg["OUTPUT"]
+    direction TB
+    OUT_raw["raw"]
+    OUT_mangle["mangle"]
+    OUT_nat["nat"]
+    OUT_filter["filter"]
+    OUT_sec["security"]
+    OUT_raw --> OUT_mangle --> OUT_nat --> OUT_filter --> OUT_sec
+  end
+  OUTg --> POST
 
-   `raw` before `mangle` before `filter` never varies: exempt from
-   tracking before you tag, and tag before you decide. What moves is
-   `nat`, and its four chains are really two pairs — one pair edits a
-   packet's DESTINATION, the other edits its SOURCE:
-
-     destination edits — PREROUTING, OUTPUT — run BEFORE filter, so the
-       firewall judges the address the packet is really going to, not
-       the one written on it when it arrived.
-     source edits — INPUT, POSTROUTING — run AFTER filter, because
-       there is no point rewriting the sender of a packet that has
-       just been dropped.
-
-   So at OUTPUT nat comes first, and at INPUT it comes last. The verdict
-   is the dividing line, and the nat table sits on both sides of it.
-
-   (`security` runs at the end of INPUT, FORWARD and OUTPUT. Its exact
-   slot relative to `nat` differs between the two iptables backends —
-   which never matters, as the table is empty on virtually every
-   machine.)
-
-   `iptables -L` with no -t shows you ONE ROW of this grid: filter.
+  subgraph POST["POSTROUTING"]
+    direction TB
+    POST_mangle["mangle"]
+    POST_nat["nat"]
+    POST_mangle --> POST_nat
+  end
+  POST --> LEAVE(["packet leaves"])
 ```
 
-That ordering answers a question the two-axis model raises immediately: several tables have a chain at the same hook, so which runs first? It is fixed, not arbitrary, and readable out of the kernel rather than memorised — though the command that prints it belongs to [a later lesson](03b-reading-a-ruleset-you-did-not-write.md).
+`raw` before `mangle` before `filter` never varies: exempt from tracking before you tag, and tag before you decide. What moves is **`nat`, which sits on both sides of the verdict**. Its destination edits (`PREROUTING`, `OUTPUT`) run *before* `filter`, so the firewall judges where the packet is really going; its source edits (`INPUT`, `POSTROUTING`) run *after*, because there is no point rewriting the sender of a packet that has just been dropped. The kernel will print this order for you in [a later lesson](03b-reading-a-ruleset-you-did-not-write.md).
 
-Finally the command shape. Every `iptables` command on this page is these five parts, and this is the whole flag vocabulary of the act:
+**This lesson lives entirely in `filter` and `nat`**, which carry almost every rule you will ever meet — including all of Docker's and all of Kubernetes'. And `iptables -L` with no `-t` shows you only `filter`'s three chains.
+
+Finally the command shape. Every `iptables` command on this page is these five parts:
 
 ```
   iptables  -t filter  -A  FORWARD  -s 10.20.0.0/24  -j DROP
@@ -171,11 +163,8 @@ Finally the command shape. Every `iptables` command on this page is these five p
                     -L  list it (add -n numeric, -v counters, --line-numbers)
                     -P  set the chain's policy
 
-  -t  picks the table and defaults to `filter` — which is why most people
-      never notice the flag exists, and why the rules actually rewriting
-      their packets are invisible to them. The default is not arbitrary:
-      `filter` is the *decide* table, so `iptables` with no -t is a
-      firewall tool, and a firewall is what most people came for.
+  -t  picks the table and defaults to `filter` — which is why the rules
+      actually rewriting your packets are invisible to most people.
 
   -j  is "jump": where the packet goes when the match hits. ACCEPT and DROP
       are *verdicts*, and a verdict ends the packet's walk through the table.
@@ -196,7 +185,6 @@ docker run --rm -it --privileged --name gw nicolaka/netshoot
 
 ```bash
 ip -brief addr show                 # every interface and its addresses, one line each
-ip route                            # the routing table
 iptables -t nat -S                  # the nat table
 iptables -S                         # no -t, so: filter
 ```
@@ -210,11 +198,6 @@ eth0@if363       UP             172.17.0.2/16
 ```
 
 ```
-default via 172.17.0.1 dev eth0
-172.17.0.0/16 dev eth0 proto kernel scope link src 172.17.0.2
-```
-
-```
 -P PREROUTING ACCEPT        ← iptables -t nat -S
 -P INPUT ACCEPT
 -P OUTPUT ACCEPT
@@ -225,9 +208,9 @@ default via 172.17.0.1 dev eth0
 -P OUTPUT ACCEPT
 ```
 
-**Four and three**, and you can now read that as data rather than noise. Every `-P` line is one chain announcing its name and its default verdict, so counting `-P` lines counts chains: `nat` has four, `filter` has three, same kernel, same instant. That mismatch is the two-axis model showing through — a table is not one shared ruleset sliced five ways, it is its own compartment with its own membership, and `nat` has a `PREROUTING` and a `POSTROUTING` exactly where `filter` has a `FORWARD`. Not one actual rule anywhere. Every line that appears for the rest of this lesson is one you put there.
+**Four and three.** Each `-P` line is one chain announcing its default verdict, so counting them counts chains — and `nat` has a `PREROUTING` and a `POSTROUTING` exactly where `filter` has a `FORWARD`. Not one actual rule anywhere: every line that appears for the rest of this lesson is one you put there.
 
-Ask all five tables at once and the grid comes back printed by the kernel instead of drawn by me:
+Ask all five tables at once:
 
 ```bash
 for t in filter nat mangle raw security; do
@@ -245,7 +228,7 @@ raw       PREROUTING OUTPUT
 security  INPUT FORWARD OUTPUT
 ```
 
-Seventeen chain names across five tables — the seventeen filled cells, and each table's membership is exactly what its verb predicted. Now prove the two axes are genuinely independent: write what looks like the same rule twice, then delete it from one place.
+The table's seventeen chains, printed by the kernel. Now prove the two axes are independent: write what looks like the same rule twice, then delete it from one place.
 
 ```bash
 iptables -t filter -A INPUT -d 10.99.0.7 -j ACCEPT
@@ -268,9 +251,9 @@ iptables -t nat    -S INPUT      # still there
 iptables -L -n
 ```
 
-Your surviving `nat` rule is nowhere in that output, and nothing in the output admits it. That is one row of the grid, and it is worth remembering the next time a machine is plainly rewriting your packets while "the firewall" looks empty.
+Your surviving `nat` rule is nowhere in that output, and nothing in it admits the rule exists. Remember that the next time a machine is plainly rewriting your packets while "the firewall" looks empty.
 
-The eight blank cells are blank in a stronger sense than "empty list" — the chain is *absent*, and asking for it is an error:
+A missing chain is not an empty list — the chain is *absent*, and asking for it is an error:
 
 ```bash
 iptables -t filter -S PREROUTING ; echo "exit=$?"
@@ -282,13 +265,13 @@ iptables: No chain/target/match by that name.
 exit=1                                       ← "the command failed"
 ```
 
-Both fail, and both failures are the verb column being enforced: there is nothing for `filter` to decide before the routing decision has established whose packet this is, and nothing for `nat` to usefully rewrite midway through a transit. Clean up the survivor before moving on:
+Both fail: the verb table above, enforced by the kernel. Clean up the survivor before moving on:
 
 ```bash
 iptables -t nat -D INPUT -d 10.99.0.7 -j ACCEPT
 ```
 
-One caution about the word *chain*, because you will meet an apparent violation of it within two lessons. Every chain so far is a **built-in**: named after a hook, called by the kernel, carrying a policy. Nothing stops you — or a program — creating an extra, *named* list of rules and jumping into it from one of the five. Those have no hook and no policy, and `-L` tells you which kind you are looking at: a built-in prints `(policy ACCEPT)`, a named one prints `(2 references)`. So when you eventually run `iptables -t nat -L DOCKER` and find a chain named after a product, in a kernel with five hooks and no `DOCKER` among them, that is what you are looking at. Sit with the question it raises — *what happens to a packet that jumps somewhere and is not decided there?* — because it has two possible answers with very different consequences, and [the stateful firewall](03c-the-stateful-firewall.md) has you build one to find out which.
+One caution about the word *chain*. Every chain so far is a **built-in**: named after a hook, called by the kernel, carrying a policy. A program can also create extra *named* chains and jump into them from one of the five — those have no hook and no policy, and `-L` prints `(2 references)` where a built-in prints `(policy ACCEPT)`. That is what `DOCKER` is when you meet it two lessons from now. Sit with the question it raises — *what happens to a packet that jumps somewhere and is not decided there?* — because [the stateful firewall](03c-the-stateful-firewall.md) has you build one to find out.
 
 ### The gateway that is not one yet
 
@@ -307,17 +290,15 @@ ip netns exec ns1 ip addr add 10.20.0.2/24 dev veth-a-c   # ns1's address
 ip netns exec ns1 ip link set veth-a-c up
 ```
 
-Ten lines, and only the **third** is new. The other nine are lesson 02's, with the same roles its [vocabulary table](02-veth-and-bridge.md#the-words-and-what-wears-them) named: `veth-a-c` is the namespace end and holds the address, `veth-a` is a bridge port and holds none, `br0` is the switch. (Lesson 02 also brought `lo` up inside the namespace. Nothing on this page ever talks to `ns1`'s loopback, so that line is gone.) The new line is the one to slow down on: **`ip addr add 10.20.0.1/24 dev br0` claims the `.1` that lesson 02 pointedly left unclaimed.**
+Ten lines, and only the **third** is new; the other nine are lesson 02's, with the roles its [vocabulary table](02-veth-and-bridge.md#the-words-and-what-wears-them) named. (Lesson 02 also brought `lo` up inside the namespace; nothing here uses it, so that line is gone.)
 
-**A bridge is two objects wearing one name.** There is a *switch*, which learns MACs and forwards frames between the ports in `brif/` and neither has nor wants an address — that is the whole of lesson 02. And there is an *interface* named `br0`, which the host's own IP stack can own like any other. `ip addr add ... dev br0` talks to the second one. It does not address the switch, and it does not address anything plugged into the switch; it gives **the host one port on that switch** — the port that leads into the host's routing table. Physical switch vendors call that port the SVI, or the management interface.
-
-Last lesson nobody needed that half: three namespaces talking only to each other need a switch, not a host. Here `ns1` needs something only the host can fetch, so the host has to be *on* the subnet — hence `.1` on `br0` and `.2` in `ns1`, two hosts on one segment, one of which happens to be running the switch and takes `.1` because that is the number every network reserves for the way out.
+**`ip addr add 10.20.0.1/24 dev br0` puts the host on its own switch.** A bridge is two objects wearing one name: a *switch*, which forwards frames and wants no address, and an *interface* called `br0` that the host's IP stack can own like any other. Addressing the interface gives the host one port on the segment, at `.1` — the number networks reserve for the way out. Lesson 02's namespaces only talked to each other and never needed it; `ns1` now wants something only the host can fetch.
 
 **Draw it** — the segment as it now stands, with both halves of `br0` drawn as the separate objects they are, and the one interface that deliberately holds no address:
 
 ```mermaid
 flowchart TD
-  subgraph SEG["ONE Ethernet segment — built by the wiring below.<br/>Both ends then independently CHOSE an address in 10.20.0.0/24"]
+  subgraph SEG["ONE Ethernet segment — built by the wiring below.<br/>Both ends then each chose an address in 10.20.0.0/24"]
     subgraph HOST["the HOST network namespace"]
       IF["<b>br0</b> — the INTERFACE half<br/>10.20.0.1/24<br/>the host's own port on the switch"]
       SW["<b>br0</b> — the SWITCH half<br/>learns MACs · forwards frames<br/>holds no address, wants none"]
@@ -332,15 +313,7 @@ flowchart TD
   end
 ```
 
-**And where was that subnet "set"? Nowhere — which is the honest and more useful answer.** The *segment* is a real thing you built: `master br0` plus the veth pair is what lets frames reach, and you can enumerate it in `/sys/class/net/br0/brif/`. The *subnet* is not an object at all. No kernel entity is named `10.20.0.0/24`; there are only two routes, each derived privately by whichever machine ran its own `ip addr add`, which come out identical purely because both ends chose `/24`. **Nothing cross-checks them.** Give `ns1` `10.20.0.130/25` instead and it derives `10.20.0.128/25`, concludes `10.20.0.1` is not on its wire, and refuses to send — while the host, still holding a `/24`, goes on believing `.130` is a neighbour and ARPs for it. Same cable, one working direction. So "same subnet" names an *agreement between two independent configurations*, and the agreement is only ever enforced by the two sides having done the same arithmetic.
-
-Both addresses sit inside one box because **`.1` and `.2` are in the same `/24`, and that is deliberate.** Same subnet means same segment, and same segment means *no router is involved between them*. When the host sends to `10.20.0.2` the lookup runs three steps and none of them look for a gateway:
-
-1. `10.20.0.2` matches `10.20.0.0/24 dev br0 scope link`. **`scope link` means "these addresses are on my wire"** — reachable directly, no help needed.
-2. So there is no next hop to resolve. The host ARPs for `10.20.0.2` itself and learns `veth-a-c`'s MAC.
-3. It stamps on the source the route already named — `src 10.20.0.1` — hands the frame to `br0`, and the switch half forwards it out the single port whose MAC matches.
-
-**And `10.20.0.0` is not an address anyone holds** — nobody typed it, and nothing answers to it. It is the *name of the subnet*, which the kernel derived by keeping the `/24`'s worth of network bits from the address you gave it and zeroing the rest:
+**Where does `10.20.0.0/24` come from?** Nobody typed it. Both addresses were given with `/24`, which means the first 24 bits name the *network* and the rest pick a machine on it. The kernel names the network by keeping those 24 bits and zeroing the rest:
 
 ```
   10.20.0.2       00001010 00010100 00000000 00000010
@@ -349,20 +322,17 @@ Both addresses sit inside one box because **`.1` and `.2` are in the same `/24`,
                   └────── network: 24 bits ──────┘└host┘
 ```
 
-The `.0` is nothing but *host bits all zero*, so it is not a special number to memorise — `ip addr add 10.20.0.130/25` would have derived `10.20.0.128/25` instead. This is also why `ns1` ends up with a route bearing the identical name: it ran `ip addr add 10.20.0.2/24`, masked its own address with the same prefix length, and arrived at the same subnet. **Two machines agree they are on one segment precisely when this arithmetic gives them the same answer.**
+So `10.20.0.0/24` is not an address anyone holds — it is the name for *every address from `10.20.0.0` to `10.20.0.255`*, and you will write it as a match (`-s 10.20.0.0/24`, "from anything on this segment") later in this lesson.
 
-A routing decision *was* made; it decided that no router was needed, which is exactly what `scope link` records. So if routing feels absent here, that is because the interesting case has not arrived yet: a packet whose destination is **not** in `10.20.0.0/24` cannot be answered by that route, and the host would have to pass it on to something else entirely.
+Both ends are in `10.20.0.0/24`, so **no router is involved between them.** The route `ip addr add` installed for free, `10.20.0.0/24 dev br0 scope link`, means "these addresses are on my wire": the host ARPs for `10.20.0.2` directly and hands the frame to the switch. Note it says `dev br0`, not `dev veth-a` — the host's presence on this segment is now `br0`, and `veth-a` is plumbing that carries frames and holds no address:
 
 ```bash
 ip -brief addr show br0        # the interface half: it holds 10.20.0.1/24
 ip -brief addr show veth-a     # a port: no IPv4 address, and it needs none
-ls /sys/class/net/br0/brif/    # what the switch half is made of
-ip route                       # how the host reaches the segment
+ip route                       # 10.20.0.0/24 dev br0 ... scope link
 ```
 
-`veth-a` carries no address at all — only the link-local IPv6 the kernel gives every interface. Ports do not get addresses; they carry frames. And the route that `ip addr add` installed for free reads `10.20.0.0/24 dev br0`, not `dev veth-a`: when this host wants anything on that segment it goes **out through the bridge**, exactly like every namespace on it. That is "the host has one port on this switch", stated as a route.
-
-If that feels inconsistent with the *first* half of lesson 02, it should — there you put an address on the host's end of the cable itself. What changed is that there is now a switch in the middle, and `master br0` is the line that changed it. Before the bridge, the host's end of the cable *was* the host's presence on the wire, so it held the address. After it, the host's presence is `br0`, and `veth-a` is demoted to plumbing. **The address did not disappear; it moved to the object that now represents the host.** Nothing enforces this, which is the part worth remembering: enslaving an interface does not clear an address it already had, and `ip addr` keeps displaying it as though it were fine. It is simply not where the host lives any more.
+That route only answers for `10.20.0.0/24`. The interesting case is a destination outside it.
 
 > **Predict first —** `ns1` has an address, a cable, a switch, and a host on the far side with working internet. Run `ping 1.1.1.1` from `ns1`. It will fail. **Name the error message you expect**, and be specific about one thing: does the packet leave `ns1` at all?
 
@@ -460,9 +430,7 @@ iptables -Z
 iptables -L -n -v --line-numbers
 ```
 
-That first line is not decoration. With forwarding off, every counter below stays `0` and the instrument reads as though nothing happened — so set it before measuring rather than wondering later.
-
-`-Z` zeroes every counter, which is what makes the next reading mean only what it claims to. Everything reads `0`.
+The `sysctl` line matters: with forwarding off, every counter below stays `0` and the instrument reads as though nothing happened. `-Z` zeroes every counter so the next reading means only what it claims to.
 
 > **Predict first —** two experiments: a `ping` from **inside `ns1`**, then a `curl` from **this container's own shell**. For each, say which of the three counters moves. Do not answer "the relevant ones" — commit to three numbers per experiment, including the zeros, and be ready to be wrong about which chain a *reply* arrives on.
 
@@ -480,23 +448,21 @@ Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
 1        0     0 ACCEPT     all  --  *      *       0.0.0.0/0            1.1.1.1
 ```
 
-`FORWARD`'s rule has **2 packets, 168 bytes**. `INPUT` and `OUTPUT` are untouched, for a reason you can now state precisely: those two packets were not for this machine and not from it. **If your `FORWARD` rule reads `0`**, read its *policy* counter before anything else. Zero on both means no packet traversed the chain at all — the rule is not failing to match, the packet never arrived — and there are only two ways that happens here. Drop the `>/dev/null` and let `ping` tell you which:
+`FORWARD`'s rule has **2 packets, 168 bytes**. `INPUT` and `OUTPUT` are untouched: those two packets were not for this machine and not from it. (And nothing came *back*, because the reply is still undeliverable — that changes in one line, next lesson.)
 
-```bash
-echo "ip_forward = $(cat /proc/sys/net/ipv4/ip_forward)"
-ip netns exec ns1 ip route
-ip netns exec ns1 ping -c1 -W2 1.1.1.1 ; echo "exit=$?"
-```
+Note that `FORWARD`'s *policy* counter reads zero while its rule reads two. The policy counter counts **packets the policy itself had to dispose of** — not packets that entered the chain. `ACCEPT` is a *terminating* target, so both packets left at rule 1 and the policy was never consulted. Swap the target for `-j LOG`, which matches without deciding, and the same two packets are counted **twice**: once by the rule, then again by the policy that still has to dispose of them.
 
-`exit=2` means the packet never left `ns1` — its default route is missing, so re-run the `ip route add default via 10.20.0.1` from earlier. `exit=1` means it left and died on this host with forwarding off — the `sysctl` line above. The exit code you just learned is doing the whole diagnosis.
+> **If your `FORWARD` rule reads `0`** — and its policy counter reads `0` too — the packet never reached the chain at all. Drop the `>/dev/null` and let `ping`'s exit code say why:
+>
+> ```bash
+> echo "ip_forward = $(cat /proc/sys/net/ipv4/ip_forward)"
+> ip netns exec ns1 ip route
+> ip netns exec ns1 ping -c1 -W2 1.1.1.1 ; echo "exit=$?"
+> ```
+>
+> `exit=2`: it never left `ns1` — re-add the default route. `exit=1`: it left and died here with forwarding off — re-run the `sysctl` line.
 
-Note also that `FORWARD`'s *policy* counter reads zero while its rule reads two. Not a contradiction, once you know what the policy counter actually counts: **not packets that entered the chain, and not packets that matched nothing, but packets the policy itself had to dispose of.** `ACCEPT` is a *terminating* target, so your two packets left the chain at rule 1 and never reached the end — the policy was never consulted and counted nothing.
-
-The sharpest way to see that this is the real rule: swap the rule's target for `-j LOG`, which matches without deciding, and the same two packets are counted **twice** — once by the rule, then again by the policy that still has to dispose of them. A number can appear in both columns, which neither of the two tempting explanations allows.
-
-(And nothing came *back*: two echo requests, no replies, because the reply is still undeliverable. That changes in one line, next lesson.)
-
-Do not be thrown if a **policy** line elsewhere shows a stray packet you cannot account for; a container is never completely silent. It is the numbers on *your rules* that are the measurement, because you chose what they match. Now the other case:
+A policy line elsewhere may show a stray packet you cannot account for; a container is never completely silent. The numbers on *your rules* are the measurement, because you chose what they match. Now the other case:
 
 ```bash
 iptables -Z
@@ -513,9 +479,9 @@ Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
 1        6   391 ACCEPT     all  --  *      *       0.0.0.0/0            1.1.1.1
 ```
 
-**The mirror image**, and the two chains that moved moved in opposite halves of the dump. `OUTPUT`'s **rule** counted six while its policy counted zero — the rule matched every outbound packet, so not one of them ever reached the end of the chain. `INPUT` is the same distinction pointing the other way: its **policy** counted five while its rule counted zero, because the replies came *from* `1.1.1.1` and so did not match a rule written for traffic *from* `10.20.0.0/24`; they fell off the end of the chain and the policy counted them. `FORWARD` stayed at zero throughout — nothing was passing through this machine.
+**The mirror image.** `OUTPUT`'s **rule** counted six and its policy zero — the rule matched every outbound packet, so none reached the end of the chain. `INPUT` is the reverse: its **policy** counted five and its rule zero, because the replies came *from* `1.1.1.1`, did not match a rule written for traffic *from* `10.20.0.0/24`, and reached the end of the chain, where the `ACCEPT` policy let them through to `curl`. Reaching the end is not being dropped — here, the policy is what accepted them. `FORWARD` stayed at zero — nothing was passing through.
 
-**The number on the `Chain` line and the number on a rule line are different measurements.** Confusing them is how people conclude a rule fired when nothing of the sort happened, and it is why these two readings are worth more than the diagram they confirm: when someone insists their rule is not working, the counters tell you whether the packet ever *arrived* at that hook — almost always the real question, and almost never the one being asked.
+**The number on the `Chain` line and the number on a rule line are different measurements.** Confusing them is how people conclude a rule fired when it did not. When someone insists their rule is not working, the counters answer the real question first: did the packet ever *arrive* at that hook?
 
 **The file** — and here the creed does not hold, in a way worth stopping on. The rules are not in `/proc`. Check for yourself, after writing a rule so there is definitely something to find:
 
@@ -533,11 +499,11 @@ wc -c < /proc/net/ip_tables_names
 0
 ```
 
-**A file with exactly the right name, readable, and empty — zero bytes — while `iptables` shows you the rule it is supposed to describe.** That is stranger than "there is no file", and it is a genuine loose thread rather than a tidy lesson: something in this kernel still publishes that filename, and whatever `iptables` just wrote to did not go there. Hold on to it. [Reading a ruleset you did not write](03b-reading-a-ruleset-you-did-not-write.md) pulls on that thread and finds something underneath that changes how much you trust the `iptables` command itself.
+**A file with exactly the right name, readable, and zero bytes — while `iptables` shows the rule it should describe.** That is stranger than "there is no file": something in this kernel still publishes that filename, and whatever `iptables` just wrote to is not behind it. Hold on to that thread; [Reading a ruleset you did not write](03b-reading-a-ruleset-you-did-not-write.md) pulls on it and finds something that changes how much you trust the `iptables` command itself.
 
-For now, the practical half: the ruleset lives in kernel memory and the only door in is a **netlink** query — exactly the situation you met one lesson ago with the bridge's learned MAC table, which also had no file and also needed its own command to ask the kernel directly. `iptables` is that command for the ruleset.
+For now, the practical half: the ruleset lives in kernel memory, and the only door in is a **netlink** query — the same situation as the bridge's learned MAC table in [veth and bridge](02-veth-and-bridge.md). `iptables` is that command for the ruleset.
 
-**Tear it down** — everything on this page lives in the container, so leaving destroys all of it: the namespace, the bridge, the cable, and the ruleset. That is the whole reason we did not use `--network host`.
+**Tear it down** — everything on this page lives in the container, so leaving destroys the namespace, the bridge, the cable and the ruleset. That is why we did not use `--network host`.
 
 ```bash
 exit

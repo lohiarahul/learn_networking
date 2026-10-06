@@ -430,19 +430,40 @@ that order. So the traversal rule, stated once and for all:
 <!-- figure: chain-traversal -->
 
 ```
-  INPUT                                GATE
-  ─────                                ────
-  1  -i lo            ACCEPT           1  --dport 9999   DROP    ◄─ terminal: walk ends here
-  2  --ctstate ...    ACCEPT           2                 RETURN  ──┐ non-terminal: go back
-  3  -j GATE  ────────────────────────▶                            │
-  4  --dport 9000     ACCEPT  ◄────────────────────────────────────┘
-  5  (end of chain)  → POLICY applies      (end of a USER chain) → return to caller
-     ▲                                      there is no policy to apply
-     └─ only built-in chains have one
+  A rule only acts on a packet that MATCHES it. No match = move to the next line.
 
-  ACCEPT / DROP / REJECT are TERMINAL: the packet's walk through this table stops.
-  RETURN and falling off the end of a user chain are NOT: the walk resumes at the
-  rule AFTER the jump that brought it in.
+  INPUT                                   GATE (a user chain)
+  1  -i lo              ACCEPT            1  --dport 9999   DROP
+  2  --ctstate EST,REL  ACCEPT            2  (matches all)  RETURN
+  3  (matches all)      -j GATE  ──────▶
+  4  --dport 9000       ACCEPT
+  end of INPUT          POLICY (DROP)     end of GATE        go back to the caller
+
+  Four packets, four walks:
+
+  loopback packet
+    INPUT 1  matches -i lo ........ ACCEPT. Walk over. It never reaches line 3, so it never enters GATE.
+
+  new connection to port 9000
+    INPUT 1  no match ............. next line
+    INPUT 2  no match (not yet established) .. next line
+    INPUT 3  -j GATE, matches all . jump into GATE
+      GATE 1 dport 9999? no ....... next line
+      GATE 2 RETURN ............... leave GATE, resume at the line AFTER the jump
+    INPUT 4  dport 9000? yes ...... ACCEPT. Walk over.
+
+  new connection to port 9999
+    INPUT 1, 2  no match
+    INPUT 3  jump into GATE
+      GATE 1 dport 9999? yes ...... DROP. Walk over. INPUT 4 never runs.
+
+  new connection to port 22
+    INPUT 1, 2  no match.  INPUT 3 jumps into GATE.  GATE 1 no match.  GATE 2 RETURN.
+    INPUT 4  dport 9000? no. End of INPUT, so the POLICY decides: DROP.
+
+  ACCEPT / DROP / REJECT are TERMINAL: the walk through this table stops, and nothing below runs.
+  RETURN, and falling off the end of a user chain, are NOT: the walk resumes at the line
+  after the jump. Only the five built-in chains have a policy to apply at the end.
 ```
 
 That single picture is what makes every ruleset you will ever inherit readable, and it retires the
